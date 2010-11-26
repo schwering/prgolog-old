@@ -91,25 +91,25 @@ poss(_, _).
 
 
 
-:- pred semidet_proc(gproc(A), gcode(A)).
-:- mode semidet_proc(in, in(semidet_gcode)) is semidet.
-:- mode semidet_proc(in, out(semidet_gcode)) is det.
+%:- pred semidet_proc(gproc(A), gcode(A)).
+%:- mode semidet_proc(in, in(semidet_gcode)) is semidet.
+%:- mode semidet_proc(in, out(semidet_gcode)) is det.
+%
+%semidet_proc(P, E) :-
+%    (   P = proc1,
+%        E = nil
+%    ).
 
-semidet_proc(P, E) :-
-    (   P = proc1,
-        E = nil
-    ).
 
 
-
-:- pred nondet_proc(gproc(A), gcode(A)).
-:- mode nondet_proc(in, in(nondet_gcode)) is semidet.
-:- mode nondet_proc(in, out(nondet_gcode)) is det.
-
-nondet_proc(P, E) :-
-    (   P = proc1,
-        E = nil
-    ).
+%:- pred nondet_proc(gproc(A), gcode(A)).
+%:- mode nondet_proc(in, in(nondet_gcode)) is semidet.
+%:- mode nondet_proc(in, out(nondet_gcode)) is det.
+%
+%nondet_proc(P, E) :-
+%    (   P = proc1,
+%        E = nil
+%    ).
 
 
 
@@ -124,72 +124,70 @@ proc(P, E) :-
 
 
 
-:- pred to_nondet_cond(gcond(A), gcond(A)).
-:- mode to_nondet_cond(in(semidet_gcond), out(nondet_gcond)) is det.
-:- mode to_nondet_cond(in(nondet_gcond), out(nondet_gcond)) is det.
-:- pragma promise_pure(to_nondet_cond/2).
+%:- pred to_nondet_cond(gcond(A), gcond(A)).
+%:- mode to_nondet_cond(in(semidet_gcond), out(nondet_gcond)) is det.
+%:- mode to_nondet_cond(in(nondet_gcond), out(nondet_gcond)) is det.
+%:- pragma promise_pure(to_nondet_cond/2).
 
-to_nondet_cond(P::in(semidet_gcond), Q::out(nondet_gcond)) :-
-    (   P = and(P1, P2),
-        Q = and(Q1, Q2),
-        to_nondet_cond(P1, Q1),
-        to_nondet_cond(P2, Q2)
-    ;   P = or(P1, P2),
-        Q = or(Q1, Q2),
-        to_nondet_cond(P1, Q1),
-        to_nondet_cond(P2, Q2)
-    ;   P = if(P1, P2),
-        Q = if(Q1, Q2),
-        to_nondet_cond(P1, Q1),
-        to_nondet_cond(P2, Q2)
-    ;   P = iff(P1, P2),
-        Q = iff(Q1, Q2),
-        to_nondet_cond(P1, Q1),
-        to_nondet_cond(P2, Q2)
-    ;   P = neg(P1),
-        Q = neg(Q1),
-        to_nondet_cond(P1, Q1)
-    ;   P = fluent(F),
-        Q = fluent((pred(S::in) is nondet :- F(S)))
-    ).
-
-to_nondet_cond(P::in(nondet_gcond), Q::out(nondet_gcond)) :-
-    P = Q.
-
+%to_nondet_cond(P::in(semidet_gcond), Q::out(nondet_gcond)) :-
+%    (   P = and(P1, P2),
+%        Q = and(Q1, Q2),
+%        to_nondet_cond(P1, Q1),
+%        to_nondet_cond(P2, Q2)
+%    ;   P = or(P1, P2),
+%        Q = or(Q1, Q2),
+%        to_nondet_cond(P1, Q1),
+%        to_nondet_cond(P2, Q2)
+%    ;   P = if(P1, P2),
+%        Q = if(Q1, Q2),
+%        to_nondet_cond(P1, Q1),
+%        to_nondet_cond(P2, Q2)
+%    ;   P = iff(P1, P2),
+%        Q = iff(Q1, Q2),
+%        to_nondet_cond(P1, Q1),
+%        to_nondet_cond(P2, Q2)
+%    ;   P = neg(P1),
+%        Q = neg(Q1),
+%        to_nondet_cond(P1, Q1)
+%    ;   P = fluent(F),
+%        Q = fluent((pred(S::in) is nondet :- F(S)))
+%    ).
+%to_nondet_cond(P::in(nondet_gcond), Q::out(nondet_gcond)) :-
+%    P = Q.
 
 
-:- pred to_nondet_code(gcode(A), gcode(A)).
-:- mode to_nondet_code(in(semidet_gcode), out(nondet_gcode)) is det.
-:- mode to_nondet_code(in(nondet_gcode), out(nondet_gcode)) is det.
-:- pragma promise_pure(to_nondet_code/2).
 
-to_nondet_code(E::in(semidet_gcode), F::out(nondet_gcode)) :-
-    (   E = seq(E1, E2),
-        F = seq(F1, F2),
-        to_nondet_code(E1, F1),
-        to_nondet_code(E2, F2)
-    ;   E = test(P),
-        F = test(Q),
-        to_nondet_cond(P, Q)
-    ;   E = if(P, E1, E2),
-        F = if(Q, F1, F2),
-        to_nondet_cond(P, Q),
-        to_nondet_code(E1, F1),
-        to_nondet_code(E2, F2)
-    ;   E = while(P, E1),
-        F = while(Q, F1),
-        to_nondet_cond(P, Q),
-        to_nondet_code(E1, F1)
-    ;   E = prim(A),
-        F = prim(A)
-    ;   E = proc(N),
-        F = proc(N)
-    ;   E = nil,
-        F = nil
-    ).
-
-to_nondet_code(E::in(nondet_gcode), F::out(nondet_gcode)) :-
-    E = F.
+%:- pred to_nondet_code(gcode(A), gcode(A)).
+%:- mode to_nondet_code(in(semidet_gcode), out(nondet_gcode)) is det.
+%:- mode to_nondet_code(in(nondet_gcode), out(nondet_gcode)) is det.
+%:- pragma promise_pure(to_nondet_code/2).
+%
+%to_nondet_code(E::in(semidet_gcode), F::out(nondet_gcode)) :-
+%    (   E = seq(E1, E2),
+%        F = seq(F1, F2),
+%        to_nondet_code(E1, F1),
+%        to_nondet_code(E2, F2)
+%    ;   E = test(P),
+%        F = test(Q),
+%        to_nondet_cond(P, Q)
+%    ;   E = if(P, E1, E2),
+%        F = if(Q, F1, F2),
+%        to_nondet_cond(P, Q),
+%        to_nondet_code(E1, F1),
+%        to_nondet_code(E2, F2)
+%    ;   E = while(P, E1),
+%        F = while(Q, F1),
+%        to_nondet_cond(P, Q),
+%        to_nondet_code(E1, F1)
+%    ;   E = prim(A),
+%        F = prim(A)
+%    ;   E = proc(N),
+%        F = proc(N)
+%    ;   E = nil,
+%        F = nil
+%    ).
+%to_nondet_code(E::in(nondet_gcode), F::out(nondet_gcode)) :-
+%    E = F.
 
 
 
@@ -319,8 +317,8 @@ trans(E, R, S, S1) :-
                 R = nil,
                 S = S1
         )
-    ;   E = proc(_),
-        proc_body(E, E2),
+    ;   E = proc(E1),
+        proc(E1, E2),
         trans(E2, R, S, S1)
     ;   E = prim(A),
         R = nil,
@@ -330,21 +328,21 @@ trans(E, R, S, S1) :-
 
 
 
-:- pred proc_body(gcode(A), gcode(A)).
-%:- mode proc_body(in(semidet_gcode), out(semidet_gcode)) is semidet.
-:- mode proc_body(in(nondet_gcode), out(nondet_gcode)) is semidet.
-%:- pragma promise_pure(proc_body/2).
-
-%proc_body(Call::in(semidet_gcode), E::out(semidet_gcode)) :-
-    %Call = proc(N),
-    %semidet_proc(N, E).
-
-proc_body(Call::in(nondet_gcode), E::out(nondet_gcode)) :-
-    Call = proc(N),
-    (   if      semidet_proc(N, E0)
-        then    to_nondet_code(E0, E)
-        else    nondet_proc(N, E)
-    ).
+%:- pred proc_body(gcode(A), gcode(A)).
+%%:- mode proc_body(in(semidet_gcode), out(semidet_gcode)) is semidet.
+%:- mode proc_body(in(nondet_gcode), out(nondet_gcode)) is semidet.
+%%:- pragma promise_pure(proc_body/2).
+%
+%%proc_body(Call::in(semidet_gcode), E::out(semidet_gcode)) :-
+%    %Call = proc(N),
+%    %semidet_proc(N, E).
+%
+%proc_body(Call::in(nondet_gcode), E::out(nondet_gcode)) :-
+%    Call = proc(N),
+%    (   if      semidet_proc(N, E0)
+%        then    to_nondet_code(E0, E)
+%        else    nondet_proc(N, E)
+%    ).
 
 
 
