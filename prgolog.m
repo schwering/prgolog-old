@@ -25,7 +25,6 @@
     --->    prim(A)
     ;       stoch(B)
     ;       test(relfluent(A)).
-
 :- inst semidet_atom
     --->    prim(ground)
     ;       stoch(ground)
@@ -34,7 +33,6 @@
 :- type pseudo_atom(A, B, P)
     --->    atom(atom(A, B))
     ;       complex(prog(A, B, P)).
-
 :- inst semidet_pseudo_atom
     --->    atom(semidet_atom)
     ;       complex(semidet_prog).
@@ -47,7 +45,6 @@
     ;       proc(P)
     ;       pseudo_atom(pseudo_atom(A, B, P))
     ;       nil.
-
 :- inst semidet_prog
     --->    seq(semidet_prog, semidet_prog)
     ;       non_det(semidet_prog, semidet_prog)
@@ -208,12 +205,16 @@ trans_atom(C, S, S1) :-
         S1 = S
     ).
 
+:- type partition(A, B, P) ---> part(head :: atom(A, B),
+                                     rest :: prog(A, B, P)).
+:- inst semidet_partition ---> part(semidet_atom, semidet_prog).
+
 :- type cand(A, B, P) ---> cand(rest_horizon :: horizon,
                                 prog         :: prog(A, B, P),
                                 sit          :: sit(A),
                                 value        :: reward,
                                 succ_trans   :: int).
-                                
+:- inst semidet_cand ---> cand(ground, semidet_prog, ground, ground, ground).
 
 :- pred trans(horizon, prog(A, B, P), sit(A),
               horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
@@ -222,26 +223,57 @@ trans_atom(C, S, S1) :-
 
 trans(H, P, S, H1, P1, S1) :-
     H >= 1,
-    solutions((pred(Cand::out) is nondet :- (
-        next2(P, C, P_Cand),
-        trans_atom(C, S, S_Cand),
-        H_Cand = new_horizon(H, C),
-        trans_max_h(H_Cand, P_Cand, S_Cand, S_Horizon, SuccTrans),
-        V_Cand = reward(S_Horizon),
-        Cand = cand(H_Cand, P_Cand, S_Cand, V_Cand, SuccTrans)
-    )), Cands),
-    Cands = [HeadCand|RestCands],
-    list.foldl((pred(NewCand::in, OldCand::in, BetterCand::out) is det :- (
-        if      (   value(NewCand) > value(OldCand)
-                ;   value(NewCand) = value(OldCand),
-                    succ_trans(NewCand) > succ_trans(OldCand)
-                )
-        then    BetterCand = NewCand
-        else    BetterCand = OldCand
-    )), RestCands, HeadCand, BestCand),
-    H1 = rest_horizon(BestCand),
-    P1 = prog(BestCand),
-    S1 = sit(BestCand).
+    (pred(MyParts::out(list(semidet_partition))) is det :-
+        solutions((pred(Partition::out(semidet_partition)) is nondet :-
+            next2(P, head(Partition), rest(Partition))
+        ), MyParts)
+    )(Parts),
+    (   if      Parts = [Part]
+        then    trans_atom(head(Part), S, S1),
+                P1 = rest(Part),
+                H1 = new_horizon(H, head(Part))
+        else    InitCand = cand(-1, nil, s0, -1, -1),
+                list.foldl((pred(Part::in(semidet_partition),
+                                 Cand1::in(semidet_cand),
+                                 Better::out(semidet_cand)) is det :-
+                    if      trans_atom(head(Part), S, sit(Cand2)),
+                            rest_horizon(Cand2) = new_horizon(H, head(Part)),
+                            prog(Cand2) = rest(Part),
+                            trans_max_h(rest_horizon(Cand2), prog(Cand2),
+                                        sit(Cand2), S2, succ_trans(Cand2)),
+                            value(Cand2) = reward(S2),
+                            (   value(Cand2) > value(Cand1)
+                            ;   value(Cand2) = value(Cand1),
+                            succ_trans(Cand2) > succ_trans(Cand1))
+                    then    Better = Cand2
+                    else    Better = Cand1
+                ), Parts, InitCand, BestCand),
+                H1 = rest_horizon(BestCand),
+                S1 = sit(BestCand),
+                P1 = prog(BestCand)
+    )
+    .
+
+%    solutions((pred(Cand::out) is nondet :- (
+%        next2(P, C, P_Cand),
+%        trans_atom(C, S, S_Cand),
+%        H_Cand = new_horizon(H, C),
+%        trans_max_h(H_Cand, P_Cand, S_Cand, S_Horizon, SuccTrans),
+%        V_Cand = reward(S_Horizon),
+%        Cand = cand(H_Cand, P_Cand, S_Cand, V_Cand, SuccTrans)
+%    )), Cands),
+%    Cands = [HeadCand|RestCands],
+%    list.foldl((pred(NewCand::in, OldCand::in, BetterCand::out) is det :- (
+%        if      (   value(NewCand) > value(OldCand)
+%                ;   value(NewCand) = value(OldCand),
+%                    succ_trans(NewCand) > succ_trans(OldCand)
+%                )
+%        then    BetterCand = NewCand
+%        else    BetterCand = OldCand
+%    )), RestCands, HeadCand, BestCand),
+%    H1 = rest_horizon(BestCand),
+%    P1 = prog(BestCand),
+%    S1 = sit(BestCand).
 
 trans(P, S, P1, S1) :-
     H = horizon(S),
