@@ -4,15 +4,16 @@
 
 :- interface.
 
-:- import_module prgolog.
 :- import_module io.
 :- pred main(io::di, io::uo) is det.
 
 
 :- implementation.
+:- import_module prgolog.
 :- import_module list.
 :- import_module solutions.
 :- import_module string.
+:- import_module term_io.
 
 :- type prim_action ---> a1 ; a2 ; a3.
 :- type stoch_action ---> b1 ; b2 ; b3.
@@ -40,11 +41,11 @@ reward(S) = (
 proc(P, P1) :-
     (   P = p1, P1 = pseudo_atom(atom(prim(a1)))
     ;   P = p2, P1 = nil
-    ;   P = p3, P1 = pseudo_atom(atom(prim(a3)))
+    ;   P = p3, P1 = pseudo_atom(atom(stoch(b3)))
     ).
 
 
-:- instance bat(prim_action, stoch_action, procedure) where [
+:- instance bat(main.prim_action, main.stoch_action, main.procedure) where [
     pred(poss/2) is main.poss,
     pred(random_outcome/3) is main.random_outcome,
     func(reward/1) is main.reward,
@@ -53,7 +54,8 @@ proc(P, P1) :-
 
 
 main(!IO) :-
-    if      trans(proc(p1), s0, _P1, S1), S1 = do(a1, s0)
-    then    io.format("ok\n", [], !IO)
-    else    io.format("na, du?\n", [], !IO).
+    if      P = seq(pseudo_atom(atom(prim(a1))), seq(proc(p1), pseudo_atom(atom(stoch(b3))))),
+            trans(P, s0, P1, S1), S1 = do(a1, s0)
+    then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.format("\n", [], !IO), io.write(P1, !IO), io.format("\n", [], !IO)
+    else    io.format("fail\n", [], !IO).
 

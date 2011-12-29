@@ -15,6 +15,8 @@
 
 :- type sit(A) ---> s0 ; do(A, sit(A)).
 
+:- type reward == int.
+
 :- type relfluent(A) == pred(sit(A)).
 :- type funfluent(A, R) == (func(sit(A)) = R).
 
@@ -41,14 +43,14 @@
     ;       pseudo_atom(pseudo_atom(A, B, P))
     ;       nil.
 
-:- typeclass bat(A, B, P) where [
+:- typeclass bat(A, B, P) <= ((A -> B), (A, B -> P)) where [
     pred poss(A, sit(A)),
     mode poss(in, in) is semidet,
 
     pred random_outcome(B, A, S),
     mode random_outcome(in, out, in) is det,
 
-    func reward(sit(A)) = int,
+    func reward(sit(A)) = reward,
     mode reward(in) = out is det,
 
     pred proc(P, prog(A, B, P)),
@@ -65,21 +67,23 @@
 :- mode next2(in, out, out) is nondet.
 
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
-:- mode trans_atom(in, in, out) is det.
+:- mode trans_atom(in, in, out) is semidet.
 
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode trans(in, in, out, out) is det.
+:- mode trans(in, in, out, out) is semidet.
 
 
 :- implementation.
 
+:- import_module int.
 :- import_module list.
+:- import_module solutions.
 
 holds(T, S) :-
     (   T = and(T1, T2), holds(T1, S), holds(T2, S)
     ;   T = or(T1, T2), ( holds(T1, S) ; holds(T2, S) )
     ;   T = neg(T1), not holds(T1, S)
-    ;   T = rf(P), P(S)
+    ;   T = rf(P)%, P(S)
     ).
 
 next(P, C, R) :-
@@ -97,7 +101,8 @@ next(P, C, R) :-
             R = conc(P1, R2)
         )
     ;   P = proc(N),
-        proc(N, P1)
+        proc(N, P1),
+        next(P1, C, R)
     ;   P = pseudo_atom(C),
         R = nil
     ;   P = nil,
@@ -125,14 +130,23 @@ trans_atom(C, S, S1) :-
         S1 = S
     ).
 
+:- type cand(A, B, P) ---> cand(prog  :: prog(A, B, P),
+                                sit   :: sit(A),
+                                value :: reward).
+
 trans(P, S, P1, S1) :-
-    solutions((pred(P1::out, S1::out, V::out) :-
-            (next2(P, C, P1), trans_atom(C, S, S1), V = reward(S1))), Cands),
+    solutions((pred(Cand::out) is nondet :- (
+        next2(P, C, P_Cand),
+        trans_atom(C, S, S_Cand),
+        V_Cand = reward(S_Cand),
+        Cand = cand(P_Cand, S_Cand, V_Cand)
+    )), Cands),
     Cands = [HeadCand|RestCands],
-    list.foldl((pred((P2, S2, V2)::in, (P1, S1, V1)::in, (P3, S3, V3)::out) :-
-            (if     V2 > V1
-             then   (P3, S3, V3) = (P2, S2, V2)
-             else   (P3, S3, V3) = (P1, S2, V1)
-            )), RestCands, HeadCand, BestCand),
-    BestCand = (P1, S1, _).
+    list.foldl((pred(NewCand::in, OldCand::in, BetterCand::out) is det :- (
+        if      value(NewCand) > value(OldCand)
+        then    BetterCand = NewCand
+        else    BetterCand = OldCand
+    )), RestCands, HeadCand, BestCand),
+    P1 = prog(BestCand),
+    S1 = sit(BestCand).
 
