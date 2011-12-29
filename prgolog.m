@@ -18,7 +18,7 @@
 :- type reward == int.
 
 :- type relfluent(A) == pred(sit(A)).
-:- type funfluent(A, R) == (func(sit(A)) = R).
+%:- type funfluent(A, R) == (func(sit(A)) = R).
 
 :- type test(A)
     --->    and(test(A), test(A))
@@ -26,21 +26,46 @@
     ;       neg(test(A))
     ;       rf(relfluent(A)).
 
+:- inst semidet_test
+    --->    and(semidet_test, semidet_test)
+    ;       or(semidet_test, semidet_test)
+    ;       neg(semidet_test)
+    ;       rf(pred(in) is semidet).
+
 :- type atom(A, B)
     --->    prim(A)
     ;       stoch(B)
     ;       test(test(A)).
 
+:- inst semidet_atom
+    --->    prim(ground)
+    ;       stoch(ground)
+    ;       test(semidet_test).
+
 :- type pseudo_atom(A, B, P)
     --->    atom(atom(A, B))
     ;       complex(prog(A, B, P)).
+
+:- inst semidet_pseudo_atom
+    --->    atom(semidet_atom)
+    ;       complex(semidet_prog).
 
 :- type prog(A, B, P)
     --->    seq(prog(A, B, P), prog(A, B, P))
     ;       non_det(prog(A, B, P), prog(A, B, P))
     ;       conc(prog(A, B, P), prog(A, B, P))
+    ;       star(prog(A, B, P))
     ;       proc(P)
     ;       pseudo_atom(pseudo_atom(A, B, P))
+    ;       nil.
+
+:- inst semidet_prog
+    --->    seq(semidet_prog, semidet_prog)
+    ;       non_det(semidet_prog, semidet_prog)
+    ;       conc(semidet_prog, semidet_prog)
+    ;       star(semidet_prog)
+    ;       proc(ground)
+    ;       pseudo_atom(semidet_pseudo_atom)
     ;       nil.
 
 :- typeclass bat(A, B, P) <= ((A -> B), (A, B -> P)) where [
@@ -54,23 +79,26 @@
     mode reward(in) = out is det,
 
     pred proc(P, prog(A, B, P)),
-    mode proc(in, out) is det
+    mode proc(in(ground), out(semidet_prog)) is det
 ].
 
 :- pred holds(test(A), sit(A)).
-:- mode holds(in, in) is semidet.
+:- mode holds(in(semidet_test), in) is semidet.
 
 :- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P)) <= bat(A, B, P).
-:- mode next(in, out, out) is nondet.
+:- mode next(in(semidet_prog), out(semidet_pseudo_atom), out(semidet_prog)) is nondet.
+
+:- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
+:- mode maybe_final(in(semidet_prog)) is semidet.
 
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
-:- mode next2(in, out, out) is nondet.
+:- mode next2(in(semidet_prog), out(semidet_atom), out(semidet_prog)) is nondet.
 
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
-:- mode trans_atom(in, in, out) is semidet.
+:- mode trans_atom(in(semidet_atom), in, out) is semidet.
 
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode trans(in, in, out, out) is semidet.
+:- mode trans(in(semidet_prog), in, out(semidet_prog), out) is semidet.
 
 
 :- implementation.
@@ -83,13 +111,16 @@ holds(T, S) :-
     (   T = and(T1, T2), holds(T1, S), holds(T2, S)
     ;   T = or(T1, T2), ( holds(T1, S) ; holds(T2, S) )
     ;   T = neg(T1), not holds(T1, S)
-    ;   T = rf(P)%, P(S)
+    ;   T = rf(P), P(S)
     ).
 
 next(P, C, R) :-
     (   P = seq(P1, P2),
-        next(P1, C, R1),
-        R = seq(R1, P2)
+        (   next(P1, C, R1),
+            R = seq(R1, P2)
+        ;   maybe_final(P1),
+            next(P2, C, R)
+        )
     ;   P = non_det(P1, P2),
         (   next(P1, C, R)
         ;   next(P2, C, R)
@@ -100,6 +131,9 @@ next(P, C, R) :-
         ;   next(P2, C, R2),
             R = conc(P1, R2)
         )
+    ;   P = star(P1),
+        next(P1, C, R1),
+        R = seq(R1, star(P1))
     ;   P = proc(N),
         proc(N, P1),
         next(P1, C, R)
@@ -107,6 +141,23 @@ next(P, C, R) :-
         R = nil
     ;   P = nil,
         false
+    ).
+
+maybe_final(P) :-
+    (   P = seq(P1, P2),
+        maybe_final(P1),
+        maybe_final(P2)
+    ;   P = non_det(P1, P2),
+        (   maybe_final(P1)
+        ;   maybe_final(P2)
+        )
+    ;   P = conc(P1, P2),
+        maybe_final(P1),
+        maybe_final(P2)
+    ;   P = star(_)
+    ;   P = pseudo_atom(_),
+        false
+    ;   P = nil
     ).
 
 next2(P, C, R) :-

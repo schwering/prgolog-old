@@ -10,6 +10,7 @@
 
 :- implementation.
 :- import_module prgolog.
+:- import_module int.
 :- import_module list.
 :- import_module solutions.
 :- import_module string.
@@ -32,12 +33,13 @@ random_outcome(B, A, _S) :-
 
 :- func reward(sit(prim_action)) = int is det.
 reward(S) = (
-    if      S = do(a1, S0) then main.reward(S0)% + 1
+    if      S = do(a1, S0) then main.reward(S0) + 1
     else if S = do(_,  S0) then main.reward(S0)
     else                        0
 ).
 
-:- pred proc(procedure::in, prog(prim_action, stoch_action, procedure)::out) is det.
+:- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
+:- mode proc(in(ground), out(semidet_prog)) is det.
 proc(P, P1) :-
     (   P = p1, P1 = pseudo_atom(atom(prim(a1)))
     ;   P = p2, P1 = nil
@@ -52,10 +54,23 @@ proc(P, P1) :-
     pred(proc/2) is main.proc
 ].
 
+:- pred p(int, int, int).
+:- mode p(in, in, out) is semidet.
+p(X, Y, Z) :- X = 1, Y + 1 = Z.
+
+:- pred q(int, int, int).
+:- mode q(in, in, out) is nondet.
+q(X, Y, Z) :- X = 1, Y + 1 = Z ; X = 1, Y + 2 = Z.
+
+:- pred a(pred(int), int).
+:- mode a(pred(out) is semidet, out) is semidet.
+:- mode a(pred(out) is nondet, out) is nondet.
+a(P, Y) :- call(P, Y).
 
 main(!IO) :-
-    if      P = seq(pseudo_atom(atom(prim(a1))), seq(proc(p1), pseudo_atom(atom(stoch(b3))))),
-            trans(P, s0, P1, S1), S1 = do(a1, s0)
-    then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.format("\n", [], !IO), io.write(P1, !IO), io.format("\n", [], !IO)
+    if      P = nil `seq` pseudo_atom(atom(prim(a1))) `seq` proc(p1) `seq` pseudo_atom(atom(stoch(b3))),
+            trans(P, s0, P1, S1),
+            S1 = do(a1, s0)
+    then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.nl(!IO), io.write(P1, !IO), io.nl(!IO)
     else    io.format("fail\n", [], !IO).
 
