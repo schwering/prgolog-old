@@ -218,9 +218,9 @@ trans_atom(C, S, S1) :-
     ).
 
 
-:- type partition(A, B, P) ---> part(head :: atom(A, B),
+:- type decomposition(A, B, P) ---> part(head :: atom(A, B),
                                      rest :: prog(A, B, P)).
-:- inst semidet_partition ---> part(semidet_atom, semidet_prog).
+:- inst semidet_decomposition ---> part(semidet_atom, semidet_prog).
 
 :- type candidate(A, B, P) ---> candidate(rest_horizon :: horizon,
                                           prog         :: prog(A, B, P),
@@ -240,24 +240,26 @@ trans_atom(C, S, S1) :-
 
 trans(H, P, S, H1, P1, S1) :-
     H >= 1,
-    (pred(MyParts::out(list(semidet_partition))) is det :-
-        solutions((pred(Partition::out(semidet_partition)) is nondet :-
-            next2(P, head(Partition), rest(Partition))
-        ), MyParts)
-    )(Parts),
-    (   % Deterministic: simply execute without lookahead.
-        if      Parts = [Part]
-        then    trans_atom(head(Part), S, S1),
-                P1 = rest(Part),
-                H1 = new_horizon(H, head(Part))
-        % Nondeterministic: find best alternative by lookahead H.
+    % Determine all possible decompositions.
+    (pred(MyDecomps::out(list(semidet_decomposition))) is det :-
+        solutions((pred(MyDecomp::out(semidet_decomposition)) is nondet :-
+            next2(P, head(MyDecomp), rest(MyDecomp))
+        ), MyDecomps)
+    )(Decomps),
+    % If there is only one decomposition, we don't need to look ahead.
+    % Otherwise, we look ahead H transitions and pick that decomposition which
+    % maximizes the reward function.
+    (   if      Decomps = [Decomp]
+        then    trans_atom(head(Decomp), S, S1),
+                P1 = rest(Decomp),
+                H1 = new_horizon(H, head(Decomp))
         else    InitCand = candidate(-1, nil, s0, -1, -1),
-                list.foldl((pred(Part::in(semidet_partition),
+                list.foldl((pred(Decomp::in(semidet_decomposition),
                                  Cand1::in(semidet_candidate),
                                  Better::out(semidet_candidate)) is det :-
-                    if      trans_atom(head(Part), S, sit(Cand2)),
-                            rest_horizon(Cand2) = new_horizon(H, head(Part)),
-                            prog(Cand2) = rest(Part),
+                    if      trans_atom(head(Decomp), S, sit(Cand2)),
+                            rest_horizon(Cand2) = new_horizon(H, head(Decomp)),
+                            prog(Cand2) = rest(Decomp),
                             trans_max_h(rest_horizon(Cand2), prog(Cand2),
                                         sit(Cand2), S2, succ_trans(Cand2)),
                             value(Cand2) = reward(S2),
@@ -266,7 +268,7 @@ trans(H, P, S, H1, P1, S1) :-
                                 succ_trans(Cand2) > succ_trans(Cand1))
                     then    Better = Cand2
                     else    Better = Cand1
-                ), Parts, InitCand, BestCand),
+                ), Decomps, InitCand, BestCand),
                 BestCand \= InitCand,
                 H1 = rest_horizon(BestCand),
                 S1 = sit(BestCand),
