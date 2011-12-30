@@ -20,9 +20,11 @@
 :- type stoch_action ---> b1 ; b2 ; b3.
 :- type procedure ---> p1 ; p2 ; p3.
 
-:- pred poss(prim_action::in, sit(prim_action)::in) is det.% semidet.
-poss(_A, _S) :-
-    true.
+:- pred poss(prim_action::in, sit(prim_action)::in) is semidet.
+poss(A, _S) :-
+    (   A = a1  ; A = a2  ; A = a3
+    ;   A = ab1 ; A = ab2 ; A = ab3
+    ).
 
 :- pred random_outcome(stoch_action::in, prim_action::out, S::in) is det.
 random_outcome(B, A, _S) :-
@@ -99,10 +101,11 @@ main(!IO) :-
     B3 = pseudo_atom(atom(stoch(b3))),
     P = pseudo_atom(complex(A1 `seq` A2 `seq` A3)) `conc`
         pseudo_atom(complex(B1 `seq` B2 `seq` B3)),
-    (   if      trans(pseudo_atom(atom(test(fluent))), s0, _P0, S0),
-                trans(P, S0, P1, S1),
+    (   if      do(P, s0, S1),
+                %trans(pseudo_atom(atom(test(fluent))), s0, _P0, S0),
+                %trans(P, S0, P1, S1),
                 true% S1 = do(a3, s0)
-        then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.nl(!IO), io.write(P1, !IO), io.nl(!IO)
+        then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.nl(!IO)%, io.write(P1, !IO), io.nl(!IO)
         else    io.format("fail\n", [], !IO)
     ).
 

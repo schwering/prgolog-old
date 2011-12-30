@@ -123,8 +123,15 @@
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
 :- mode trans_atom(in(semidet_atom), in, out) is semidet.
 
-:- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
+:- pred trans(prog(A, B, P), sit(A),
+                   prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in(semidet_prog), in, out(semidet_prog), out) is semidet.
+
+:- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
+:- mode do(in(semidet_prog), in, out) is semidet.
+
+:- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
+:- mode final(in(semidet_prog), in) is semidet.
 
 
 :- implementation.
@@ -133,10 +140,12 @@
 :- import_module list.
 :- import_module solutions.
 
+
 eq(Lhs, Rhs, S) :- Lhs(S) = Rhs(S).
 and(T1, T2, S) :- T1(S), T2(S).
 or(T1, T2, S) :- T1(S) ; T2(S).
 neg(T, S) :- not T(S).
+
 
 next(P, C, R) :-
     (   P = seq(P1, P2),
@@ -167,6 +176,7 @@ next(P, C, R) :-
         false
     ).
 
+
 maybe_final(P) :-
     (   P = seq(P1, P2),
         maybe_final(P1),
@@ -184,6 +194,7 @@ maybe_final(P) :-
     ;   P = nil
     ).
 
+
 next2(P, C, R) :-
     next(P, C1, R1),
     (   C1 = complex(P1),
@@ -192,6 +203,7 @@ next2(P, C, R) :-
     ;   C1 = atom(C),
         R = R1
     ).
+
 
 trans_atom(C, S, S1) :-
     (   C = prim(A),
@@ -205,16 +217,21 @@ trans_atom(C, S, S1) :-
         S1 = S
     ).
 
+
 :- type partition(A, B, P) ---> part(head :: atom(A, B),
                                      rest :: prog(A, B, P)).
 :- inst semidet_partition ---> part(semidet_atom, semidet_prog).
 
-:- type cand(A, B, P) ---> cand(rest_horizon :: horizon,
-                                prog         :: prog(A, B, P),
-                                sit          :: sit(A),
-                                value        :: reward,
-                                succ_trans   :: int).
-:- inst semidet_cand ---> cand(ground, semidet_prog, ground, ground, ground).
+:- type candidate(A, B, P) ---> candidate(rest_horizon :: horizon,
+                                          prog         :: prog(A, B, P),
+                                          sit          :: sit(A),
+                                          value        :: reward,
+                                          succ_trans   :: int).
+:- inst semidet_candidate ---> candidate(ground,
+                                         semidet_prog,
+                                         ground,
+                                         ground,
+                                         ground).
 
 :- pred trans(horizon, prog(A, B, P), sit(A),
               horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
@@ -228,14 +245,16 @@ trans(H, P, S, H1, P1, S1) :-
             next2(P, head(Partition), rest(Partition))
         ), MyParts)
     )(Parts),
-    (   if      Parts = [Part]
+    (   % Deterministic: simply execute without lookahead.
+        if      Parts = [Part]
         then    trans_atom(head(Part), S, S1),
                 P1 = rest(Part),
                 H1 = new_horizon(H, head(Part))
-        else    InitCand = cand(-1, nil, s0, -1, -1),
+        % Nondeterministic: find best alternative by lookahead H.
+        else    InitCand = candidate(-1, nil, s0, -1, -1),
                 list.foldl((pred(Part::in(semidet_partition),
-                                 Cand1::in(semidet_cand),
-                                 Better::out(semidet_cand)) is det :-
+                                 Cand1::in(semidet_candidate),
+                                 Better::out(semidet_candidate)) is det :-
                     if      trans_atom(head(Part), S, sit(Cand2)),
                             rest_horizon(Cand2) = new_horizon(H, head(Part)),
                             prog(Cand2) = rest(Part),
@@ -244,45 +263,26 @@ trans(H, P, S, H1, P1, S1) :-
                             value(Cand2) = reward(S2),
                             (   value(Cand2) > value(Cand1)
                             ;   value(Cand2) = value(Cand1),
-                            succ_trans(Cand2) > succ_trans(Cand1))
+                                succ_trans(Cand2) > succ_trans(Cand1))
                     then    Better = Cand2
                     else    Better = Cand1
                 ), Parts, InitCand, BestCand),
+                BestCand \= InitCand,
                 H1 = rest_horizon(BestCand),
                 S1 = sit(BestCand),
                 P1 = prog(BestCand)
     )
     .
 
-%    solutions((pred(Cand::out) is nondet :- (
-%        next2(P, C, P_Cand),
-%        trans_atom(C, S, S_Cand),
-%        H_Cand = new_horizon(H, C),
-%        trans_max_h(H_Cand, P_Cand, S_Cand, S_Horizon, SuccTrans),
-%        V_Cand = reward(S_Horizon),
-%        Cand = cand(H_Cand, P_Cand, S_Cand, V_Cand, SuccTrans)
-%    )), Cands),
-%    Cands = [HeadCand|RestCands],
-%    list.foldl((pred(NewCand::in, OldCand::in, BetterCand::out) is det :- (
-%        if      (   value(NewCand) > value(OldCand)
-%                ;   value(NewCand) = value(OldCand),
-%                    succ_trans(NewCand) > succ_trans(OldCand)
-%                )
-%        then    BetterCand = NewCand
-%        else    BetterCand = OldCand
-%    )), RestCands, HeadCand, BestCand),
-%    H1 = rest_horizon(BestCand),
-%    P1 = prog(BestCand),
-%    S1 = sit(BestCand).
 
 trans(P, S, P1, S1) :-
     H = horizon(S),
     trans(H, P, S, _H1, P1, S1).
 
-:- pred trans_max_h(horizon, prog(A, B, P), sit(A),
-                    sit(A), int) <= bat(A, B, P).
-:- mode trans_max_h(in, in(semidet_prog), in,
-                    out, out) is det.
+
+:- pred trans_max_h(horizon, prog(A, B, P), sit(A), sit(A), int)
+    <= bat(A, B, P).
+:- mode trans_max_h(in, in(semidet_prog), in, out, out) is det.
 
 trans_max_h(H, P, S, S2, SuccTrans2) :-
     if      H = 0 ; final(H, P, S)
@@ -291,6 +291,14 @@ trans_max_h(H, P, S, S2, SuccTrans2) :-
     then    trans_max_h(H1, P1, S1, S2, SuccTrans1),
             SuccTrans2 = SuccTrans1 + 1
     else    S2 = S, SuccTrans2 = 0.
+
+
+do(P, S, S2) :-
+    if      final(P, S)
+    then    S = S2
+    else    trans(P, S, P1, S1),
+            do(P1, S1, S2).
+
 
 :- pred final(horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode final(in, in(semidet_prog), in) is semidet.
@@ -302,4 +310,8 @@ final(H, P, S) :-
         trans_max_h(H, seq(pseudo_atom(C), R), S, S1, _SuccTrans),
         reward(S1) > reward(S)
     ).
+
+
+final(P, S) :-
+    final(horizon(S), P, S).
 
