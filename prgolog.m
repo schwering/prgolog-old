@@ -246,7 +246,7 @@ trans_atom(C, S, S1) :-
                                           prog         :: prog(A, B, P),
                                           sit          :: sit(A),
                                           value        :: reward,
-                                          succ_trans   :: int).
+                                          success      :: int).
 :- inst semidet_candidate ---> candidate(ground,
                                          semidet_prog,
                                          ground,
@@ -281,11 +281,11 @@ trans(H, P, S, H1, P1, S1) :-
                             rest_horizon(Cand2) = new_horizon(H, head(Decomp)),
                             prog(Cand2) = rest(Decomp),
                             trans_max_h(rest_horizon(Cand2), prog(Cand2),
-                                        sit(Cand2), S2, succ_trans(Cand2)),
+                                        sit(Cand2), S2, success(Cand2)),
                             value(Cand2) = reward(S2),
                             (   value(Cand2) > value(Cand1)
                             ;   value(Cand2) = value(Cand1),
-                                succ_trans(Cand2) > succ_trans(Cand1))
+                                success(Cand2) > success(Cand1))
                     then    Better = Cand2
                     else    Better = Cand1
                 ), Decomps, InitCand, BestCand),
@@ -305,13 +305,13 @@ trans(P, S, P1, S1) :-
     <= bat(A, B, P).
 :- mode trans_max_h(in, in(semidet_prog), in, out, out) is det.
 
-trans_max_h(H, P, S, S2, SuccTrans2) :-
+trans_max_h(H, P, S, S2, Success2) :-
     if      H = 0 ; final(H, P, S)
-    then    S2 = S, SuccTrans2 = 0
+    then    S2 = S, Success2 = 2*H*H  % rate sooner final better than late final
     else if trans(H, P, S, H1, P1, S1)
-    then    trans_max_h(H1, P1, S1, S2, SuccTrans1),
-            SuccTrans2 = SuccTrans1 + 1
-    else    S2 = S, SuccTrans2 = 0.
+    then    trans_max_h(H1, P1, S1, S2, Success1),
+            Success2 = Success1 + 1
+    else    S2 = S, Success2 = 0.
 
 
 do(P, S, S2) :-
@@ -328,7 +328,7 @@ final(H, P, S) :-
     maybe_final(P),
     not (
         next(P, C, R),
-        trans_max_h(H, seq(pseudo_atom(C), R), S, S1, _SuccTrans),
+        trans_max_h(H, seq(pseudo_atom(C), R), S, S1, _Success),
         reward(S1) > reward(S)
     ).
 

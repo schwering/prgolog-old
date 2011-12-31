@@ -1,4 +1,34 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+%
+% Simple maze 6 x 6 with four 3 x 3 rooms at the top left, top right, bottom
+% left, and bottom right. The border between two rooms consists of 3 fields,
+% the center of which is a door.
+%
+% It looks like this:
+%
+%   S++ +++
+%   +++-+++
+%   +++ +++
+%    |   |
+%   +++ ++G
+%   +++-+++
+%   +++ +++
+%
+% The agent starts at S and wants to get to G. You may change these by modifying
+% the start/0 and goal/0 functions.
+% It may move to any field marked with a +, and may only move up, down, left,
+% or right.
+%
+% As reward function, we use the `inverse' Manhattan distance or Euclidean
+% distance (adjust the dist/2 function appropriately).
+%
+% The fluents, pos and unvisited, are not implemented as successor state axioms
+% but in a more Prolog-way, which should be way more efficient.
+% E.g., we don't have to regress the stupid position for each predecessor
+% situation in unvisited, but continuously compare the input position with the
+% predecessor situation's positions).
+% I don't know whether or not this is okay. Maybe we could choose our fluents so
+% that even the SSAs are efficient?
 
 :- module maze.
 
@@ -15,10 +45,9 @@
 :- import_module prgolog.
 :- import_module int.
 :- import_module float.
-:- import_module math.
 :- import_module list.
-:- import_module solutions.
-:- import_module term_io.
+:- import_module math.
+:- import_module string.
 
 :- type point ---> p(int, int).
 
@@ -55,20 +84,23 @@ east(p(X, Y)) = p(X+1, Y).
 :- mode conn(in, in) is semidet.
 conn(P1, P2) :-
     P1 = p(X1, Y1),
-    (   P2 = north(P1), ( Y1 mod 3 \= 0 ; Y1 mod 3 = 0, at_door(X1) )
-    ;   P2 = south(P1), ( Y1 mod 3 \= 2 ; Y1 mod 3 = 2, at_door(X1) )
-    ;   P2 = west(P1), ( X1 mod 3 \= 0 ; X1 mod 3 = 2, at_door(Y1) )
-    ;   P2 = east(P1), ( X1 mod 3 \= 2 ; X1 mod 3 = 0, at_door(Y1) )
+    in_maze(P1),
+    in_maze(P2),
+    (   P2 = north(P1), ( if Y1 mod 3 \= 0 then true else at_door(X1) )
+    ;   P2 = south(P1), ( if Y1 mod 3 \= 2 then true else at_door(X1) )
+    ;   P2 = west(P1),  ( if X1 mod 3 \= 0 then true else at_door(Y1) )
+    ;   P2 = east(P1),  ( if X1 mod 3 \= 2 then true else at_door(Y1) )
     ).
 
 :- func start = point is det.
 start = p(0, 0).
 
 :- func goal = point is det.
-goal = p(5, 5).
+goal = p(5, 3).
 
 :- func dist(point, point) = int is det.
-dist(p(X1, Y1), p(X2, Y2)) = ceiling_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
+dist(p(X1, Y1), p(X2, Y2)) = floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
+%dist(p(X1, Y1), p(X2, Y2)) = abs(X1 - X2) + abs(Y1 - Y2).
 
 
 :- type prim_action ---> left ; right ; up ; down.
@@ -78,8 +110,10 @@ dist(p(X1, Y1), p(X2, Y2)) = ceiling_to_int(math.sqrt(pow(float(X1-X2), 2) + pow
 
 :- pred poss(prim_action::in, sit(prim_action)::in) is semidet.
 poss(A, S) :-
-    P = pos(S),
-    conn(P, new_pos(A, P)).
+    P1 = pos(S),
+    P2 = new_pos(A, P1),
+    conn(P1, P2),
+    unvisited(P2, S).
 
 
 :- pred random_outcome(stoch_action::in, prim_action::out, S::in) is det.
@@ -128,52 +162,70 @@ new_pos(A, P1) = P2 :-
     ).
 
 
-:- func pos(sit(prim_action)) = point is det.% <= bat(A, B, P).
+:- func pos(sit(prim_action)) = point is det.
 pos(S1) = P :-
     (   S1 = s0, P = start
     ;   S1 = do(A, S), P = new_pos(A, pos(S))
     ).
 
-main(!IO) :-
-    main1(!IO).
+:- pred unvisited(point::in, sit(prim_action)::in) is semidet.
+unvisited(P, S) :-
+    unvisited(P, _, S).
 
+:- pred unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
+unvisited(P1, P3, S1) :-
+    (   S1 = s0, P3 = start
+    ;   S1 = do(A, S), unvisited(P1, P2, S), P3 = new_pos(A, P2)
+    ),
+    P1 \= P3.
+
+main(!IO) :-
+    main2(!IO).
+
+% I use this main predicate to test some hard-coded action sequences:
 main1(!IO) :-
+    RewMax = dist(start, goal),
+    io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),
     io.write(Pos0, !IO), io.nl(!IO),
     Up = pseudo_atom(atom(prim(up))),
     Down = pseudo_atom(atom(prim(down))),
     Left = pseudo_atom(atom(prim(left))),
     Right = pseudo_atom(atom(prim(right))),
-    Prog = Down `seq` Down `seq` Up `seq` Right `seq` Left `seq` Right `seq` Down `seq` Down,
-    (   if      do(Prog, s0, S)
-        then    R = prgolog.reward(S),
-                Pos1 = pos(S),
-                io.format("ok\n", [], !IO),
-                io.write(R, !IO), io.nl(!IO),
+    Prog = %Down `seq` Up `seq` Right `seq` Left `seq` % revisits same place --> failure
+           Down `seq` Down `seq` Right `seq` Down `seq` Left `seq` Down `seq` Down `seq`
+           Right `seq` Right `seq` Up `seq` Right `seq` Down `seq` Right `seq` Right,
+    (   if      do(Prog, s0, S1)
+        then    Rew1 = prgolog.reward(S1),
+                Pos1 = pos(S1),
+                ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
+                io.format("%s\n", [s(Msg)], !IO),
+                io.write(Rew1, !IO), io.nl(!IO),
                 io.write(Pos1, !IO), io.nl(!IO),
-                io.write(S, !IO), io.nl(!IO),
-                true% io.write(P1, !IO), io.nl(!IO)
+                io.write(S1, !IO), io.nl(!IO)
         else    io.format("fail\n", [], !IO)
     ).
 
+% Solve the maze using a program:
+%    (up | down | left | right)*
 main2(!IO) :-
+    RewMax = dist(start, goal),
+    io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),
     io.write(Pos0, !IO), io.nl(!IO),
     Up = pseudo_atom(atom(prim(up))),
     Down = pseudo_atom(atom(prim(down))),
     Left = pseudo_atom(atom(prim(left))),
     Right = pseudo_atom(atom(prim(right))),
-    Options = Up `non_det` Down `non_det` Left `non_det` Right,
-    Prog = star(Options),
-    %Prog = Options,
-    (   if      do(Prog, s0, S)
-        then    R = prgolog.reward(S),
-                Pos1 = pos(S),
-                io.format("ok\n", [], !IO),
-                io.write(R, !IO), io.nl(!IO),
+    Prog = star(Up `non_det` Down `non_det` Left `non_det` Right),
+    (   if      do(Prog, s0, S1)
+        then    Rew1 = prgolog.reward(S1),
+                Pos1 = pos(S1),
+                ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
+                io.format("%s\n", [s(Msg)], !IO),
+                io.write(Rew1, !IO), io.nl(!IO),
                 io.write(Pos1, !IO), io.nl(!IO),
-                io.write(S, !IO), io.nl(!IO),
-                true% io.write(P1, !IO), io.nl(!IO)
+                io.write(S1, !IO), io.nl(!IO)
         else    io.format("fail\n", [], !IO)
     ).
 
