@@ -10,9 +10,9 @@
 %   +++-+++
 %   +++ +++
 %    |   |
-%   +++ ++G
-%   +++-+++
 %   +++ +++
+%   +++-+++
+%   +++ ++G
 %
 % The agent starts at S and wants to get to G. You may change these by modifying
 % the start/0 and goal/0 functions.
@@ -56,14 +56,14 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_height = 75.
-room_width  = 75.
+room_height = 40.
+room_width  = 40.
 
 :- func start = point is det.
 :- func goal  = point is det.
 
 start = p(0, 0).
-goal = p(room_width - 1, room_height - 1).
+goal = p(2 * room_width - 1, 2 * room_height - 1).
 
 :- pred in_maze(point::in) is semidet.
 in_maze(p(X, Y)) :-
@@ -87,16 +87,14 @@ at_td_door(X) :- X mod room_width = room_width / 2.
 at_lr_door(Y) :- Y mod room_height = room_height / 2.
 
 :- func north(point) = point is det.
-north(p(X, Y)) = p(X, Y-1).
-
 :- func south(point) = point is det.
-south(p(X, Y)) = p(X, Y+1).
-
 :- func west(point) = point is det.
-west(p(X, Y)) = p(X-1, Y).
-
 :- func east(point) = point is det.
-east(p(X, Y)) = p(X+1, Y).
+
+north(p(X, Y)) = p(X, Y-1).
+south(p(X, Y)) = p(X, Y+1).
+west(p(X, Y))  = p(X-1, Y).
+east(p(X, Y))  = p(X+1, Y).
 
 :- pred conn(point, point).
 :- mode conn(in, out) is nondet.
