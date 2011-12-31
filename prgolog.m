@@ -8,6 +8,37 @@
 % 2. B for stochastic action
 % 3. T for test condition or action
 % 4. P for procedures.
+%
+% The user needs to define a type for primitive actions, stochastic actions
+% and procedures.
+% For these types, the type class bat must be implemented, which together
+% gives us everything we need of a basic action theory.
+% Note that the horizon must be positive and reward non-negative.
+%
+% The core predicates are:
+% * next/2 to decompose a program into one next atomic action its remainder,
+% * next2/2 to resolve complex atomic actions,
+% * trans_atom/3 to execute primitive, stochastic (sampling), and test actions,
+% * trans/4 and trans/6 to pick one decomposition and execute its next step,
+% * final/2 and final/3 that decide whether or not a program is final,
+% * do/3 that executes a program until it's final.
+%
+% The interpreter features sequence, recursive procedure calls, nondeterministic
+% branch, nondeterministic loop, concurrency through nondeterministic
+% interleaving, sequence, test actions, primitive actions, stochastic actions,
+% and atomic complex actions.
+% Nondeterminism is resolved by choosing the alternative that maximizes a
+% reward after a lookahead horizon defined in the BAT.
+%
+% Fluent evaluation is not implemented with an interpreting predicate holds/2
+% as in Prolog, but using higher-order predicates which can be combined with
+% the predicates and/3, or/3 etc. defined below.
+%
+% The pick operator is not implemented. It seems to be difficult to do so:
+% Higher-order terms apparently cannot contain unbound variables, and I
+% don't know how to inspect and modify terms.
+% I guess it is pretty difficult to express this in the type system. Maybe
+% one needs the univ type and/or the deconstruct module or so.
 
 :- module prgolog.
 
@@ -85,11 +116,6 @@
 ].
 
 
-% Fluent evaluation.
-% In fact, we don't use some predicate holds/2 to interpret fluents, but use
-% higher-order terms consisting of the below predicates and actual fluents as
-% leaves.
-
 :- pred eq(funfluent(A, R), funfluent(A, R), sit(A)).
 :- mode eq(in(func(in) = out is semidet),
            in(func(in) = out is semidet), in) is semidet.
@@ -104,27 +130,7 @@
 :- mode neg(in(pred(in) is semidet), in) is semidet.
 
 
-% Interpreter.
-% The interpreter decomposes a program using next/3, maybe_final/1, and next2/3.
-% Atomic actions (primitive, stochastic, test) are executed by trans_atom/3.
-% Then, trans/4 puts things together.
-
-:- pred next(prog(A, B, P),
-             pseudo_atom(A, B, P), prog(A, B, P)) <= bat(A, B, P).
-:- mode next(in(semidet_prog),
-             out(semidet_pseudo_atom), out(semidet_prog)) is nondet.
-
-:- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
-:- mode maybe_final(in(semidet_prog)) is semidet.
-
-:- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
-:- mode next2(in(semidet_prog), out(semidet_atom), out(semidet_prog)) is nondet.
-
-:- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
-:- mode trans_atom(in(semidet_atom), in, out) is semidet.
-
-:- pred trans(prog(A, B, P), sit(A),
-                   prog(A, B, P), sit(A)) <= bat(A, B, P).
+:- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in(semidet_prog), in, out(semidet_prog), out) is semidet.
 
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
@@ -146,6 +152,11 @@ and(T1, T2, S) :- T1(S), T2(S).
 or(T1, T2, S) :- T1(S) ; T2(S).
 neg(T, S) :- not T(S).
 
+
+:- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
+    <= bat(A, B, P).
+:- mode next(in(semidet_prog), out(semidet_pseudo_atom), out(semidet_prog))
+    is nondet.
 
 next(P, C, R) :-
     (   P = seq(P1, P2),
@@ -177,6 +188,9 @@ next(P, C, R) :-
     ).
 
 
+:- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
+:- mode maybe_final(in(semidet_prog)) is semidet.
+
 maybe_final(P) :-
     (   P = seq(P1, P2),
         maybe_final(P1),
@@ -195,6 +209,9 @@ maybe_final(P) :-
     ).
 
 
+:- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
+:- mode next2(in(semidet_prog), out(semidet_atom), out(semidet_prog)) is nondet.
+
 next2(P, C, R) :-
     next(P, C1, R1),
     (   C1 = complex(P1),
@@ -204,6 +221,9 @@ next2(P, C, R) :-
         R = R1
     ).
 
+
+:- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
+:- mode trans_atom(in(semidet_atom), in, out) is semidet.
 
 trans_atom(C, S, S1) :-
     (   C = prim(A),
@@ -219,7 +239,7 @@ trans_atom(C, S, S1) :-
 
 
 :- type decomposition(A, B, P) ---> part(head :: atom(A, B),
-                                     rest :: prog(A, B, P)).
+                                         rest :: prog(A, B, P)).
 :- inst semidet_decomposition ---> part(semidet_atom, semidet_prog).
 
 :- type candidate(A, B, P) ---> candidate(rest_horizon :: horizon,
@@ -254,7 +274,7 @@ trans(H, P, S, H1, P1, S1) :-
                 P1 = rest(Decomp),
                 H1 = new_horizon(H, head(Decomp))
         else    InitCand = candidate(-1, nil, s0, -1, -1),
-                list.foldl((pred(Decomp::in(semidet_decomposition),
+                list.foldr((pred(Decomp::in(semidet_decomposition),
                                  Cand1::in(semidet_candidate),
                                  Better::out(semidet_candidate)) is det :-
                     if      trans_atom(head(Decomp), S, sit(Cand2)),
@@ -273,8 +293,7 @@ trans(H, P, S, H1, P1, S1) :-
                 H1 = rest_horizon(BestCand),
                 S1 = sit(BestCand),
                 P1 = prog(BestCand)
-    )
-    .
+    ).
 
 
 trans(P, S, P1, S1) :-

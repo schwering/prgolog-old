@@ -9,12 +9,21 @@
 
 
 :- implementation.
+
 :- import_module prgolog.
 :- import_module int.
 :- import_module list.
 :- import_module solutions.
 :- import_module string.
 :- import_module term_io.
+
+
+% We have six primitive actions aI and abI for I = 1,2,3.
+% We have three stochastic actions bI, each of which as always the same
+% outcome action abI (the reason is that I don't have looked for a
+% random number generator for sampling).
+% All actions are always possible.
+% Have a close look at the reward function.
 
 :- type prim_action ---> a1 ; a2 ; a3 ; ab1 ; ab2 ; ab3.
 :- type stoch_action ---> b1 ; b2 ; b3.
@@ -41,7 +50,7 @@ random_outcome(B, A, _S) :-
 :- func reward(sit(prim_action)) = int is det.
 
 reward(S) = (
-    if      S = do(a1,  S0) then min(10, main.reward(S0) + 1)
+    if      S = do(a1,  S0) then min(1000, main.reward(S0) + 1)
     else if S = do(a2,  S0) then main.reward(S0) + 0
     else if S = do(a3,  S0) then main.reward(S0) + 0
     else if S = do(ab1, S0) then main.reward(S0) + 0
@@ -53,20 +62,16 @@ reward(S) = (
 
 :- func horizon(sit(prim_action)) = horizon is det.
 
-horizon(_S) = 5.
+horizon(_S) = 10.
 
 
 :- func new_horizon(horizon, atom(prim_action, stoch_action)) = horizon is det.
 
-new_horizon(H, C) = (
-    if      C = prim(a1)  then max(H - 1, 0)
-    else if C = prim(a2)  then max(H - 1, 0)
-    else if C = prim(a3)  then max(H - 1, 0)
-    else if C = stoch(b1) then max(H - 1, 0)
-    else if C = stoch(b2) then max(H - 1, 0)
-    else if C = test(_)   then H
-    else                       max(H - 1, 0)
-).
+new_horizon(H, C) = H1 :-
+    (   C = prim(_),  H1 = max(H - 1, 0)
+    ;   C = stoch(_), H1 = max(H - 1, 0)
+    ;   C = test(_),  H1 = H              % ignore test actions
+    ).
 
 
 :- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
@@ -91,6 +96,7 @@ proc(P, P1) :-
 
 :- pred fluent(sit(prim_action)).
 :- mode fluent(in) is semidet.
+:- pragma memo(fluent/1). 
 fluent(S) :- S = s0.
 
 
@@ -100,6 +106,8 @@ fluent2(X, S) :- X = 1, S = s0.
 
 
 main(!IO) :-
+    % Due to the type system, many functors are needed to construct a program.
+    % We use some helper variables to keep things clear.
     A1 = pseudo_atom(atom(prim(a1))),
     A2 = pseudo_atom(atom(prim(a2))),
     A3 = pseudo_atom(atom(prim(a3))),
@@ -108,9 +116,10 @@ main(!IO) :-
     B3 = pseudo_atom(atom(stoch(b3))),
     Q1 = pseudo_atom(complex(A1 `seq` A2 `seq` A3)) `conc`
          pseudo_atom(complex(B1 `seq` B2 `seq` B3)),
-    Q2 = pseudo_atom(atom(test(fluent))) `seq` Q1 `seq` (nil `non_det` A1),
-    Q3 = Q2 `non_det` star(A1),
-    (   if      do(Q3, s0, S1)
+    Q2 = Q1 `seq` (nil `non_det` A1), % final reward is 5
+    Q3 = star(A1),                    % final reward is 10
+    Q4 = pseudo_atom(atom(test(fluent))) `seq` (Q2 `non_det` Q3),
+    (   if      do(Q4, s0, S1)
         then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.nl(!IO)%, io.write(P1, !IO), io.nl(!IO)
         else    io.format("fail\n", [], !IO)
     ).
