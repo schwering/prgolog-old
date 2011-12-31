@@ -17,7 +17,9 @@
 % The agent starts at S and wants to get to G. You may change these by modifying
 % the start/0 and goal/0 functions.
 % It may move to any field marked with a +, and may only move up, down, left,
-% or right.
+% or right. The fields labeled with | and - are no actual fields the robot can
+% stand on, but represent doors between rooms, that is, they connect two +
+% signs.
 %
 % As reward function, we use the `inverse' Manhattan distance or Euclidean
 % distance (adjust the dist/2 function appropriately).
@@ -34,10 +36,10 @@
 
 :- interface.
 
-:- import_module io.
-:- pred main(io::di, io::uo) is det.
-:- pred main1(io::di, io::uo) is det.
-:- pred main2(io::di, io::uo) is det.
+:- use_module io.
+:- pred main(io.io::di, io.io::uo) is det.
+:- pred main1(io.io::di, io.io::uo) is det.
+:- pred main2(io.io::di, io.io::uo) is det.
 
 
 :- implementation.
@@ -47,25 +49,42 @@
 :- import_module float.
 :- import_module list.
 :- import_module math.
-:- import_module string.
+:- use_module string.
 
 :- type point ---> p(int, int).
 
-:- pred in_maze(point).
-:- mode in_maze(in) is semidet.
+:- func room_height = int is det.
+:- func room_width  = int is det.
+
+room_height = 75.
+room_width  = 75.
+
+:- func start = point is det.
+:- func goal  = point is det.
+
+start = p(0, 0).
+goal = p(room_width - 1, room_height - 1).
+
+:- pred in_maze(point::in) is semidet.
 in_maze(p(X, Y)) :-
-    0 =< X, X < 6,
-    0 =< Y, Y < 6.
+    0 =< X, X < 2 * room_width,
+    0 =< Y, Y < 2 * room_height.
 
-:- pred at_wall(int::in) is semidet.
-at_wall(I) :-
-    (   I mod 3 = 0
-    ;   I mod 3 = 2
-    ).
+:- pred at_upper_wall(int::in) is semidet.
+:- pred at_lower_wall(int::in) is semidet.
+:- pred at_left_wall(int::in)  is semidet.
+:- pred at_right_wall(int::in) is semidet.
 
-:- pred at_door(int::in) is semidet.
-at_door(I) :-
-    I mod 3 = 1.
+at_upper_wall(Y) :-  Y      mod room_height = 0.
+at_lower_wall(Y) :- (Y + 1) mod room_height = 0.
+at_left_wall(X)  :-  X      mod room_width  = 0.
+at_right_wall(X) :- (X + 1) mod room_width  = 0.
+
+:- pred at_td_door(int::in) is semidet.
+:- pred at_lr_door(int::in) is semidet.
+
+at_td_door(X) :- X mod room_width = room_width / 2.
+at_lr_door(Y) :- Y mod room_height = room_height / 2.
 
 :- func north(point) = point is det.
 north(p(X, Y)) = p(X, Y-1).
@@ -83,20 +102,14 @@ east(p(X, Y)) = p(X+1, Y).
 :- mode conn(in, out) is nondet.
 :- mode conn(in, in) is semidet.
 conn(P1, P2) :-
-    P1 = p(X1, Y1),
+    P1 = p(X, Y),
     in_maze(P1),
     in_maze(P2),
-    (   P2 = north(P1), ( if Y1 mod 3 \= 0 then true else at_door(X1) )
-    ;   P2 = south(P1), ( if Y1 mod 3 \= 2 then true else at_door(X1) )
-    ;   P2 = west(P1),  ( if X1 mod 3 \= 0 then true else at_door(Y1) )
-    ;   P2 = east(P1),  ( if X1 mod 3 \= 2 then true else at_door(Y1) )
+    (   P2 = north(P1), ( if not at_upper_wall(Y) then true else at_td_door(X) )
+    ;   P2 = south(P1), ( if not at_lower_wall(Y) then true else at_td_door(X) )
+    ;   P2 = west(P1),  ( if not at_left_wall(X)  then true else at_lr_door(Y) )
+    ;   P2 = east(P1),  ( if not at_right_wall(X) then true else at_lr_door(Y) )
     ).
-
-:- func start = point is det.
-start = p(0, 0).
-
-:- func goal = point is det.
-goal = p(5, 3).
 
 :- func dist(point, point) = int is det.
 dist(p(X1, Y1), p(X2, Y2)) = floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
@@ -139,8 +152,7 @@ new_horizon(H, _C) = H - 1.
 
 :- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
 :- mode proc(in(ground), out(semidet_prog)) is det.
-proc(P, P1) :-
-    P = bla, P1 = nil.
+proc(P, P1) :- P = bla, P1 = nil.
 
 
 :- instance bat(maze.prim_action, maze.stoch_action, maze.procedure) where [
@@ -163,24 +175,24 @@ new_pos(A, P1) = P2 :-
 
 
 :- func pos(sit(prim_action)) = point is det.
+%:- pragma memo(pos/1). 
 pos(S1) = P :-
     (   S1 = s0, P = start
     ;   S1 = do(A, S), P = new_pos(A, pos(S))
     ).
 
 :- pred unvisited(point::in, sit(prim_action)::in) is semidet.
-unvisited(P, S) :-
-    unvisited(P, _, S).
+unvisited(P, S) :- unvisited(P, _, S).
 
 :- pred unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
+%:- pragma memo(unvisited/3). 
 unvisited(P1, P3, S1) :-
     (   S1 = s0, P3 = start
     ;   S1 = do(A, S), unvisited(P1, P2, S), P3 = new_pos(A, P2)
     ),
     P1 \= P3.
 
-main(!IO) :-
-    main2(!IO).
+main(!IO) :- main2(!IO).
 
 % I use this main predicate to test some hard-coded action sequences:
 main1(!IO) :-
@@ -199,7 +211,7 @@ main1(!IO) :-
         then    Rew1 = prgolog.reward(S1),
                 Pos1 = pos(S1),
                 ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
-                io.format("%s\n", [s(Msg)], !IO),
+                io.format("%s\n", [string.s(Msg)], !IO),
                 io.write(Rew1, !IO), io.nl(!IO),
                 io.write(Pos1, !IO), io.nl(!IO),
                 io.write(S1, !IO), io.nl(!IO)
@@ -222,7 +234,7 @@ main2(!IO) :-
         then    Rew1 = prgolog.reward(S1),
                 Pos1 = pos(S1),
                 ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
-                io.format("%s\n", [s(Msg)], !IO),
+                io.format("%s\n", [string.s(Msg)], !IO),
                 io.write(Rew1, !IO), io.nl(!IO),
                 io.write(Pos1, !IO), io.nl(!IO),
                 io.write(S1, !IO), io.nl(!IO)
