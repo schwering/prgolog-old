@@ -39,6 +39,8 @@
 % don't know how to inspect and modify terms.
 % I guess it is pretty difficult to express this in the type system. Maybe
 % one needs the univ type and/or the deconstruct module or so.
+%
+% Christoph Schwering (schwering@gmail.com)
 
 :- module prgolog.
 

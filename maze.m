@@ -44,6 +44,8 @@
 % $ ./maze
 %
 % [1] http://www.mercury.csse.unimelb.edu.au/
+%
+% Christoph Schwering (schwering@gmail.com)
 
 :- module maze.
 
@@ -69,8 +71,8 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_height = 60.
-room_width  = 60.
+room_height = 3.
+room_width  = room_height.
 
 :- func start = point is det.
 :- func goal  = point is det.
