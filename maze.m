@@ -31,6 +31,19 @@
 % predecessor situation's positions).
 % I don't know whether or not this is okay. Maybe we could choose our fluents so
 % that even the SSAs are efficient?
+%
+%
+% After getting the Mercury compiler from [1] and installing it (compilation
+% takes much time, but it's worth it), you can compile this example if maze.m
+% and prgolog.m are in the current directory with
+%
+% $ mmc --make maze
+%
+% and then you can simply run
+%
+% $ ./maze
+%
+% [1] http://www.mercury.csse.unimelb.edu.au/
 
 :- module maze.
 
@@ -56,8 +69,8 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_height = 40.
-room_width  = 40.
+room_height = 60.
+room_width  = 60.
 
 :- func start = point is det.
 :- func goal  = point is det.

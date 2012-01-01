@@ -274,7 +274,7 @@ trans(H, P, S, H1, P1, S1) :-
                 P1 = rest(Decomp),
                 H1 = new_horizon(H, head(Decomp))
         else    InitCand = candidate(-1, nil, s0, -1, -1),
-                list.foldr((pred(Decomp::in(semidet_decomposition),
+                list.foldl((pred(Decomp::in(semidet_decomposition),
                                  Cand1::in(semidet_candidate),
                                  Better::out(semidet_candidate)) is det :-
                     if      trans_atom(head(Decomp), S, sit(Cand2)),
