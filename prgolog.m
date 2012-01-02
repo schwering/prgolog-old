@@ -30,10 +30,13 @@
 % Nondeterminism is resolved by choosing the alternative that maximizes a
 % reward after a lookahead horizon defined in the BAT.
 %
-% Fluent evaluation is not implemented with an interpreting predicate holds/2
-% as in Prolog, but using higher-order predicates which can be combined with
-% the predicates and/3, or/3 etc. defined below.
-% These functions are defined in the submodule prgolog.fluents.m.
+% In contrast to typical Prolog implementations, fluent in test actions are not
+% interpreted with a holds/2 predicate that deconstructs the expression and
+% eventually restores the situation term.
+% Instead, a test action takes a unary higher-order predicate whose single
+% argument is a situation term.
+% Some helper predicates and functions to construct are defined in the submodule
+% prgolog.fluents.m.
 %
 % The pick operator is not implemented. It seems to be difficult to do so:
 % Higher-order terms apparently cannot contain unbound variables, and I
@@ -94,15 +97,6 @@
     ;       pseudo_atom(pseudo_atom)
     ;       nil.
 
-
-% Basic action theory.
-% This class consists of a type for primitive actions A, stochastic actions B,
-% and procedures P.
-% For these types, the precondition axioms poss/2 must be defined as in
-% ordinary situation calculus.
-% Stochastic actions are sampled with random_outcome/3.
-% The function reward/2 is used to resolve nonderminism.
-% The predicate proc/2 must expand procedures.
 
 :- typeclass bat(A, B, P) <= ((A -> B), (A, B -> P)) where [
     pred poss(A, sit(A)),

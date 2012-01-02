@@ -71,7 +71,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_height = 3.
+room_height = 110.
 room_width  = room_height.
 
 :- func start = point is det.
@@ -213,9 +213,9 @@ main(!IO) :-
     io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),
     io.write(Pos0, !IO), io.nl(!IO),
-    Prog0 = star(b(s_up) or b(s_down) or b(s_left) or b(s_right)),
-    Prog1 = t(eqv(pos, start)) `;` Prog0 `;` t(eqv(pos, goal)),
-    (   if      do(Prog1, s0, S1)
+    Prog = star(a(up) or a(down) or a(left) or a(right)),
+    %Prog1 = t(pos == f(start)) `;` Prog0 `;` t(pos == f(goal)),
+    (   if      do(Prog, s0, S1)
         then    Rew1 = prgolog.reward(S1),
                 Pos1 = pos(S1),
                 ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
