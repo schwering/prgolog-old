@@ -33,12 +33,17 @@
 % Fluent evaluation is not implemented with an interpreting predicate holds/2
 % as in Prolog, but using higher-order predicates which can be combined with
 % the predicates and/3, or/3 etc. defined below.
+% These functions are defined in the submodule prgolog.fluents.m.
 %
 % The pick operator is not implemented. It seems to be difficult to do so:
 % Higher-order terms apparently cannot contain unbound variables, and I
 % don't know how to inspect and modify terms.
 % I guess it is pretty difficult to express this in the type system. Maybe
 % one needs the univ type and/or the deconstruct module or so.
+%
+% The type system makes the Mercury terms that represent Golog terms more
+% complex. For more concise programs, one may use the nice syntax layer that
+% resides in the submodule prgolog.nice.
 %
 % Christoph Schwering (schwering@gmail.com)
 
@@ -52,23 +57,25 @@
 :- type horizon == int.
 
 :- type relfluent(A) == pred(sit(A)).
+:- inst relfluent == (pred(in) is semidet).
 :- type funfluent(A, R) == (func(sit(A)) = R).
+:- inst funfluent == (func(in) = out is det).
 
 :- type atom(A, B)
     --->    prim(A)
     ;       stoch(B)
     ;       test(relfluent(A)).
-:- inst semidet_atom
+:- inst atom
     --->    prim(ground)
     ;       stoch(ground)
-    ;       test(pred(in) is semidet).
+    ;       test(relfluent).
 
 :- type pseudo_atom(A, B, P)
     --->    atom(atom(A, B))
     ;       complex(prog(A, B, P)).
-:- inst semidet_pseudo_atom
-    --->    atom(semidet_atom)
-    ;       complex(semidet_prog).
+:- inst pseudo_atom
+    --->    atom(atom)
+    ;       complex(prog).
 
 :- type prog(A, B, P)
     --->    seq(prog(A, B, P), prog(A, B, P))
@@ -78,13 +85,13 @@
     ;       proc(P)
     ;       pseudo_atom(pseudo_atom(A, B, P))
     ;       nil.
-:- inst semidet_prog
-    --->    seq(semidet_prog, semidet_prog)
-    ;       non_det(semidet_prog, semidet_prog)
-    ;       conc(semidet_prog, semidet_prog)
-    ;       star(semidet_prog)
+:- inst prog
+    --->    seq(prog, prog)
+    ;       non_det(prog, prog)
+    ;       conc(prog, prog)
+    ;       star(prog)
     ;       proc(ground)
-    ;       pseudo_atom(semidet_pseudo_atom)
+    ;       pseudo_atom(pseudo_atom)
     ;       nil.
 
 
@@ -114,32 +121,21 @@
     mode new_horizon(in, in) = out is det,
 
     pred proc(P, prog(A, B, P)),
-    mode proc(in(ground), out(semidet_prog)) is det
+    mode proc(in(ground), out(prog)) is det
 ].
 
 
-:- pred eq(funfluent(A, R), funfluent(A, R), sit(A)).
-:- mode eq(in(func(in) = out is semidet),
-           in(func(in) = out is semidet), in) is semidet.
-
-:- pred and(relfluent(A), relfluent(A), sit(A)).
-:- mode and(in(pred(in) is semidet), in(pred(in) is semidet), in) is semidet.
-
-:- pred or(relfluent(A), relfluent(A), sit(A)).
-:- mode or(in(pred(in) is semidet), in(pred(in) is semidet), in) is semidet.
-
-:- pred neg(relfluent(A), sit(A)).
-:- mode neg(in(pred(in) is semidet), in) is semidet.
-
-
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode trans(in(semidet_prog), in, out(semidet_prog), out) is semidet.
+:- mode trans(in(prog), in, out(prog), out) is semidet.
 
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
-:- mode do(in(semidet_prog), in, out) is semidet.
+:- mode do(in(prog), in, out) is semidet.
 
 :- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode final(in(semidet_prog), in) is semidet.
+:- mode final(in(prog), in) is semidet.
+
+:- include_module fluents.
+:- include_module nice.
 
 
 :- implementation.
@@ -149,15 +145,9 @@
 :- import_module solutions.
 
 
-eq(Lhs, Rhs, S) :- Lhs(S) = Rhs(S).
-and(T1, T2, S) :- T1(S), T2(S).
-or(T1, T2, S) :- T1(S) ; T2(S).
-neg(T, S) :- not T(S).
-
-
 :- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
     <= bat(A, B, P).
-:- mode next(in(semidet_prog), out(semidet_pseudo_atom), out(semidet_prog))
+:- mode next(in(prog), out(pseudo_atom), out(prog))
     is nondet.
 
 next(P, C, R) :-
@@ -191,7 +181,7 @@ next(P, C, R) :-
 
 
 :- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
-:- mode maybe_final(in(semidet_prog)) is semidet.
+:- mode maybe_final(in(prog)) is semidet.
 
 maybe_final(P) :-
     (   P = seq(P1, P2),
@@ -212,7 +202,7 @@ maybe_final(P) :-
 
 
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
-:- mode next2(in(semidet_prog), out(semidet_atom), out(semidet_prog)) is nondet.
+:- mode next2(in(prog), out(atom), out(prog)) is nondet.
 
 next2(P, C, R) :-
     next(P, C1, R1),
@@ -225,7 +215,7 @@ next2(P, C, R) :-
 
 
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
-:- mode trans_atom(in(semidet_atom), in, out) is semidet.
+:- mode trans_atom(in(atom), in, out) is semidet.
 
 trans_atom(C, S, S1) :-
     (   C = prim(A),
@@ -242,29 +232,29 @@ trans_atom(C, S, S1) :-
 
 :- type decomposition(A, B, P) ---> part(head :: atom(A, B),
                                          rest :: prog(A, B, P)).
-:- inst semidet_decomposition ---> part(semidet_atom, semidet_prog).
+:- inst decomposition ---> part(atom, prog).
 
 :- type candidate(A, B, P) ---> candidate(rest_horizon :: horizon,
                                           prog         :: prog(A, B, P),
                                           sit          :: sit(A),
                                           value        :: reward,
                                           success      :: int).
-:- inst semidet_candidate ---> candidate(ground,
-                                         semidet_prog,
-                                         ground,
-                                         ground,
-                                         ground).
+:- inst candidate ---> candidate(ground,
+                                 prog,
+                                 ground,
+                                 ground,
+                                 ground).
 
 :- pred trans(horizon, prog(A, B, P), sit(A),
               horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode trans(in, in(semidet_prog), in,
-              out, out(semidet_prog), out) is semidet.
+:- mode trans(in, in(prog), in,
+              out, out(prog), out) is semidet.
 
 trans(H, P, S, H1, P1, S1) :-
     H >= 1,
     % Determine all possible decompositions.
-    (pred(MyDecomps::out(list(semidet_decomposition))) is det :-
-        solutions((pred(MyDecomp::out(semidet_decomposition)) is nondet :-
+    (pred(MyDecomps::out(list(decomposition))) is det :-
+        solutions((pred(MyDecomp::out(decomposition)) is nondet :-
             next2(P, head(MyDecomp), rest(MyDecomp))
         ), MyDecomps)
     )(Decomps),
@@ -276,9 +266,9 @@ trans(H, P, S, H1, P1, S1) :-
                 P1 = rest(Decomp),
                 H1 = new_horizon(H, head(Decomp))
         else    InitCand = candidate(-1, nil, s0, -1, -1),
-                list.foldl((pred(Decomp::in(semidet_decomposition),
-                                 Cand1::in(semidet_candidate),
-                                 Better::out(semidet_candidate)) is det :-
+                list.foldl((pred(Decomp::in(decomposition),
+                                 Cand1::in(candidate),
+                                 Better::out(candidate)) is det :-
                     if      trans_atom(head(Decomp), S, sit(Cand2)),
                             rest_horizon(Cand2) = new_horizon(H, head(Decomp)),
                             prog(Cand2) = rest(Decomp),
@@ -305,7 +295,7 @@ trans(P, S, P1, S1) :-
 
 :- pred trans_max_h(horizon, prog(A, B, P), sit(A), sit(A), int)
     <= bat(A, B, P).
-:- mode trans_max_h(in, in(semidet_prog), in, out, out) is det.
+:- mode trans_max_h(in, in(prog), in, out, out) is det.
 
 trans_max_h(H, P, S, S2, Success2) :-
     if      H = 0 ; final(H, P, S)
@@ -324,7 +314,7 @@ do(P, S, S2) :-
 
 
 :- pred final(horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode final(in, in(semidet_prog), in) is semidet.
+:- mode final(in, in(prog), in) is semidet.
 
 final(H, P, S) :-
     maybe_final(P),

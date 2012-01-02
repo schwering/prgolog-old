@@ -11,6 +11,7 @@
 :- implementation.
 
 :- import_module prgolog.
+:- import_module prgolog.fluents.
 :- import_module int.
 :- import_module list.
 :- import_module solutions.
@@ -50,19 +51,19 @@ random_outcome(B, A, _S) :-
 :- func reward(sit(prim_action)) = int is det.
 
 reward(S) = (
-    if      S = do(a1,  S0) then min(1000, main.reward(S0) + 1)
+    if      S = do(a1,  S0) then min(10, main.reward(S0) + 1)
     else if S = do(a2,  S0) then main.reward(S0) + 0
     else if S = do(a3,  S0) then main.reward(S0) + 0
     else if S = do(ab1, S0) then main.reward(S0) + 0
     else if S = do(ab2, S0) then main.reward(S0) + 0
-    else if S = do(ab3, S0) then main.reward(S0) + 3
+    else if S = do(ab3, S0) then main.reward(S0) + 4
     else                         0
 ).
 
 
 :- func horizon(sit(prim_action)) = horizon is det.
 
-horizon(_S) = 10.
+horizon(_S) = 3.
 
 
 :- func new_horizon(horizon, atom(prim_action, stoch_action)) = horizon is det.
@@ -75,7 +76,7 @@ new_horizon(H, C) = H1 :-
 
 
 :- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
-:- mode proc(in(ground), out(semidet_prog)) is det.
+:- mode proc(in(ground), out(prog)) is det.
 
 proc(P, P1) :-
     (   P = p1, P1 = pseudo_atom(atom(prim(a1)))
@@ -118,9 +119,11 @@ main(!IO) :-
          pseudo_atom(complex(B1 `seq` B2 `seq` B3)),
     Q2 = Q1 `seq` (nil `non_det` A1), % final reward is 5
     Q3 = star(A1),                    % final reward is 10
-    Q4 = pseudo_atom(atom(test(fluent))) `seq` (Q2 `non_det` Q3),
+    Q4 = pseudo_atom(atom(test(fluent `and` fluent))) `seq` (Q2 `non_det` Q3),
     (   if      do(Q4, s0, S1)
-        then    io.format("ok\n", [], !IO), io.write(S1, !IO), io.nl(!IO)%, io.write(P1, !IO), io.nl(!IO)
+        then    io.format("ok\n", [], !IO),
+                io.write(S1, !IO), io.nl(!IO),
+                true% io.write(P1, !IO), io.nl(!IO)
         else    io.format("fail\n", [], !IO)
     ).
 

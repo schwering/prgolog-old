@@ -53,13 +53,13 @@
 
 :- use_module io.
 :- pred main(io.io::di, io.io::uo) is det.
-:- pred main1(io.io::di, io.io::uo) is det.
-:- pred main2(io.io::di, io.io::uo) is det.
 
 
 :- implementation.
 
 :- import_module prgolog.
+:- import_module prgolog.fluents.
+:- import_module prgolog.nice.
 :- import_module int.
 :- import_module float.
 :- import_module list.
@@ -78,6 +78,7 @@ room_width  = room_height.
 :- func goal  = point is det.
 
 start = p(0, 0).
+%goal = p(4, 4).
 goal = p(2 * room_width - 1, 2 * room_height - 1).
 
 :- pred in_maze(point::in) is semidet.
@@ -164,7 +165,7 @@ new_horizon(H, _C) = H - 1.
 
 
 :- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
-:- mode proc(in(ground), out(semidet_prog)) is det.
+:- mode proc(in(ground), out(prog)) is det.
 proc(P, P1) :- P = bla, P1 = nil.
 
 
@@ -205,45 +206,16 @@ unvisited(P1, P3, S1) :-
     ),
     P1 \= P3.
 
-main(!IO) :- main2(!IO).
-
-% I use this main predicate to test some hard-coded action sequences:
-main1(!IO) :-
-    RewMax = dist(start, goal),
-    io.write(RewMax, !IO), io.nl(!IO),
-    Pos0 = pos(s0),
-    io.write(Pos0, !IO), io.nl(!IO),
-    Up = pseudo_atom(atom(prim(up))),
-    Down = pseudo_atom(atom(prim(down))),
-    Left = pseudo_atom(atom(prim(left))),
-    Right = pseudo_atom(atom(prim(right))),
-    Prog = %Down `seq` Up `seq` Right `seq` Left `seq` % revisits same place --> failure
-           Down `seq` Down `seq` Right `seq` Down `seq` Left `seq` Down `seq` Down `seq`
-           Right `seq` Right `seq` Up `seq` Right `seq` Down `seq` Right `seq` Right,
-    (   if      do(Prog, s0, S1)
-        then    Rew1 = prgolog.reward(S1),
-                Pos1 = pos(S1),
-                ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
-                io.format("%s\n", [string.s(Msg)], !IO),
-                io.write(Rew1, !IO), io.nl(!IO),
-                io.write(Pos1, !IO), io.nl(!IO),
-                io.write(S1, !IO), io.nl(!IO)
-        else    io.format("fail\n", [], !IO)
-    ).
-
 % Solve the maze using a program:
 %    (up | down | left | right)*
-main2(!IO) :-
+main(!IO) :-
     RewMax = dist(start, goal),
     io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),
     io.write(Pos0, !IO), io.nl(!IO),
-    Up = pseudo_atom(atom(prim(up))),
-    Down = pseudo_atom(atom(prim(down))),
-    Left = pseudo_atom(atom(prim(left))),
-    Right = pseudo_atom(atom(prim(right))),
-    Prog = star(Up `non_det` Down `non_det` Left `non_det` Right),
-    (   if      do(Prog, s0, S1)
+    Prog0 = star(b(s_up) or b(s_down) or b(s_left) or b(s_right)),
+    Prog1 = t(eqv(pos, start)) `;` Prog0 `;` t(eqv(pos, goal)),
+    (   if      do(Prog1, s0, S1)
         then    Rew1 = prgolog.reward(S1),
                 Pos1 = pos(S1),
                 ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
