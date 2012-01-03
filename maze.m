@@ -65,14 +65,17 @@
 :- import_module list.
 :- import_module math.
 :- use_module string.
+:- import_module table_statistics.
 
 :- type point ---> p(int, int).
 
+:- func room_size   = int is det.
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_height = 110.
-room_width  = room_height.
+room_size = 80.
+room_height = room_size.
+room_width = room_height.
 
 :- func start = point is det.
 :- func goal  = point is det.
@@ -187,24 +190,28 @@ new_pos(A, P1) = P2 :-
     ;   A = right, P2 = east(P1)
     ).
 
-
 :- func pos(sit(prim_action)) = point is det.
-%:- pragma memo(pos/1). 
+%:- pragma memo(pos/1, [allow_reset, statistics, fast_loose]). 
+:- pragma memo(pos/1, [allow_reset, fast_loose]). 
 pos(S1) = P :-
     (   S1 = s0, P = start
     ;   S1 = do(A, S), P = new_pos(A, pos(S))
     ).
 
 :- pred unvisited(point::in, sit(prim_action)::in) is semidet.
-unvisited(P, S) :- unvisited(P, _, S).
+unvisited(P, S1) :-
+    pos(S1) \= P,
+    (   S1 = do(_, S), unvisited(P, S)
+    ;   S1 = s0
+    ).
+%unvisited(P, S) :- unvisited(P, _, S).
 
-:- pred unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
-%:- pragma memo(unvisited/3). 
-unvisited(P1, P3, S1) :-
-    (   S1 = s0, P3 = start
-    ;   S1 = do(A, S), unvisited(P1, P2, S), P3 = new_pos(A, P2)
-    ),
-    P1 \= P3.
+%:- pred unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
+%unvisited(P1, P3, S1) :-
+%    (   S1 = s0, P3 = start
+%    ;   S1 = do(A, S), unvisited(P1, P2, S), P3 = new_pos(A, P2)
+%    ),
+%    P1 \= P3.
 
 % Solve the maze using a program:
 %    (up | down | left | right)*
@@ -224,5 +231,12 @@ main(!IO) :-
                 io.write(Pos1, !IO), io.nl(!IO),
                 io.write(S1, !IO), io.nl(!IO)
         else    io.format("fail\n", [], !IO)
-    ).
+    ),
+    %table_statistics_for_pos_1(StatsPos, !IO),
+    %table_statistics_for_unvisited_2(StatsUnv, !IO),
+    %io.format("\n\npos/1\n", [], !IO),
+    %write_table_stats(current_stats(call_table_stats(StatsPos)), !IO),
+    %io.format("\n\nunvisisted/2\n", [], !IO),
+    %write_table_stats(current_stats(call_table_stats(StatsUnv)), !IO),
+    true.
 
