@@ -28,8 +28,9 @@
 
 :- export(main/0).
 
-room_height(3).
-room_width(3).
+room_size(20).
+room_height(X) :- room_size(X).
+room_width(X) :- room_size(X).
 
 start(p(0, 0)).
 goal(p(X, Y)) :- X is 2 * room_width - 1, Y is 2 * room_height - 1.

@@ -73,7 +73,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 80.
+room_size = 20.
 room_height = room_size.
 room_width = room_height.
 
@@ -191,7 +191,6 @@ new_pos(A, P1) = P2 :-
     ).
 
 :- func pos(sit(prim_action)) = point is det.
-%:- pragma memo(pos/1, [allow_reset, statistics, fast_loose]). 
 :- pragma memo(pos/1, [allow_reset, fast_loose]). 
 pos(S1) = P :-
     (   S1 = s0, P = start
