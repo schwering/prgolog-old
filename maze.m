@@ -73,7 +73,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 20.
+room_size = 80.
 room_height = room_size.
 room_width = room_height.
 
@@ -191,26 +191,31 @@ new_pos(A, P1) = P2 :-
     ).
 
 :- func pos(sit(prim_action)) = point is det.
-:- pragma memo(pos/1, [allow_reset, fast_loose]). 
+%:- pragma memo(pos/1, [allow_reset, fast_loose]). 
 pos(S1) = P :-
     (   S1 = s0, P = start
     ;   S1 = do(A, S), P = new_pos(A, pos(S))
     ).
 
 :- pred unvisited(point::in, sit(prim_action)::in) is semidet.
-unvisited(P, S1) :-
+unvisited(P, S1) :- standalone_unvisited(P, S1).
+
+:- pred naive_unvisited(point::in, sit(prim_action)::in) is semidet.
+naive_unvisited(P, S1) :-
     pos(S1) \= P,
-    (   S1 = do(_, S), unvisited(P, S)
+    (   S1 = do(_, S), naive_unvisited(P, S)
     ;   S1 = s0
     ).
-%unvisited(P, S) :- unvisited(P, _, S).
 
-%:- pred unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
-%unvisited(P1, P3, S1) :-
-%    (   S1 = s0, P3 = start
-%    ;   S1 = do(A, S), unvisited(P1, P2, S), P3 = new_pos(A, P2)
-%    ),
-%    P1 \= P3.
+:- pred standalone_unvisited(point::in, sit(prim_action)::in) is semidet.
+standalone_unvisited(P, S) :- standalone_unvisited(P, _, S).
+
+:- pred standalone_unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
+standalone_unvisited(P1, P3, S1) :-
+    (   S1 = s0, P3 = start
+    ;   S1 = do(A, S), standalone_unvisited(P1, P2, S), P3 = new_pos(A, P2)
+    ),
+    P1 \= P3.
 
 % Solve the maze using a program:
 %    (up | down | left | right)*

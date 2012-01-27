@@ -28,7 +28,7 @@
 
 :- export(main/0).
 
-room_size(20).
+room_size(80).
 room_height(X) :- room_size(X).
 room_width(X) :- room_size(X).
 
@@ -122,11 +122,19 @@ pos(P, S1) :-
     ;   S1 = do(A, S), pos(OldPos, S), P is new_pos(A, OldPos)
     ).
 
-unvisited(P, S) :- unvisited(P, _, S).
+unvisited(P, S1) :- standalone_unvisited(P, S1).
 
-unvisited(P1, P3, S1) :-
+naive_unvisited(P, S1) :-
+    \+ pos(S1, P),
+    (   S1 = do(_, S), naive_unvisited(P, S)
+    ;   S1 = s0
+    ).
+
+standalone_unvisited(P, S) :- standalone_unvisited(P, _, S).
+
+standalone_unvisited(P1, P3, S1) :-
     (   S1 = s0, P3 is start
-    ;   S1 = do(A, S), unvisited(P1, P2, S), new_pos(A, P2, P3)
+    ;   S1 = do(A, S), standalone_unvisited(P1, P2, S), new_pos(A, P2, P3)
     ),
     P1 \= P3.
 
