@@ -1,0 +1,137 @@
+Mercury Golog interpreter.            Christoph Schwering (schwering@gmail.com)
+
+* Nonderministic pick is NOT implemented.
+* Semantics from my diploma thesis:
+   * Uses program decomposition.
+   * Decision theory to resolve nondeterminism.
+   * Stochastic actions.
+   * Dropped support for continuous change and time.
+
+As example, I implemented a maze consisting of four rooms, each of which as
+two doors. The agent wants to get from the top left to the bottom right.
+The agent's actions are deterministic (i.e., non-stochastic). See maze.m for
+details.
+
+Mercury's type system is (given my Mercury skills) isn't that big a fan of
+non-ground terms.
+I still haven't found an elegant way to implement real pick. A pick operator
+restricted to finite domains should not be that hard, I guess.
+Also, constraint support seems not to be as easy as in ECLiPSe-CLP.
+
+You can compile the example by calling
+ $ mmc --make maze
+There are some cool flags, see run-both.sh for some of them.
+
+
+
+MERCURY w/ TABLING vs MERCURY w/o TABLING vs ECLIPSE-CLP
+--------------------------------------------------------
+
+I have tested Mercury vs ECLiPSe-CLP for different room sizes (the size denotes
+the width and height).
+For the unvisited/3 fluent, I have tested two different implementations, one
+being the naive implementation (naive, uses pos/1) and the other one the
+standalone implementation (stndaln, doesn't use pos/1). See below for details.
+
+               |  M  e  r  c  u  r  y  | E C L i P S e
+        Room   |Tabling|  No Tabling      No Tabling
+        Size   |naive  |naive  |stndaln|naive  |stndaln
+        3:     |  0.02 |  0.03 |  0.02 |  0.87 |  0.25
+        10:    |  0.21 |  0.90 |  0.35 |  6.29 |  2.63
+        15:    |  0.41 |  3.08 |  0.79 | 12.24 |  5.47
+        20:    |  0.68 |  7.75 |  1.44 | 19.19 |  8.85
+        30:    |  1.55 | 26.90 |  3.48 | 38.44 | 18.27
+        40:    |  2.63 | 63.16 |  6.36 | 61.90 | 30.31
+        50:    |  4.16 |125.02 |  9.85 | 90.33 | 45.22
+        60:    |  6.05 |221.01 | 14.81 |126.04 | 64.23
+        70:    |  7.76 |358.04 | 20.17 |160.88 | 81.30
+        80:    | 10.50 |544.89 | 27.33 |205.34 |104.59
+
+Time unit is seconds on a Intel Core 2 Duo @ 2.26 GHz.
+
+How are times measured?
+  The Mercury times are measured by GNU's time utility, i.e., they denote the
+  process's runtime (the maze is a binary!).
+  ECLiPSe-CLP was measured using its profile/1 predicate.
+
+Memoization / Tabling:
+  As you can see, memoization aka tabling (caching of functions and predicates)
+  of the pos/1 fluent speeds the things greatly, so that the naive unvisited/3
+  doesn't look so bad after all.
+  But of course, memoization means memory consumption; I haven't found yet how
+  to limit that.
+
+What are the most interesting comparisons?
+  * Mercury w/  Tabling + naive     vs   ECLiPSe + naive
+  * Mercury w/  Tabling + naive     vs   Mercury w/o Tabling + naive
+  I wonder though why Mercury w/o tabling is slower than ECLiPSe in the naive
+  case.
+
+What is the naive / standalone unvisited/3?
+  The naive unvisited/2 naively uses pos/1 to check whether or not P
+  has been visited yet:
+   unvisited(P, S1) :-
+       pos(S1) \= P,
+       (   S1 = do(_, S), unvisited(P, S)
+       ;   S1 = s0
+       ).
+  The standalone unvisited/2 avoids regressing pos/1 that often:
+   unvisited(P, S) :- unvisited(P, _, S).
+   unvisited(P1, P3, S1) :-
+       (   S1 = s0, P3 = start
+       ;   S1 = do(A, S), unvisited(P1, P2, S), P3 = new_pos(A, P2)
+       ),
+       P1 \= P3.
+  That is, unvisited/3 imitates the pos/1 fluent function to avoid many needless
+  regressions of pos/1. I call this the stand-alone implementation, because it
+  does not use pos/1.
+
+I also found that Mercury apparently supports some kind of AND-parallelization
+but I haven't found out how to compile the compiler with it or how to use it.
+It might be great for the look-ahead.
+
+
+
+NATIVE MERCURY vs JAVA MERCURY
+------------------------------
+Note: this benchmark is possibly outdated and probably not comparable to the
+above.
+Mercury can also be compiled to Java and C#, for example.
+You need to install the Mercury compiler with
+ $ ./configure --enable-java-grade
+Then, you can compile the maze to Java by calling
+ $ mmc --make --java maze
+ $ java -cp Mercury/classs/:\
+        $MERCURY/lib/mercury/lib/java/mer_rt.jar:\
+        $MERCURY/lib/mercury/lib/java/mer_std.jar\
+        jmercury.maze 
+where $MERCURY points to /usr/local/mercury-11.07, for example.
+
+This benchmark compares the performance of native and Java Mercury.
+Note that in both cases, the basic action theory as described in "MERCURY vs
+PROLOG" was used, because Mercury doesn't support tabling under Java.
+
+To my surprise, the maze performed on Java better than the native binary:
+
+     +-----------+----------------+--------------+----------+
+     | Room Size | Mercury native | Mercury Java | Quotient |
+     +-----------+----------------+--------------+----------+
+     | 10 x 10   |          0.6 s |        1.4 s |      2.3 |
+     +-----------+----------------+--------------+----------+
+     | 20 x 20   |          1.9 s |        2.2 s |      1.2 |
+     +-----------+----------------+--------------+----------+
+     | 30 x 30   |          4.1 s |        3.5 s |      0.9 |
+     +-----------+----------------+--------------+----------+
+     | 40 x 40   |          6.9 s |        5.3 s |      0.8 |
+     +-----------+----------------+--------------+----------+
+     | 50 x 50   |         10.6 s |        7.6 s |      0.7 |
+     +-----------+----------------+--------------+----------+
+     | 60 x 60   |         15.4 s |       10.1 s |      0.7 |
+     +-----------+----------------+--------------+----------+
+
+I suspect this is either because the JVM uses both cores at some times (I don't
+see any hints for this behavior in top, though).
+But maybe it's because it performs some runtime optimizations?
+The advantage of the native above Java Mercury for small rooms is due to the
+fact that the measured time includes the JVM initialization.
+
