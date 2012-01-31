@@ -20,6 +20,8 @@ ECLIPSE_STANDALONE_UNVISITED="${STANDALONE_UNVISITED} maze.ecl"
 # I found these at: http://adventuresinmercury.blogspot.com/search?updated-max=2011-04-04T20:06:00-07:00&max-results=7
 # Great blog.
 MERCURY_COMPILE="mmc --rebuild -O6 -H --infer-all --intermod-opt maze >/dev/null 2>/dev/null || (echo 'Compile error.' && exit)"
+MERCURY_COMPILE_JAVA="mmc --rebuild --java -O6 -H --infer-all --intermod-opt maze >/dev/null 2>/dev/null || (echo 'Compile error.' && exit)"
+MERCURY_RUN_JAVA="java -cp Mercury/classs/:/usr/local/mercury-11.07/lib/mercury/lib/java/mer_rt.jar:/usr/local/mercury-11.07/lib/mercury/lib/java/mer_std.jar jmercury.maze"
 
 for i in 3 10 15 20 30 40 50 60 70 80
 do
@@ -53,6 +55,22 @@ do
         /usr/bin/time -f "%es" ./maze 2>&1 >/dev/null | tr -d '\n'
         echo -n " "
 
+        # Mercury on Java without memoization with naive_unvisited.
+        # There's no memoization for Mercury on Java.
+        eval ${MERCURY_DISABLE_MEMOIZATION}
+        eval ${MERCURY_NAIVE_UNVISITED}
+        eval ${MERCURY_COMPILE_JAVA}
+        /usr/bin/time -f "%es" ${MERCURY_RUN_JAVA} 2>&1 >/dev/null | tr -d '\n'
+        echo -n " "
+
+        # Mercury on Java without memoization with standalone_unvisited.
+        # There's no memoization for Mercury on Java.
+        eval ${MERCURY_DISABLE_MEMOIZATION}
+        eval ${MERCURY_STANDALONE_UNVISITED}
+        eval ${MERCURY_COMPILE_JAVA}
+        /usr/bin/time -f "%es" ${MERCURY_RUN_JAVA} 2>&1 >/dev/null | tr -d '\n'
+        echo -n " "
+
         # ECLiPSe-CLP without memoization with naive_unvisited.
         # There's no memoization for ECLiPSe-CLP.
         eval ${ECLIPSE_NAIVE_UNVISITED}
@@ -60,7 +78,7 @@ do
         echo -n " "
 
         # ECLiPSe-CLP without memoization with standalone_unvisited.
-        # There's no memoization for ECLiPSe-CLP, so I used the standalone_unvisited.
+        # There's no memoization for ECLiPSe-CLP.
         eval ${ECLIPSE_STANDALONE_UNVISITED}
         eclipse -b maze.ecl -e 'profile(maze:main)' | grep "Total user time" | sed -e 's/.\+: //' | tr -d '\n'
         echo ""
