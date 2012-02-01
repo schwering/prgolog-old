@@ -59,6 +59,18 @@
     <h3>Some Fancy Charts</h3>
 
     <p>
+    The extensive table of runtimes is a bit confusing, so you might prefer the
+    following charts.
+    Hints for a quicker understanding:
+    <ul>
+      <li> Mercury/binary is blue, Mercury/Java in orange, ECLiPSe-CLP in
+      green. </li>
+      <li> Naive unvisited/2 has empty circles, standalone unvisited/2 has
+      filled circles, naive unvisited/2 with tabling has squares. </li>
+    </ul>
+    </p>
+
+    <p>
     Let's first have a look at how Mercury/binary, Mercury/Java, ECLiPSe-CLP
     performs under comparable conditions, that is, all using the <em>naive</em>
     unvisited/2 predicate:<br />
@@ -98,11 +110,17 @@
     </p>
 
     <p>
-    And the race is not even close!
+    And the race is not even close:
     Using <em>tabling</em> and <em>naive</em> outscores all other
     variants, even the <em>standalone</em> versions:<br />
     <img src="plot_best.svg" alt="plot of Mercury/binary, Mercury/Java, and
     ECLiPSe-CLP using standalone unvisited/2" /><br />
+    </p>
+
+    <p>
+    Let's finally throw everything together:<br />
+    <img src="plot_all.svg" alt="plot of Mercury/binary, Mercury/Java, and
+    ECLiPSe-CLP using naive tabled, naive, and standalone unvisited/2" /><br />
     </p>
 
     <h3>The Complete Table</h3>
