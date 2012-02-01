@@ -21,9 +21,14 @@
 
     <p>
     The interpreter is implemented in the file <a
-      href="prgolog.m">prgolog.m</a>.
+      href="prgolog.m" style="font-weight: bold;">prgolog.m</a> and two helpers,
+    <a href="prgolog.nice.m" style="font-weight: bold;">prgolog.nice.m</a> for a
+    nicer syntax and
+    <a href="prgolog.fluents.m" style="font-weight: bold;">prgolog.fluents.m</a>
+    for some convenience functions for fluent formulas.
     <ul>
-      <li> Nonderministic pick is NOT implemented. </li>
+      <li> Nonderministic pick is NOT implemented. I'll probably go with the
+      pick restricted to finite domains. </li>
       <li> Semantics from my diploma thesis:
       <ul>
         <li> Transition semantics using program decomposition.
@@ -33,8 +38,8 @@
       </ul>
       </li>
     </ul>
-    As example, I implemented a maze in <a href="maze.m">maze.m</a> consisting
-    of four rooms, each of which as two doors.
+    As example, I implemented a maze in <a href="maze.m" style="font-weight:
+      bold;">maze.m</a> consisting of four rooms, each of which as two doors.
     The agent wants to get from the top left to the bottom right.
     The agent's actions are deterministic (i.e., non-stochastic).
     See maze.m for details.
@@ -45,15 +50,42 @@
     <h2>Benchmarks</h2>
 
     <p>
-    I have tested Mercury vs ECLiPSe-CLP for different room sizes (the size
-    denotes the width and height).
-    For the unvisited/2 fluent, which holds iff the given position has been
-    visited in a previous situation, I have tested two different
-    implementations, one being the naive implementation ("naive", uses pos/1)
-    and the other one the standalone implementation ("stndaln", doesn't use
-    pos/1 and thus avoids many regressions).
-    See <a href="#unvisited">below</a> for details on unvisited/2 and a short
-    interpretation of this table:
+    I have tested Mercury for different room sizes.
+    To compare it to ECLiPSe-CLP, I have re-implemented the same interpreter and
+    maze in ECLiPSe-CLP.
+    Mercury is compiled to binary code by default, but also supports Java as
+    backend (and .NET, Erlang, and some more).<br />
+    Hence, our test has already three dimensions: Mercury/binary vs Mercury/Java
+    vs ECLiPSe-CLP.
+    </p>
+
+    <p>
+    In the maze, there is a fluent called unvisited/2 which holds iff the given
+    position has been visited in a previous situation.
+    I have tested two alternative implementations of this fluent.
+    The first <em>naively</em> uses the pos/1 fluent excessively and therefore
+    induces a great number of regressions.
+    The second does not rely on pos/1 and is therefore called
+    <em>standalone</em>.
+    Becaues it uses much less regression, the standalone variant is much faster.
+    But we will see that if we <a
+      href="http://en.wikipedia.org/wiki/Memoization">memoize</a> (aka tabling,
+    that is, caching), pos/1, the naive unvisited/2 becomes incredibly
+    fast.
+    See <a href="#unvisited">below</a> for details on unvisited/2.<br />
+    Now, our test has the following dimensions:
+    <ul>
+      <li> Mercury/binary with naive unvisited/2 with tabling </li>
+      <li> Mercury/binary with naive unvisited/2 (without tabling) </li>
+      <li> Mercury/binary with standalone unvisited/2 (without tabling, since
+      this makes no sense here) </li>
+      <li> Mercury/Java with naive unvisited/2 (without tabling, which is not
+      supported in the Java backend) </li>
+      <li> Mercury/Java with standalone unvisited/2 (without tabling) </li>
+      <li> ECLiPSe-CLP with naive unvisited/2 (without tabling, which is not
+      supported by ECLiPSe-CLP) </li>
+      <li> ECLiPSe-CLP with standalone unvisited/2 (without tabling) </li>
+    </ul>
     </p>
 
     <h3>Some Fancy Charts</h3>
