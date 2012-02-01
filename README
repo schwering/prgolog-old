@@ -2,7 +2,7 @@ Mercury Golog interpreter.            Christoph Schwering (schwering@gmail.com)
 
 * Nonderministic pick is NOT implemented.
 * Semantics from my diploma thesis:
-   * Uses program decomposition.
+   * Transition semantics using program decomposition.
    * Decision theory to resolve nondeterminism.
    * Stochastic actions.
    * Dropped support for continuous change and time.
@@ -20,18 +20,20 @@ Also, constraint support seems not to be as easy as in ECLiPSe-CLP.
 
 You can compile the example by calling
  $ mmc --make maze
-There are some cool flags, see run-both.sh for some of them.
+There are some compiler flags, see run-both.sh for some of them.
 
 
 
-MERCURY [+/- Tabling] [binary | Java] vs ECLIPSE-CLP
---------------------------------------------------------
+MERCURY (with or without Tabling) (binary or Java) vs ECLIPSE-CLP
+-----------------------------------------------------------------
 
 I have tested Mercury vs ECLiPSe-CLP for different room sizes (the size denotes
 the width and height).
-For the unvisited/3 fluent, I have tested two different implementations, one
-being the naive implementation (naive, uses pos/1) and the other one the
-standalone implementation (stndaln, doesn't use pos/1). See below for details.
+For the unvisited/2 fluent, which holds iff the given position has been visited
+in a previous situation, I have tested two different implementations, one being
+the naive implementation (naive, uses pos/1) and the other one the standalone
+implementation (stndaln, doesn't use pos/1).
+See below for details on unvisited/2 and a short interpretation of this table:
 
        +------+---------------------------------------+---------------+
        |      |    M    e    r    c    u    r    y    | E C L i P S e |
@@ -42,48 +44,51 @@ standalone implementation (stndaln, doesn't use pos/1). See below for details.
        |      +-------+-------+-------+-------+-------+-------+-------+
        |      | naive | naive |stndaln| naive |stndaln| naive |stndaln|
        +------+-------+-------+-------+-------+-------+-------+-------+
-       |  3:  |  0.02 |  0.03 |  0.02 |  0.82 |  0.77 |  0.87 |  0.25 |
+       |   3  |  0.02 |  0.03 |  0.02 |  0.82 |  0.77 |  0.87 |  0.25 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 10:  |  0.21 |  0.90 |  0.35 |  1.50 |  1.27 |  6.29 |  2.63 |
+       |  10  |  0.21 |  0.90 |  0.35 |  1.50 |  1.27 |  6.29 |  2.63 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 15:  |  0.41 |  3.08 |  0.79 |  2.79 |  1.60 | 12.24 |  5.47 |
+       |  15  |  0.41 |  3.08 |  0.79 |  2.79 |  1.60 | 12.24 |  5.47 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 20:  |  0.68 |  7.75 |  1.44 |  5.29 |  2.07 | 19.19 |  8.85 |
+       |  20  |  0.68 |  7.75 |  1.44 |  5.29 |  2.07 | 19.19 |  8.85 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 30:  |  1.55 | 26.90 |  3.48 | 15.79 |  3.34 | 38.44 | 18.27 |
+       |  30  |  1.55 | 26.90 |  3.48 | 15.79 |  3.34 | 38.44 | 18.27 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 40:  |  2.63 | 63.16 |  6.36 | 37.49 |  5.10 | 61.90 | 30.31 |
+       |  40  |  2.63 | 63.16 |  6.36 | 37.49 |  5.10 | 61.90 | 30.31 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 50:  |  4.16 |125.02 |  9.85 | 73.89 |  7.51 | 90.33 | 45.22 |
+       |  50  |  4.16 |125.02 |  9.85 | 73.89 |  7.51 | 90.33 | 45.22 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 60:  |  6.05 |221.01 | 14.81 |122.98 | 10.78 |126.04 | 64.23 |
+       |  60  |  6.05 |221.01 | 14.81 |122.98 | 10.78 |126.04 | 64.23 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 70:  |  7.76 |358.04 | 20.17 |181.52 | 15.18 |160.88 | 81.30 |
+       |  70  |  7.76 |358.04 | 20.17 |181.52 | 15.18 |160.88 | 81.30 |
        +------+-------+-------+-------+-------+-------+-------+-------+
-       | 80:  | 10.50 |544.89 | 27.33 |258.81 | 19.04 |205.34 |104.59 |
+       |  80  | 10.50 |544.89 | 27.33 |258.81 | 19.04 |205.34 |104.59 |
        +------+-------+-------+-------+-------+-------+-------+-------+
        |Column|  (1)  |  (2)  |  (3)  |  (4)  |  (5)  |  (6)  |  (7)  | 
        +------+-------+-------+-------+-------+-------+-------+-------+
 
-Time unit is seconds on a Intel Core 2 Duo @ 2.26 GHz.
+Durations are given in seconds on a Intel Core 2 Duo @ 2.26 GHz.
 
 How are times measured?
-  The Mercury times are measured by GNU's time utility, i.e., they denote the
-  process's runtime (this includes the JVM initilization in the Java case).
+  The Mercury times are measured by GNU's time utility, i.e., they represent
+  the process's runtime (this includes the JVM initilization in the Java case).
   ECLiPSe-CLP was measured using its profile/1 predicate.
 
 Memoization / Tabling:
   As you can see, memoization aka tabling (caching of functions and predicates)
-  of the pos/1 fluent speeds the things greatly, so that the naive unvisited/3
+  of the pos/1 fluent speeds the things greatly, so that the naive unvisited/2
   doesn't look so bad after all.
   But of course, memoization means memory consumption; I haven't found yet how
   to limit that.
+  According to the Mercury mailing list, probabilistic tabling (only cache some
+  percent) has been implemented by some people, but I haven't found it
+  anywhere.
 
 What are the most interesting comparisons?
   * Columns (2) vs (6) and (3) vs (7)
     show how Mercury and ECLiPSe perform under comparable conditions;
-    Mercury wins with standalone unvisited/3, but looses with naive
-    unvisited/3 in big rooms
+    Mercury wins with standalone unvisited/2,
+    but looses with naive unvisited/2 in big rooms for some reason
   * Column (1) vs (2) and (1) vs (6)
     shows how sampling helps improves the performance and helps Mercury
     drastically out-perform ECLiPSe
@@ -91,7 +96,7 @@ What are the most interesting comparisons?
     shows that the Java backend of Mercury works pretty well;
     it even out-performs the binary
 
-What is the naive / standalone unvisited/3?
+What is the naive / standalone unvisited/2?
   The naive unvisited/2 naively uses pos/1 to check whether or not P
   has been visited yet:
    unvisited(P, S1) :-
