@@ -73,14 +73,14 @@ do
 
         # ECLiPSe-CLP without memoization with naive_unvisited.
         # There's no memoization for ECLiPSe-CLP.
-#       eval ${ECLIPSE_NAIVE_UNVISITED}
-#       eclipse -b maze.ecl -e 'profile(maze:main)' | grep "Total user time" | sed -e 's/.\+: //' | tr -d '\n'
-#       echo -n " "
+        eval ${ECLIPSE_NAIVE_UNVISITED}
+        eclipse -b maze.ecl -e 'profile(maze:main)' | grep "Total user time" | sed -e 's/.\+: //' | tr -d '\n'
+        echo -n " "
 
         # ECLiPSe-CLP without memoization with standalone_unvisited.
         # There's no memoization for ECLiPSe-CLP.
-#       eval ${ECLIPSE_STANDALONE_UNVISITED}
-#       eclipse -b maze.ecl -e 'profile(maze:main)' | grep "Total user time" | sed -e 's/.\+: //' | tr -d '\n'
-#       echo ""
+        eval ${ECLIPSE_STANDALONE_UNVISITED}
+        eclipse -b maze.ecl -e 'profile(maze:main)' | grep "Total user time" | sed -e 's/.\+: //' | tr -d '\n'
+        echo ""
 done
 

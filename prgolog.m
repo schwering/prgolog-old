@@ -142,55 +142,43 @@
 :- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P)) <= bat(A, B, P).
 :- mode next(in(prog), out(pseudo_atom), out(prog)) is nondet.
 
-next(P, C, R) :-
-    (   P = seq(P1, P2),
-        (   next(P1, C, R1),
-            R = seq(R1, P2)
-        ;   maybe_final(P1),
-            next(P2, C, R)
-        )
-    ;   P = non_det(P1, P2),
-        (   next(P1, C, R)
-        ;   next(P2, C, R)
-        )
-    ;   P = conc(P1, P2),
-        (   next(P1, C, R1),
-            R = conc(R1, P2)
-        ;   next(P2, C, R2),
-            R = conc(P1, R2)
-        )
-    ;   P = star(P1),
-        next(P1, C, R1),
-        R = seq(R1, star(P1))
-    ;   P = proc(N),
-        proc(N, P1),
-        next(P1, C, R)
-    ;   P = pseudo_atom(C),
-        R = nil
-    ;   P = nil,
-        false
-    ).
+next(seq(P1, P2), C, R) :-
+    (   next(P1, C, R1), R = seq(R1, P2)
+    ;   next(P2, C, R), maybe_final(P1) ).
+next(non_det(P1, P2), C, R) :-
+    (   next(P1, C, R)
+    ;   next(P2, C, R) ).
+next(conc(P1, P2), C, R) :-
+    (   next(P1, C, R1), R = conc(R1, P2)
+    ;   next(P2, C, R2), R = conc(P1, R2) ).
+next(star(P), C, R) :-
+    next(P, C, R1),
+    R = seq(R1, star(P)).
+next(proc(N), C, R) :-
+    proc(N, P),
+    next(P, C, R).
+next(pseudo_atom(C), C, R) :-
+    R = nil.
+next(nil, _, _) :-
+    false.
 
 
 :- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
 :- mode maybe_final(in(prog)) is semidet.
 
-maybe_final(P) :-
-    (   P = seq(P1, P2),
-        maybe_final(P1),
-        maybe_final(P2)
-    ;   P = non_det(P1, P2),
-        (   maybe_final(P1)
-        ;   maybe_final(P2)
-        )
-    ;   P = conc(P1, P2),
-        maybe_final(P1),
-        maybe_final(P2)
-    ;   P = star(_)
-    ;   P = pseudo_atom(_),
-        false
-    ;   P = nil
-    ).
+maybe_final(seq(P1, P2)) :-
+    maybe_final(P1),
+    maybe_final(P2).
+maybe_final(non_det(P1, P2)) :-
+    (   maybe_final(P1)
+    ;   maybe_final(P2) ).
+maybe_final(conc(P1, P2)) :-
+    maybe_final(P1),
+    maybe_final(P2).
+maybe_final(star(_)).
+maybe_final(pseudo_atom(_)) :-
+    false.
+maybe_final(nil).
 
 
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
@@ -209,17 +197,14 @@ next2(P, C, R) :-
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
 :- mode trans_atom(in(atom), in, out) is semidet.
 
-trans_atom(C, S, S1) :-
-    (   C = prim(A),
-        poss(A, S),
-        S1 = do(A, S)
-    ;   C = stoch(B),
-        random_outcome(B, A, S),
-        trans_atom(prim(A), S, S1)
-    ;   C = test(T),
-        T(S),
-        S1 = S
-    ).
+trans_atom(prim(A), S, S1) :-
+    poss(A, S),
+    S1 = do(A, S).
+trans_atom(stoch(B), S, S1) :-
+    random_outcome(B, A, S),
+    trans_atom(prim(A), S, S1).
+trans_atom(test(T), S, S) :-
+    T(S).
 
 
 :- func value(prog(A, B, P), sit(A), lookahead) = reward <= bat(A, B, P).
@@ -280,7 +265,5 @@ do(P, S, S2) :-
 
 final(P, S) :-
     maybe_final(P),
-    not (
-        value(P, S, lookahead(S)) > reward(P, S)
-    ).
+    reward(P, S) >= value(P, S, lookahead(S)).
 
