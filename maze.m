@@ -73,7 +73,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 3.
+room_size = 80.
 room_height = room_size.
 room_width = room_height.
 
@@ -205,7 +205,7 @@ pos(S1) = P :-
     ).
 
 :- pred unvisited(point::in, sit(prim_action)::in) is semidet.
-unvisited(P, S1) :- standalone_unvisited(P, S1).
+unvisited(P, S1) :- naive_unvisited(P, S1).
 
 :- pred naive_unvisited(point::in, sit(prim_action)::in) is semidet.
 naive_unvisited(P, S1) :-

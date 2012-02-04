@@ -213,10 +213,10 @@ trans_atom(test(T), S, S) :-
 value(P, S, L) = V :-
     if      L > 0,
             solutions((pred(V1::out) is nondet :-
-                next2(P, C1, P1),
+                next2(P, C1, R1),
                 trans_atom(C1, S, S1),
-                V1 = value(P1, S1, new_lookahead(L, C1)),
-                ( maybe_final(P1) => V1 > reward(P, S) )
+                V1 = value(R1, S1, new_lookahead(L, C1)),
+                ( maybe_final(R1) => V1 > reward(P, S) )
             ), Values),
             Values \= []
     then    V = list.foldl(int.max, Values, int.min_int)
@@ -242,13 +242,13 @@ trans(P, S, P1, S1) :-
             trans_atom(C1, S, S1)
         else
             InitCand = cand(nil, s0, int.min_int),
-            list.foldl((pred(decomp(C2, P2)::in(decomp),
+            list.foldl((pred(decomp(C2, R2)::in(decomp),
                              Cand1::in(cand),
                              Better::out(cand)) is det :-
                 if      trans_atom(C2, S, S2),
-                        V2 = value(P2, S2, new_lookahead(lookahead(S), C2)),
+                        V2 = value(R2, S2, new_lookahead(lookahead(S), C2)),
                         V2 > value(Cand1)
-                then    Better = cand(P2, S2, V2)
+                then    Better = cand(R2, S2, V2)
                 else    Better = Cand1
             ), Decomps, InitCand, BestCand),
             BestCand \= InitCand,
