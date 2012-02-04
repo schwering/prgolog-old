@@ -42,7 +42,6 @@
       bold;">maze.m</a> consisting of four rooms, each of which as two doors.
     The agent wants to get from the top left to the bottom right.
     The agent's actions are deterministic (i.e., non-stochastic).
-    See maze.m for details.
     </p>
 
 
@@ -113,7 +112,7 @@
     I don't know why this is.
     I also don't know why the <em>Java</em> version is faster than the
     <em>binary</em> Mercury version.
-    Maybe both results have to do with the virtual machines doing some
+    Maybe both results are due to the virtual machines doing some
     optimizations?
     Note that the naive unvisited/2 leads to <em>many</em> regressions of
     pos/2 which might have to do with this.
@@ -130,27 +129,27 @@
     <p>
     But Mercury offers <a href="http://en.wikipedia.org/wiki/Memoization">memoization</a>
     aka tabling.
-    This sounds very reasonable because we very often evaluate the same fluent
+    This sounds very promising because we very often evaluate the same fluent
     in the same situation due to regression.
     When we enable tabling for the pos/1 fluent and use the <em>naive</em>
     unvisited/2, which makes heavy use of pos/1, we get the following
     results:<br />
     <img src="plot_binary.svg" alt="plot of Mercury/binary using tabled naive,
     naive, and standalone unvisited/2" /><br />
-    The tabling has such a great effect that it the <em>tabled naive</em>
+    The tabling has such a great effect that the <em>tabled naive</em>
     version even surpasses the <em>standalone</em> unvisited/2!
     </p>
 
     <p>
     And the race is not even close:
-    Using <em>tabling</em> and <em>naive</em> outscores all other
+    <em>tabling</em> and <em>naive</em> unvisited/2 outscores all other
     variants, even the <em>standalone</em> versions:<br />
     <img src="plot_best.svg" alt="plot of Mercury/binary, Mercury/Java, and
     ECLiPSe-CLP using standalone unvisited/2" /><br />
     </p>
 
     <p>
-    Let's finally throw everything together:<br />
+    Let's finally throw everything together in one chart:<br />
     <img src="plot_all.svg" alt="plot of Mercury/binary, Mercury/Java, and
     ECLiPSe-CLP using naive tabled, naive, and standalone unvisited/2" /><br />
     </p>

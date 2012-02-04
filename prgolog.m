@@ -13,7 +13,7 @@
 % and procedures.
 % For these types, the type class bat must be implemented, which together
 % gives us everything we need of a basic action theory.
-% Note that the horizon must be positive and reward non-negative.
+% Note that the lookahead must be positive and reward non-negative.
 %
 % The core predicates are:
 % * next/2 to decompose a program into one next atomic action its remainder,
@@ -28,7 +28,7 @@
 % interleaving, sequence, test actions, primitive actions, stochastic actions,
 % and atomic complex actions.
 % Nondeterminism is resolved by choosing the alternative that maximizes a
-% reward after a lookahead horizon defined in the BAT.
+% reward after a lookahead lookahead defined in the BAT.
 %
 % In contrast to typical Prolog implementations, fluent in test actions are not
 % interpreted with a holds/2 predicate that deconstructs the expression and
@@ -57,7 +57,7 @@
 :- type sit(A) ---> s0 ; do(A, sit(A)).
 
 :- type reward == int.
-:- type horizon == int.
+:- type lookahead == int.
 
 :- type relfluent(A) == pred(sit(A)).
 :- inst relfluent == (pred(in) is semidet).
@@ -105,14 +105,14 @@
     pred random_outcome(B, A, S),
     mode random_outcome(in, out, in) is det,
 
-    func reward(sit(A)) = reward,
-    mode reward(in) = out is det,
+    func reward(prog(A, B, P), sit(A)) = reward,
+    mode reward(in(prog), in) = out is det,
 
-    func horizon(sit(A)) = horizon,
-    mode horizon(in) = out is det,
+    func lookahead(sit(A)) = lookahead,
+    mode lookahead(in) = out is det,
 
-    func new_horizon(horizon, atom(A, B)) = horizon,
-    mode new_horizon(in, in) = out is det,
+    func new_lookahead(lookahead, atom(A, B)) = lookahead,
+    mode new_lookahead(in, in) = out is det,
 
     pred proc(P, prog(A, B, P)),
     mode proc(in(ground), out(prog)) is det
@@ -224,80 +224,64 @@ trans_atom(C, S, S1) :-
     ).
 
 
-:- type decomposition(A, B, P) ---> part(head :: atom(A, B),
-                                         rest :: prog(A, B, P)).
-:- inst decomposition ---> part(atom, prog).
+:- func value(prog(A, B, P), sit(A), lookahead) = reward <= bat(A, B, P).
+:- mode value(in(prog), in, in) = out is det.
 
-:- type candidate(A, B, P) ---> candidate(rest_horizon :: horizon,
-                                          prog         :: prog(A, B, P),
-                                          sit          :: sit(A),
-                                          value        :: reward,
-                                          success      :: int).
-:- inst candidate ---> candidate(ground,
-                                 prog,
-                                 ground,
-                                 ground,
-                                 ground).
+value(P, S, L) = V :-
+    if      L > 0,
+            solutions((pred(V1::out) is nondet :-
+                next2(P, C1, P1),
+                trans_atom(C1, S, S1),
+                V1 = value(P1, S1, new_lookahead(L, C1)),
+                ( maybe_final(P1) => V1 > reward(P, S) )
+            ), Values),
+            Values \= []
+    then    V = list.foldl(int.max, Values, int.min_int)
+    else    V = reward(P, S).
 
-:- pred trans(horizon, prog(A, B, P), sit(A),
-              horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode trans(in, in(prog), in,
-              out, out(prog), out) is semidet.
 
-trans(H, P, S, H1, P1, S1) :-
-    H >= 1,
-    % Determine all possible decompositions.
-    (pred(MyDecomps::out(list(decomposition))) is det :-
-        solutions((pred(MyDecomp::out(decomposition)) is nondet :-
-            next2(P, head(MyDecomp), rest(MyDecomp))
-        ), MyDecomps)
-    )(Decomps),
-    % If there is only one decomposition, we don't need to look ahead.
-    % Otherwise, we look ahead H transitions and pick that decomposition which
-    % maximizes the reward function.
-    (   if      Decomps = [Decomp]
-        then    trans_atom(head(Decomp), S, S1),
-                P1 = rest(Decomp),
-                H1 = new_horizon(H, head(Decomp))
-        else    InitCand = candidate(-1, nil, s0, -1, -1),
-                list.foldl((pred(Decomp::in(decomposition),
-                                 Cand1::in(candidate),
-                                 Better::out(candidate)) is det :-
-                    if      trans_atom(head(Decomp), S, sit(Cand2)),
-                            rest_horizon(Cand2) = new_horizon(H, head(Decomp)),
-                            prog(Cand2) = rest(Decomp),
-                            trans_max_h(rest_horizon(Cand2), prog(Cand2),
-                                        sit(Cand2), S2, success(Cand2)),
-                            value(Cand2) = reward(S2),
-                            (   value(Cand2) > value(Cand1)
-                            ;   value(Cand2) = value(Cand1),
-                                success(Cand2) > success(Cand1))
-                    then    Better = Cand2
-                    else    Better = Cand1
-                ), Decomps, InitCand, BestCand),
-                BestCand \= InitCand,
-                H1 = rest_horizon(BestCand),
-                S1 = sit(BestCand),
-                P1 = prog(BestCand)
-    ).
+%:- pred trans(prog(A, B, P), sit(A), lookahead,
+%              prog(A, B, P), sit(A), lookahead) <= bat(A, B, P).
+%:- mode trans(in(prog), in, in, out(prog), out, out) is nondet.
+%:- mode trans(in(prog), in, in, out(prog), out, out) is cc_nondet.
+%
+%trans(P, S, P1, S1) :-
+%    next2(P, C1, P1),
+%    trans_atom(C1, S, S1),
+%    value(P1, S1, L1) >= value(P, S, L).
 
+
+:- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
+:- inst decomp ---> decomp(atom, prog).
+
+:- type cand(A, B, P) ---> cand(prog(A, B, P), sit(A), value :: reward).
+:- inst cand ---> cand(prog, ground, ground).
 
 trans(P, S, P1, S1) :-
-    H = horizon(S),
-    trans(H, P, S, _H1, P1, S1).
-
-
-:- pred trans_max_h(horizon, prog(A, B, P), sit(A), sit(A), int)
-    <= bat(A, B, P).
-:- mode trans_max_h(in, in(prog), in, out, out) is det.
-
-trans_max_h(H, P, S, S2, Success2) :-
-    if      H = 0 ; final(H, P, S)
-    then    S2 = S, Success2 = 2*H*H  % rate sooner final better than late final
-    else if trans(H, P, S, H1, P1, S1)
-    then    trans_max_h(H1, P1, S1, S2, Success1),
-            Success2 = Success1 + 1
-    else    S2 = S, Success2 = 0.
+    (pred(DecompsTmp::out(list(decomp))) is det :-
+        solutions((pred(decomp(C, R)::out(decomp)) is nondet :-
+            next2(P, C, R)
+        ), DecompsTmp)
+    )(Decomps),
+    (   if
+            Decomps = [Decomp]
+        then
+            Decomp = decomp(C1, P1),
+            trans_atom(C1, S, S1)
+        else
+            InitCand = cand(nil, s0, int.min_int),
+            list.foldr((pred(decomp(C2, P2)::in(decomp),
+                             Cand1::in(cand),
+                             Better::out(cand)) is det :-
+                if      trans_atom(C2, S, S2),
+                        V2 = value(P2, S2, new_lookahead(lookahead(S), C2)),
+                        V2 > value(Cand1)
+                then    Better = cand(P2, S2, V2)
+                else    Better = Cand1
+            ), Decomps, InitCand, BestCand),
+            BestCand \= InitCand,
+            BestCand = cand(P1, S1, _)
+    ).
 
 
 do(P, S, S2) :-
@@ -307,18 +291,16 @@ do(P, S, S2) :-
             do(P1, S1, S2).
 
 
-:- pred final(horizon, prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode final(in, in(prog), in) is semidet.
+:- pred final(prog(A, B, P), sit(A), lookahead) <= bat(A, B, P).
+:- mode final(in(prog), in, in) is semidet.
 
-final(H, P, S) :-
+final(P, S, L) :-
     maybe_final(P),
     not (
-        next(P, C, R),
-        trans_max_h(H, seq(pseudo_atom(C), R), S, S1, _Success),
-        reward(S1) > reward(S)
+        value(P, S, L) > reward(P, S)
     ).
 
 
 final(P, S) :-
-    final(horizon(S), P, S).
+    final(P, S, lookahead(S)).
 

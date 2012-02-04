@@ -73,7 +73,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 80.
+room_size = 10.
 room_height = room_size.
 room_width = room_height.
 
@@ -138,6 +138,12 @@ dist(p(X1, Y1), p(X2, Y2)) = floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(f
 :- type procedure ---> bla.
 
 
+:- func sitlen(sit(prim_action)) = int is det.
+
+sitlen(s0)       = 0.
+sitlen(do(_, S)) = 1 + sitlen(S).
+
+
 :- pred poss(prim_action::in, sit(prim_action)::in) is semidet.
 poss(A, S) :-
     P1 = pos(S),
@@ -155,16 +161,17 @@ random_outcome(B, A, _S) :-
     ).
 
 
-:- func reward(sit(prim_action)) = int is det.
-reward(S) = dist(start, goal) - dist(pos(S), goal).
+:- func reward(prog(prim_action, stoch_action, procedure), sit(prim_action)) = reward.
+:- mode reward(unused, in) = out is det.
+reward(_, S) = (dist(start, goal) - dist(pos(S), goal)) * (dist(start, goal) - dist(pos(S), goal)) - sitlen(S).
 
 
-:- func horizon(sit(prim_action)) = horizon is det.
-horizon(_S) = 5.
+:- func lookahead(sit(prim_action)) = lookahead is det.
+lookahead(_S) = 5.
 
 
-:- func new_horizon(horizon, atom(prim_action, stoch_action)) = horizon is det.
-new_horizon(H, _C) = H - 1.
+:- func new_lookahead(lookahead, atom(prim_action, stoch_action)) = lookahead is det.
+new_lookahead(H, _C) = H - 1.
 
 
 :- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
@@ -175,9 +182,9 @@ proc(P, P1) :- P = bla, P1 = nil.
 :- instance bat(maze.prim_action, maze.stoch_action, maze.procedure) where [
     pred(poss/2) is maze.poss,
     pred(random_outcome/3) is maze.random_outcome,
-    func(reward/1) is maze.reward,
-    func(horizon/1) is maze.horizon,
-    func(new_horizon/2) is maze.new_horizon,
+    func(reward/2) is maze.reward,
+    func(lookahead/1) is maze.lookahead,
+    func(new_lookahead/2) is maze.new_lookahead,
     pred(proc/2) is maze.proc
 ].
 
@@ -198,7 +205,7 @@ pos(S1) = P :-
     ).
 
 :- pred unvisited(point::in, sit(prim_action)::in) is semidet.
-unvisited(P, S1) :- standalone_unvisited(P, S1).
+unvisited(P, S1) :- naive_unvisited(P, S1).
 
 :- pred naive_unvisited(point::in, sit(prim_action)::in) is semidet.
 naive_unvisited(P, S1) :-
@@ -224,12 +231,19 @@ main(!IO) :-
     io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),
     io.write(Pos0, !IO), io.nl(!IO),
+    io.write(start, !IO), io.nl(!IO),
+    io.write(goal, !IO), io.nl(!IO),
+    io.write(dist(start, goal) - dist(p(0,2), goal), !IO), io.nl(!IO),
+    io.write(dist(start, goal) - dist(p(1,2), goal), !IO), io.nl(!IO),
+    io.write(dist(start, goal) - dist(p(1,1), goal), !IO), io.nl(!IO),
+    io.write(dist(start, goal) - dist(p(1,3), goal), !IO), io.nl(!IO),
     Prog = star(a(up) or a(down) or a(left) or a(right)),
     %Prog1 = t(pos == f(start)) `;` Prog0 `;` t(pos == f(goal)),
     (   if      do(Prog, s0, S1)
-        then    Rew1 = prgolog.reward(S1),
+        then    Rew1 = maze.reward(_, S1),
                 Pos1 = pos(S1),
-                ( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
+                %( if Rew1 = RewMax then Msg = "ok" else Msg = "failed early" ),
+                ( if pos(S1) = goal then Msg = "ok" else Msg = "failed early" ),
                 io.format("%s\n", [string.s(Msg)], !IO),
                 io.write(Rew1, !IO), io.nl(!IO),
                 io.write(Pos1, !IO), io.nl(!IO),
