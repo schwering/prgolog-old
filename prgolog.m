@@ -19,8 +19,8 @@
 % * next/2 to decompose a program into one next atomic action its remainder,
 % * next2/2 to resolve complex atomic actions,
 % * trans_atom/3 to execute primitive, stochastic (sampling), and test actions,
-% * trans/4 and trans/6 to pick one decomposition and execute its next step,
-% * final/2 and final/3 that decide whether or not a program is final,
+% * trans/4 to pick one decomposition and execute its next step,
+% * final/2 decides whether or not a program is final,
 % * do/3 that executes a program until it's final.
 %
 % The interpreter features sequence, recursive procedure calls, nondeterministic
@@ -139,10 +139,8 @@
 :- import_module solutions.
 
 
-:- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
-    <= bat(A, B, P).
-:- mode next(in(prog), out(pseudo_atom), out(prog))
-    is nondet.
+:- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P)) <= bat(A, B, P).
+:- mode next(in(prog), out(pseudo_atom), out(prog)) is nondet.
 
 next(P, C, R) :-
     (   P = seq(P1, P2),
@@ -240,17 +238,6 @@ value(P, S, L) = V :-
     else    V = reward(P, S).
 
 
-%:- pred trans(prog(A, B, P), sit(A), lookahead,
-%              prog(A, B, P), sit(A), lookahead) <= bat(A, B, P).
-%:- mode trans(in(prog), in, in, out(prog), out, out) is nondet.
-%:- mode trans(in(prog), in, in, out(prog), out, out) is cc_nondet.
-%
-%trans(P, S, P1, S1) :-
-%    next2(P, C1, P1),
-%    trans_atom(C1, S, S1),
-%    value(P1, S1, L1) >= value(P, S, L).
-
-
 :- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
 :- inst decomp ---> decomp(atom, prog).
 
@@ -270,7 +257,7 @@ trans(P, S, P1, S1) :-
             trans_atom(C1, S, S1)
         else
             InitCand = cand(nil, s0, int.min_int),
-            list.foldr((pred(decomp(C2, P2)::in(decomp),
+            list.foldl((pred(decomp(C2, P2)::in(decomp),
                              Cand1::in(cand),
                              Better::out(cand)) is det :-
                 if      trans_atom(C2, S, S2),
@@ -291,16 +278,9 @@ do(P, S, S2) :-
             do(P1, S1, S2).
 
 
-:- pred final(prog(A, B, P), sit(A), lookahead) <= bat(A, B, P).
-:- mode final(in(prog), in, in) is semidet.
-
-final(P, S, L) :-
+final(P, S) :-
     maybe_final(P),
     not (
-        value(P, S, L) > reward(P, S)
+        value(P, S, lookahead(S)) > reward(P, S)
     ).
-
-
-final(P, S) :-
-    final(P, S, lookahead(S)).
 

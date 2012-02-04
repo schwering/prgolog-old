@@ -73,7 +73,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 10.
+room_size = 3.
 room_height = room_size.
 room_width = room_height.
 
@@ -205,7 +205,7 @@ pos(S1) = P :-
     ).
 
 :- pred unvisited(point::in, sit(prim_action)::in) is semidet.
-unvisited(P, S1) :- naive_unvisited(P, S1).
+unvisited(P, S1) :- standalone_unvisited(P, S1).
 
 :- pred naive_unvisited(point::in, sit(prim_action)::in) is semidet.
 naive_unvisited(P, S1) :-
@@ -233,10 +233,6 @@ main(!IO) :-
     io.write(Pos0, !IO), io.nl(!IO),
     io.write(start, !IO), io.nl(!IO),
     io.write(goal, !IO), io.nl(!IO),
-    io.write(dist(start, goal) - dist(p(0,2), goal), !IO), io.nl(!IO),
-    io.write(dist(start, goal) - dist(p(1,2), goal), !IO), io.nl(!IO),
-    io.write(dist(start, goal) - dist(p(1,1), goal), !IO), io.nl(!IO),
-    io.write(dist(start, goal) - dist(p(1,3), goal), !IO), io.nl(!IO),
     Prog = star(a(up) or a(down) or a(left) or a(right)),
     %Prog1 = t(pos == f(start)) `;` Prog0 `;` t(pos == f(goal)),
     (   if      do(Prog, s0, S1)
