@@ -73,7 +73,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 80.
+room_size = 30.
 room_height = room_size.
 room_width = room_height.
 

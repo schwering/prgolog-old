@@ -226,34 +226,38 @@ value(P, S, L) = V :-
 :- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
 :- inst decomp ---> decomp(atom, prog).
 
-:- type cand(A, B, P) ---> cand(prog(A, B, P), sit(A), value :: reward).
-:- inst cand ---> cand(prog, ground, ground).
+:- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: reward).
+:- inst cand ---> cand(decomp, ground).
+
+
+:- func new_cand(sit(A), decomp(A, B, P)) = cand(A, B, P) <= bat(A, B, P).
+:- mode new_cand(in, in(decomp)) = out(cand) is det.
+
+new_cand(S, decomp(C, R)) = cand(decomp(C, R), V) :-
+    V = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
+
+
+:- func fold(sit(A), decomp(A, B, P), cand(A, B, P)) = cand(A, B, P) <= bat(A, B, P).
+:- mode fold(in, in(decomp), in(cand)) = out(cand) is det.
+
+fold(S, D, Y) = ( if X = new_cand(S, D), value(X) > value(Y) then X else Y ).
+
 
 trans(P, S, P1, S1) :-
-    (pred(DecompsTmp::out(list(decomp))) is det :-
+    (pred(DsTmp::out(list(decomp))) is det :-
         solutions((pred(decomp(C, R)::out(decomp)) is nondet :-
             next2(P, C, R)
-        ), DecompsTmp)
-    )(Decomps),
-    (   if
-            Decomps = [Decomp]
-        then
-            Decomp = decomp(C1, P1),
-            trans_atom(C1, S, S1)
-        else
-            InitCand = cand(nil, s0, int.min_int),
-            list.foldl((pred(decomp(C2, R2)::in(decomp),
-                             Cand1::in(cand),
-                             Better::out(cand)) is det :-
-                if      trans_atom(C2, S, S2),
-                        V2 = value(R2, S2, new_lookahead(lookahead(S), C2)),
-                        V2 > value(Cand1)
-                then    Better = cand(R2, S2, V2)
-                else    Better = Cand1
-            ), Decomps, InitCand, BestCand),
-            BestCand \= InitCand,
-            BestCand = cand(P1, S1, _)
-    ).
+        ), DsTmp)
+    )(Ds),
+    (   if      Ds = [D]
+        then    D = decomp(C1, P1)
+        else    Ds = [D | Ds0],
+                (pred(C1Tmp::out(atom), P1Tmp::out(prog)) is det :-
+                    cand(decomp(C1Tmp, P1Tmp), _) =
+                        list.foldl(fold(S), Ds0, new_cand(S, D))
+                )(C1, P1)
+    ),
+    trans_atom(C1, S, S1).
 
 
 do(P, S, S2) :-
