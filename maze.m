@@ -129,7 +129,8 @@ conn(P1, P2) :-
     ).
 
 :- func dist(point, point) = int is det.
-dist(p(X1, Y1), p(X2, Y2)) = floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
+dist(p(X1, Y1), p(X2, Y2)) =
+    floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
 %dist(p(X1, Y1), p(X2, Y2)) = abs(X1 - X2) + abs(Y1 - Y2).
 
 
@@ -161,16 +162,20 @@ random_outcome(B, A, _S) :-
     ).
 
 
-:- func reward(prog(prim_action, stoch_action, procedure), sit(prim_action)) = reward.
+:- func reward(prog(prim_action, stoch_action, procedure), sit(prim_action))
+    = reward.
 :- mode reward(unused, in) = out is det.
-reward(_, S) = (dist(start, goal) - dist(pos(S), goal)) * (dist(start, goal) - dist(pos(S), goal)) - sitlen(S).
+reward(_, S) = (dist(start, goal) - dist(pos(S), goal))
+             * (dist(start, goal) - dist(pos(S), goal))
+             - sitlen(S).
 
 
 :- func lookahead(sit(prim_action)) = lookahead is det.
 lookahead(_S) = 5.
 
 
-:- func new_lookahead(lookahead, atom(prim_action, stoch_action)) = lookahead is det.
+:- func new_lookahead(lookahead, atom(prim_action, stoch_action))
+    = lookahead is det.
 new_lookahead(H, _C) = H - 1.
 
 
@@ -217,7 +222,8 @@ naive_unvisited(P, S1) :-
 :- pred standalone_unvisited(point::in, sit(prim_action)::in) is semidet.
 standalone_unvisited(P, S) :- standalone_unvisited(P, _, S).
 
-:- pred standalone_unvisited(point::in, point::out, sit(prim_action)::in) is semidet.
+:- pred standalone_unvisited(point::in, point::out, sit(prim_action)::in)
+    is semidet.
 standalone_unvisited(P1, P3, S1) :-
     (   S1 = s0, P3 = start
     ;   S1 = do(A, S), standalone_unvisited(P1, P2, S), P3 = new_pos(A, P2)

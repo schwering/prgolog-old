@@ -122,11 +122,11 @@
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in(prog), in, out(prog), out) is semidet.
 
-:- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
-:- mode do(in(prog), in, out) is semidet.
-
 :- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode final(in(prog), in) is semidet.
+
+:- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
+:- mode do(in(prog), in, out) is semidet.
 
 :- include_module fluents.
 :- include_module nice.
@@ -139,7 +139,8 @@
 :- import_module solutions.
 
 
-:- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P)) <= bat(A, B, P).
+:- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
+    <= bat(A, B, P).
 :- mode next(in(prog), out(pseudo_atom), out(prog)) is nondet.
 
 next(seq(P1, P2), C, R) :-
@@ -237,7 +238,8 @@ new_cand(S, decomp(C, R)) = cand(decomp(C, R), V) :-
     V = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
 
 
-:- func fold(sit(A), decomp(A, B, P), cand(A, B, P)) = cand(A, B, P) <= bat(A, B, P).
+:- func fold(sit(A), decomp(A, B, P), cand(A, B, P)) = cand(A, B, P)
+    <= bat(A, B, P).
 :- mode fold(in, in(decomp), in(cand)) = out(cand) is det.
 
 fold(S, D, Y) = ( if X = new_cand(S, D), value(X) > value(Y) then X else Y ).
@@ -260,14 +262,14 @@ trans(P, S, P1, S1) :-
     trans_atom(C1, S, S1).
 
 
+final(P, S) :-
+    maybe_final(P),
+    reward(P, S) >= value(P, S, lookahead(S)).
+
+
 do(P, S, S2) :-
     if      final(P, S)
     then    S = S2
     else    trans(P, S, P1, S1),
             do(P1, S1, S2).
-
-
-final(P, S) :-
-    maybe_final(P),
-    reward(P, S) >= value(P, S, lookahead(S)).
 

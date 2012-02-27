@@ -26,6 +26,30 @@
 
 :- import_module list.
 
+:- type conf(A, B, P) ---> conf(prog(A, B, P), sit(A)).
+:- inst conf ---> conf(prog, ground).
+
+%:- typeclass picker(T) where [
+%    pred pick(gvar(D))
+%].
+
+:- typeclass pickable(A) where [
+    func substitute(T, A) = A,
+    mode substitute(in, in(I)) = out(I) is det
+].
+
+:- func init(prog(A, B, P)) = conf(A, B, P).
+:- mode init(in(prog)) = out(conf) is det.
+
+:- pred trans(conf(A, B, P), conf(A, B, P)) <= bat(A, B, P).
+:- mode trans(in(conf), out(conf)) is semidet.
+
+:- pred final(conf(A, B, P)) <= bat(A, B, P).
+:- mode final(in(conf)) is semidet.
+
+:- pred do(conf(A, B, P), sit(A)) <= bat(A, B, P).
+:- mode do(in(conf), out) is semidet.
+
 :- func a(A) = prog(A, B, P) <= bat(A, B, P).
 :- mode a(in) = out(prog) is det.
 
@@ -57,7 +81,11 @@
    <= bat(A, B, P).
 :- mode ifthenelse(in(relfluent), in(prog), in(prog)) = out(prog) is det.
 
-:- func pick(list(T), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
+:- func while(relfluent(A), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
+:- mode while(in(relfluent), in(prog)) = out(prog) is det.
+
+:- func pick(list(T), prog(A, B, P)) = prog(A, B, P) <= (bat(A, B, P),
+    pickable(A), pickable(B), pickable(P), pickable(relfluent(A))).
 :- mode pick(in(non_empty_list), in(prog)) = out(prog) is det.
 :- mode pick(in, in(prog)) = out(prog) is semidet.
 
@@ -67,6 +95,12 @@
 :- implementation.
 
 :- import_module prgolog.fluents.
+
+init(P) = conf(P, s0).
+
+trans(conf(P, S), conf(P1, S1)) :- trans(P, S, P1, S1).
+final(conf(P, S)) :- final(P, S).
+do(conf(P, S), S1) :- do(P, S, S1).
 
 a(A) = prgolog.pseudo_atom(prgolog.atom(prgolog.prim(A))).
 b(B) = prgolog.pseudo_atom(prgolog.atom(prgolog.stoch(B))).
@@ -79,18 +113,27 @@ P1 // P2 = prgolog.conc(P1, P2).
 atomic(P) = prgolog.pseudo_atom(prgolog.complex(P)).
 ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
+while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
 
-% Not implemented yet (in fact, replace/2 isn't implemented yet).
-% This pick/3 would be a mere macro expansion anyway.
 pick([X|Xs], P) = P1 :-
-    if      P0 = pick(Xs, P)
-    then    P1 = replace(X, P) `seq` P0
+    if      P2 = pick(Xs, P)
+    then    P1 = (replace(X, P) or P2)
     else    P1 = replace(X, P).
 
-:- func replace(T, prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
+:- func replace(T, prog(A, B, P)) = prog(A, B, P) <= (bat(A, B, P),
+    pickable(A), pickable(B), pickable(P), pickable(relfluent(A))).
 :- mode replace(in, in(prog)) = out(prog) is det.
 
-replace(_, P) = P.
+replace(V, seq(P0, P1)) = replace(V, P0) `seq` replace(V, P1).
+replace(V, non_det(P0, P1)) = replace(V, P0) `non_det` replace(V, P1).
+replace(V, conc(P0, P1)) = replace(V, P0) `conc` replace(V, P1).
+replace(V, star(P)) = star(replace(V, P)).
+replace(V, proc(P)) = proc(substitute(V, P)).
+replace(V, pseudo_atom(atom(prim(A)))) = pseudo_atom(atom(prim(substitute(V, A)))).
+replace(V, pseudo_atom(atom(stoch(B)))) = pseudo_atom(atom(stoch(substitute(V, B)))).
+replace(V, pseudo_atom(atom(test(T)))) = pseudo_atom(atom(test(substitute(V, T)))).
+replace(V, pseudo_atom(complex(P))) = pseudo_atom(complex(replace(V, P))).
+replace(V, nil) = nil.
 
 %star(P1) = prgolog.star(P1).
 
