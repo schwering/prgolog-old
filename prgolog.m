@@ -30,12 +30,23 @@
 % Nondeterminism is resolved by choosing the alternative that maximizes a
 % reward after a lookahead lookahead defined in the BAT.
 %
-% In contrast to typical Prolog implementations, fluent in test actions are not
-% interpreted with a holds/2 predicate that deconstructs the expression and
-% eventually restores the situation term.
-% Instead, a test action takes a unary higher-order predicate whose single
-% argument is a situation term.
-% Some helper predicates and functions to construct are defined in the submodule
+% To implement fluent formulas in test actions, we exploit Mercury's
+% higher-order types.
+% Each fluent predicate is represented as a boolean function that returns `yes'
+% if the predicate holds in the given situation and `no' otherwise.
+% The fact that we don't use higher-order predicate terms is due to a
+% technicality in Mercury: the inst of a higher-order predicate term is
+% determined by its mode, not by its type, while higher-order functions have a
+% default inst (see Section 8.3 (``Higher-order modes'') in the Mercury LRM for
+% details).
+% If we didn't go with boolean functions but higher-order predicates instead,
+% we would have to add inst declarations for all types just to tell Mercury
+% that relational fluents have the boring inst `pred(in) is semidet'.
+% Further complication arises when we use higher-order predicates like solutions
+% and foldl which we need to wrap into anonymous lambda expressions to get the
+% modes right.
+% Some general helper predicates and functions to construct fluents (and
+% abstract from the aforementioned technicality) are defined in the submodule
 % prgolog.fluents.m.
 %
 % The pick operator is not implemented. It seems to be difficult to do so:
@@ -54,31 +65,24 @@
 
 :- interface.
 
+:- use_module bool.
+
 :- type sit(A) ---> s0 ; do(A, sit(A)).
 
 :- type reward == int.
 :- type lookahead == int.
 
-:- type relfluent(A) == pred(sit(A)).
-:- inst relfluent == (pred(in) is semidet).
 :- type funfluent(A, R) == (func(sit(A)) = R).
-:- inst funfluent == (func(in) = out is det).
+:- type relfluent(A) == funfluent(A, bool.bool).
 
 :- type atom(A, B)
     --->    prim(A)
     ;       stoch(B)
     ;       test(relfluent(A)).
-:- inst atom
-    --->    prim(ground)
-    ;       stoch(ground)
-    ;       test(relfluent).
 
 :- type pseudo_atom(A, B, P)
     --->    atom(atom(A, B))
     ;       complex(prog(A, B, P)).
-:- inst pseudo_atom
-    --->    atom(atom)
-    ;       complex(prog).
 
 :- type prog(A, B, P)
     --->    seq(prog(A, B, P), prog(A, B, P))
@@ -87,14 +91,6 @@
     ;       star(prog(A, B, P))
     ;       proc(P)
     ;       pseudo_atom(pseudo_atom(A, B, P))
-    ;       nil.
-:- inst prog
-    --->    seq(prog, prog)
-    ;       non_det(prog, prog)
-    ;       conc(prog, prog)
-    ;       star(prog)
-    ;       proc(ground)
-    ;       pseudo_atom(pseudo_atom)
     ;       nil.
 
 
@@ -106,7 +102,7 @@
     mode random_outcome(in, out, in) is det,
 
     func reward(prog(A, B, P), sit(A)) = reward,
-    mode reward(in(prog), in) = out is det,
+    mode reward(in, in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
     mode lookahead(in) = out is det,
@@ -115,18 +111,18 @@
     mode new_lookahead(in, in) = out is det,
 
     pred proc(P, prog(A, B, P)),
-    mode proc(in(ground), out(prog)) is det
+    mode proc(in, out) is det
 ].
 
 
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode trans(in(prog), in, out(prog), out) is semidet.
+:- mode trans(in, in, out, out) is semidet.
 
 :- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode final(in(prog), in) is semidet.
+:- mode final(in, in) is semidet.
 
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
-:- mode do(in(prog), in, out) is semidet.
+:- mode do(in, in, out) is semidet.
 
 :- include_module fluents.
 :- include_module nice.
@@ -141,7 +137,7 @@
 
 :- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
     <= bat(A, B, P).
-:- mode next(in(prog), out(pseudo_atom), out(prog)) is nondet.
+:- mode next(in, out, out) is nondet.
 
 next(seq(P1, P2), C, R) :-
     (   next(P1, C, R1), R = seq(R1, P2)
@@ -165,7 +161,7 @@ next(nil, _, _) :-
 
 
 :- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
-:- mode maybe_final(in(prog)) is semidet.
+:- mode maybe_final(in) is semidet.
 
 maybe_final(seq(P1, P2)) :-
     maybe_final(P1),
@@ -183,7 +179,7 @@ maybe_final(nil).
 
 
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
-:- mode next2(in(prog), out(atom), out(prog)) is nondet.
+:- mode next2(in, out, out) is nondet.
 
 next2(P, C, R) :-
     next(P, C1, R1),
@@ -196,7 +192,7 @@ next2(P, C, R) :-
 
 
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
-:- mode trans_atom(in(atom), in, out) is semidet.
+:- mode trans_atom(in, in, out) is semidet.
 
 trans_atom(prim(A), S, S1) :-
     poss(A, S),
@@ -205,11 +201,11 @@ trans_atom(stoch(B), S, S1) :-
     random_outcome(B, A, S),
     trans_atom(prim(A), S, S1).
 trans_atom(test(T), S, S) :-
-    T(S).
+    T(S) = bool.yes.
 
 
 :- func value(prog(A, B, P), sit(A), lookahead) = reward <= bat(A, B, P).
-:- mode value(in(prog), in, in) = out is det.
+:- mode value(in, in, in) = out is det.
 
 value(P, S, L) = V :-
     if      L > 0,
@@ -225,14 +221,12 @@ value(P, S, L) = V :-
 
 
 :- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
-:- inst decomp ---> decomp(atom, prog).
 
 :- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: reward).
-:- inst cand ---> cand(decomp, ground).
 
 
 :- func new_cand(sit(A), decomp(A, B, P)) = cand(A, B, P) <= bat(A, B, P).
-:- mode new_cand(in, in(decomp)) = out(cand) is det.
+:- mode new_cand(in, in) = out is det.
 
 new_cand(S, decomp(C, R)) = cand(decomp(C, R), V) :-
     V = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
@@ -240,24 +234,20 @@ new_cand(S, decomp(C, R)) = cand(decomp(C, R), V) :-
 
 :- func fold(sit(A), decomp(A, B, P), cand(A, B, P)) = cand(A, B, P)
     <= bat(A, B, P).
-:- mode fold(in, in(decomp), in(cand)) = out(cand) is det.
+:- mode fold(in, in, in) = out is det.
 
 fold(S, D, Y) = ( if X = new_cand(S, D), value(X) > value(Y) then X else Y ).
 
 
 trans(P, S, P1, S1) :-
-    (pred(DsTmp::out(list(decomp))) is det :-
-        solutions((pred(decomp(C, R)::out(decomp)) is nondet :-
-            next2(P, C, R)
-        ), DsTmp)
-    )(Ds),
+    solutions((pred(decomp(C, R)::out) is nondet :-
+        next2(P, C, R)
+    ), Ds),
     (   if      Ds = [D]
         then    D = decomp(C1, P1)
         else    Ds = [D | Ds0],
-                (pred(C1Tmp::out(atom), P1Tmp::out(prog)) is det :-
-                    cand(decomp(C1Tmp, P1Tmp), _) =
-                        list.foldl(fold(S), Ds0, new_cand(S, D))
-                )(C1, P1)
+                cand(decomp(C1, P1), _) =
+                    list.foldl(fold(S), Ds0, new_cand(S, D))
     ),
     trans_atom(C1, S, S1).
 

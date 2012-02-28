@@ -180,7 +180,7 @@ new_lookahead(H, _C) = H - 1.
 
 
 :- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
-:- mode proc(in(ground), out(prog)) is det.
+:- mode proc(in, out) is det.
 proc(P, P1) :- P = bla, P1 = nil.
 
 

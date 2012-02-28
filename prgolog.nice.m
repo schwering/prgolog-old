@@ -27,69 +27,64 @@
 :- import_module list.
 
 :- type conf(A, B, P) ---> conf(prog(A, B, P), sit(A)).
-:- inst conf ---> conf(prog, ground).
-
-%:- typeclass picker(T) where [
-%    pred pick(gvar(D))
-%].
-
-:- typeclass pickable(A) where [
-    func substitute(T, A) = A,
-    mode substitute(in, in(I)) = out(I) is det
-].
 
 :- func init(prog(A, B, P)) = conf(A, B, P).
-:- mode init(in(prog)) = out(conf) is det.
+:- mode init(in) = out is det.
 
 :- pred trans(conf(A, B, P), conf(A, B, P)) <= bat(A, B, P).
-:- mode trans(in(conf), out(conf)) is semidet.
+:- mode trans(in, out) is semidet.
 
 :- pred final(conf(A, B, P)) <= bat(A, B, P).
-:- mode final(in(conf)) is semidet.
+:- mode final(in) is semidet.
 
 :- pred do(conf(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode do(in(conf), out) is semidet.
+:- mode do(in, out) is semidet.
 
 :- func a(A) = prog(A, B, P) <= bat(A, B, P).
-:- mode a(in) = out(prog) is det.
+:- mode a(in) = out is det.
 
 :- func b(B) = prog(A, B, P) <= bat(A, B, P).
-:- mode b(in) = out(prog) is det.
+:- mode b(in) = out is det.
 
 :- func t(relfluent(A)) = prog(A, B, P) <= bat(A, B, P).
-:- mode t(in(relfluent)) = out(prog) is det.
+:- mode t(in) = out is det.
 
 :- func p(P) = prog(A, B, P) <= bat(A, B, P).
-:- mode p(in) = out(prog) is det.
+:- mode p(in) = out is det.
 
 :- func prog(A, B, P) `;` prog(A, B, P) = prog(A, B, P) <= bat(A, B, P).
-:- mode in(prog) `;` in(prog) = out(prog) is det.
+:- mode in `;` in = out is det.
 
 :- func prog(A, B, P) // prog(A, B, P) = prog(A, B, P) <= bat(A, B, P).
-:- mode in(prog) // in(prog) = out(prog) is det.
+:- mode in // in = out is det.
 
 :- func (prog(A, B, P) or prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
-:- mode (in(prog) or in(prog)) = out(prog) is det.
+:- mode (in or in) = out is det.
 
 :- func atomic(prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
-:- mode atomic(in(prog)) = out(prog) is det.
+:- mode atomic(in) = out is det.
 
 :- func ifthen(relfluent(A), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
-:- mode ifthen(in(relfluent), in(prog)) = out(prog) is det.
+:- mode ifthen(in, in) = out is det.
 
 :- func ifthenelse(relfluent(A), prog(A, B, P), prog(A, B, P)) = prog(A, B, P)
    <= bat(A, B, P).
-:- mode ifthenelse(in(relfluent), in(prog), in(prog)) = out(prog) is det.
+:- mode ifthenelse(in, in, in) = out is det.
 
 :- func while(relfluent(A), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
-:- mode while(in(relfluent), in(prog)) = out(prog) is det.
+:- mode while(in, in) = out is det.
 
-:- func pick(list(T), prog(A, B, P)) = prog(A, B, P) <= (bat(A, B, P),
-    pickable(A), pickable(B), pickable(P), pickable(relfluent(A))).
-:- mode pick(in(non_empty_list), in(prog)) = out(prog) is det.
-:- mode pick(in, in(prog)) = out(prog) is semidet.
+:- typeclass pickable(V, T, A) where [
+    func substitute(V, T, A) = A,
+    mode substitute(in, in, in(I)) = out(I) is det
+].
 
-%:- func star(prog(A, B, P)) = prog(A, B, P) is det <= bat(A, B, P).
+:- func pick(V, list(T), prog(A, B, P)) = prog(A, B, P)
+    <= (bat(A, B, P),
+        pickable(V, T, A), pickable(V, T, B),
+        pickable(V, T, P), pickable(V, T, relfluent(A))).
+:- mode pick(in, in(non_empty_list), in) = out is det.
+:- mode pick(in, in, in) = out is semidet.
 
 
 :- implementation.
@@ -115,25 +110,29 @@ ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
 while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
 
-pick([X|Xs], P) = P1 :-
-    if      P2 = pick(Xs, P)
-    then    P1 = (replace(X, P) or P2)
-    else    P1 = replace(X, P).
+pick(V, [T|Ts], P) = P1 :-
+    if      P2 = pick(V, Ts, P)
+    then    P1 = (replace(V, T, P) or P2)
+    else    P1 = replace(V, T, P).
 
-:- func replace(T, prog(A, B, P)) = prog(A, B, P) <= (bat(A, B, P),
-    pickable(A), pickable(B), pickable(P), pickable(relfluent(A))).
-:- mode replace(in, in(prog)) = out(prog) is det.
+:- func replace(V, T, prog(A, B, P)) = prog(A, B, P)
+    <= (bat(A, B, P),
+        pickable(V, T, A), pickable(V, T, B),
+        pickable(V, T, P), pickable(V, T, relfluent(A))).
+:- mode replace(in, in, in) = out is det.
 
-replace(V, seq(P0, P1)) = replace(V, P0) `seq` replace(V, P1).
-replace(V, non_det(P0, P1)) = replace(V, P0) `non_det` replace(V, P1).
-replace(V, conc(P0, P1)) = replace(V, P0) `conc` replace(V, P1).
-replace(V, star(P)) = star(replace(V, P)).
-replace(V, proc(P)) = proc(substitute(V, P)).
-replace(V, pseudo_atom(atom(prim(A)))) = pseudo_atom(atom(prim(substitute(V, A)))).
-replace(V, pseudo_atom(atom(stoch(B)))) = pseudo_atom(atom(stoch(substitute(V, B)))).
-replace(V, pseudo_atom(atom(test(T)))) = pseudo_atom(atom(test(substitute(V, T)))).
-replace(V, pseudo_atom(complex(P))) = pseudo_atom(complex(replace(V, P))).
-replace(V, nil) = nil.
-
-%star(P1) = prgolog.star(P1).
+replace(V, T, seq(P0, P1)) = replace(V, T, P0) `seq` replace(V, T, P1).
+replace(V, T, non_det(P0, P1)) = replace(V, T, P0) `non_det` replace(V, T, P1).
+replace(V, T, conc(P0, P1)) = replace(V, T, P0) `conc` replace(V, T, P1).
+replace(V, T, star(P)) = star(replace(V, T, P)).
+replace(V, T, proc(P)) = proc(substitute(V, T, P)).
+replace(V, T, pseudo_atom(atom(prim(A)))) =
+    pseudo_atom(atom(prim(substitute(V, T, A)))).
+replace(V, T, pseudo_atom(atom(stoch(B)))) =
+    pseudo_atom(atom(stoch(substitute(V, T, B)))).
+replace(V, T, pseudo_atom(atom(test(G)))) =
+    pseudo_atom(atom(test(substitute(V, T, G)))).
+replace(V, T, pseudo_atom(complex(P))) =
+    pseudo_atom(complex(replace(V, T, P))).
+replace(_, _, nil) = nil.
 
