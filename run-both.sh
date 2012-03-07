@@ -28,7 +28,7 @@ do
         sed --in-place -e "s/^room_size = .\\+\\./room_size = $i\\./" maze.m
         sed --in-place -e "s/^room_size(.\\+\\./room_size($i)\\./" maze.ecl
 
-        echo -n "$i: "
+        echo -n "$i "
 
         # Mercury with memoization with naive_unvisited.
         # The memoization of pos/1 compensates the *naive*_unvisited by far.

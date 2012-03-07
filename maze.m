@@ -65,6 +65,7 @@
 :- import_module list.
 :- import_module math.
 :- use_module string.
+:- import_module solutions.
 :- import_module table_statistics.
 
 :- type point ---> p(int, int).
@@ -73,7 +74,7 @@
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 30.
+room_size = 20.
 room_height = room_size.
 room_width = room_height.
 
@@ -203,7 +204,7 @@ new_pos(A, P1) = P2 :-
     ).
 
 :- func pos(sit(prim_action)) = point is det.
-%:- pragma memo(pos/1, [allow_reset, fast_loose]). 
+:- pragma memo(pos/1, [allow_reset, fast_loose]). 
 pos(S1) = P :-
     (   S1 = s0, P = start
     ;   S1 = do(A, S), P = new_pos(A, pos(S))
@@ -233,6 +234,11 @@ standalone_unvisited(P1, P3, S1) :-
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
+    %(   if      X = mycons(Y), instantiate(Y, [c1, c2]), Y \= c1
+    %    then    io.write_string("ok", !IO), io.nl(!IO),
+    %            io.write(X, !IO), io.nl(!IO)
+    %    else    io.write_string("no", !IO), io.nl(!IO)
+    %),
     RewMax = dist(start, goal),
     io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),

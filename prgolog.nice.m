@@ -26,7 +26,7 @@
 
 :- import_module list.
 
-:- type conf(A, B, P) ---> conf(prog(A, B, P), sit(A)).
+:- type conf(A, B, P) ---> conf(rest :: prog(A, B, P), sit :: sit(A)).
 
 :- func init(prog(A, B, P)) = conf(A, B, P).
 :- mode init(in) = out is det.
@@ -39,6 +39,7 @@
 
 :- pred do(conf(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode do(in, out) is semidet.
+
 
 :- func a(A) = prog(A, B, P) <= bat(A, B, P).
 :- mode a(in) = out is det.
@@ -74,6 +75,7 @@
 :- func while(relfluent(A), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
 :- mode while(in, in) = out is det.
 
+
 :- typeclass pickable(V, T, A) where [
     func substitute(V, T, A) = A,
     mode substitute(in, in, in(I)) = out(I) is det
@@ -92,15 +94,16 @@
 :- import_module prgolog.fluents.
 
 init(P) = conf(P, s0).
-
 trans(conf(P, S), conf(P1, S1)) :- trans(P, S, P1, S1).
 final(conf(P, S)) :- final(P, S).
 do(conf(P, S), S1) :- do(P, S, S1).
+
 
 a(A) = prgolog.pseudo_atom(prgolog.atom(prgolog.prim(A))).
 b(B) = prgolog.pseudo_atom(prgolog.atom(prgolog.stoch(B))).
 t(T) = prgolog.pseudo_atom(prgolog.atom(prgolog.test(T))).
 p(P) = prgolog.proc(P).
+
 
 P1 `;` P2  = prgolog.seq(P1, P2).
 P1 // P2 = prgolog.conc(P1, P2).
@@ -110,10 +113,12 @@ ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
 while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
 
+
 pick(V, [T|Ts], P) = P1 :-
     if      P2 = pick(V, Ts, P)
     then    P1 = (replace(V, T, P) or P2)
     else    P1 = replace(V, T, P).
+
 
 :- func replace(V, T, prog(A, B, P)) = prog(A, B, P)
     <= (bat(A, B, P),

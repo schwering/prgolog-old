@@ -40,7 +40,7 @@
 % default inst (see Section 8.3 (``Higher-order modes'') in the Mercury LRM for
 % details).
 % If we didn't go with boolean functions but higher-order predicates instead,
-% we would have to add inst declarations for all types just to tell Mercury
+% we would have to add inst definitions for all types just to tell Mercury
 % that relational fluents have the boring inst `pred(in) is semidet'.
 % Further complication arises when we use higher-order predicates like solutions
 % and foldl which we need to wrap into anonymous lambda expressions to get the
