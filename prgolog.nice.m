@@ -25,6 +25,7 @@
 :- interface.
 
 :- import_module list.
+:- use_module term.
 
 :- type conf(A, B, P) ---> conf(rest :: prog(A, B, P), sit :: sit(A)).
 
@@ -88,6 +89,10 @@
 :- mode pick(in, in(non_empty_list), in) = out is det.
 :- mode pick(in, in, in) = out is semidet.
 
+:- func pick2(term.var(T), list(T), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
+:- mode pick2(in, in(non_empty_list), in) = out is det.
+:- mode pick2(in, in, in) = out is semidet.
+
 
 :- implementation.
 
@@ -112,6 +117,24 @@ atomic(P) = prgolog.pseudo_atom(prgolog.complex(P)).
 ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
 while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
+
+
+:- func subst(term.var(T), T, prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
+:- mode subst(in, in, in) = out is det.
+
+subst(V, T, P) = P1 :-
+    ProgTerm = term.type_to_term(P),
+    Replacement = term.type_to_term(T),
+    term.substitute(ProgTerm, V, Replacement, GroundProgTerm),
+    term.det_term_to_type(GroundProgTerm, P1).
+
+
+pick2(V, [T|Ts], P) = P0 :-
+    P1 = subst(V, T, P),
+    (   if      P2 = pick2(V, Ts, P)
+        then    P0 = (P1 or P2)
+        else    P0 = P1
+    ).
 
 
 pick(V, [T|Ts], P) = P1 :-

@@ -231,6 +231,21 @@ standalone_unvisited(P1, P3, S1) :-
     ),
     P1 \= P3.
 
+/*
+:- use_module term.
+:- use_module univ.
+:- pred test(io.io::di, io.io::uo) is det.
+test(!IO) :-
+    term.init_var_supply(VS),
+    term.create_var(Var, VS, _),
+    Vals = [up, down, left, right],
+    Ctx = term.context($file, $line),
+    term.det_term_to_type(term.variable(Var, Ctx), VarTerm),
+    Prog = pseudo_atom(atom(prim(up))),
+    NewProg = pick2(Var, Vals, Prog),
+    io.write(NewProg, !IO), io.nl(!IO).
+*/
+
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
@@ -239,6 +254,7 @@ main(!IO) :-
     %            io.write(X, !IO), io.nl(!IO)
     %    else    io.write_string("no", !IO), io.nl(!IO)
     %),
+    %test(!IO),
     RewMax = dist(start, goal),
     io.write(RewMax, !IO), io.nl(!IO),
     Pos0 = pos(s0),

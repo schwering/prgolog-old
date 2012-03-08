@@ -209,11 +209,14 @@ trans_atom(test(T), S, S) :-
 
 value(P, S, L) = V :-
     if      L > 0,
-            solutions((pred(V1::out) is nondet :-
+            solutions((pred(V2::out) is nondet :-
                 next2(P, C1, R1),
                 trans_atom(C1, S, S1),
                 V1 = value(R1, S1, new_lookahead(L, C1)),
-                ( maybe_final(R1) => V1 > reward(P, S) )
+                (   if      maybe_final(R1)
+                    then    V2 = int.max(V1, reward(P, S))
+                    else    V2 = V1
+                )
             ), Values),
             Values \= []
     then    V = list.foldl(int.max, Values, int.min_int)

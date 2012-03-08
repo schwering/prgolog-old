@@ -1,33 +1,27 @@
 % vim:filetype=prolog:textwidth=80:shiftwidth=4:softtabstop=4:expandtab
-%
-% This is a Golog interpreter written in ECLiPSe-CLP.
-% The idea is to compare the performance of Mercury to ECLiPSe-CLP.
-%
-% It is based on
-% * the interpreter I wrote for my diploma thesis in ECLiPSe-CLP and
-% * the one I implemented in Mercury.
-%
-% I took the first one and stripped away the time and continuous change-specific
-% parts, so that its functionality matches the Mercury implementation.
-%
-% Christoph Schwering (schwering@gmail.com)
 
 :- module(prgolog).
 
+%:- use_module(solver).
 :- use_module(worlds).
 :- use_module(library(apply)).
 
 :- export(next/2).
 :- export(next2/2).
 :- export(maybe_final/1).
-:- export(trans_atom/3).
-:- export(trans/7).
-:- export(final/4).
-:- export(reward/3).
-:- export(trans_max_h/7).
-:- export(do/4).
+:- export(trans_atom/4).
+:- export(trans/4).
+:- export(final/2).
+:- export(reward/2).
+:- export(do/3).
 
+%:- export(start/2).
+%:- export(time/2).
+%:- export(time/3).
+%:- export(val/4).
 :- export(holds/2).
+%:- export(holds/3).
+%:- export(domain/2).
 :- export(ssa/3).
 
 :- export op(700, xfy, in).  /* Interval */
@@ -40,41 +34,60 @@
 :- export op(1175, xfy, \\).  /* Interleaved execution */
 
 
-next(E, Ps) :- var(E), !, error(2, next(E, Ps)).
+test(G, V) :-
+    \+ \+ (
+        call(G),
+        repeat,
+        test_and_setval(test_lock, 0, 1),
+        setval(test_result, V)
+    ),
+    getval(test_result, V),
+    setval(test_lock, 0).
+
+:- setval(test_lock, 0).
+
+next(P, Ds) :- var(P), !, error(2, next(P, Ds)).
 next(nil, []) :- !.
-next(A, Ps) :- \+ \+ primitive_action(A), !, Ps = [(A, nil)].
-next(B, Ps) :- \+ \+ stochastic_action(B), !, Ps = [(B, nil)].
-next(T, Ps) :- \+ \+ T = ?(_), !, Ps = [(T, nil)].
-next(E, Ps) :- \+ \+ E = atomic(_), !, Ps = [(E, nil)].
-next(E, Ps) :- proc(E, E0), !, next(E0, Ps).
-next(pi(V, E), Ps) :- !, pi(V, E, E1), next(E1, Ps).
-next(EA # EB, Ps) :- !, next(EA, Ps0), next(EB, Ps1), append(Ps0, Ps1, Ps).
-next(star(E), Ps) :-
-    !, next(E, Ps0),
-    ( param(E), foreach((C, R1), Ps0), foreach((C, R), Ps) do R = (R1 ; star(E)) ).
-next(EA ; EB, Ps) :-
-    !, next(EA, Ps0),
-    ( param(EB), foreach((C, R1), Ps0), foreach((C, R), Ps1) do R = (R1 ; EB) ),
-    ( maybe_final(EA) -> next(EB, Ps2) ; Ps2 = [] ),
-    append(Ps1, Ps2, Ps).
-next(EA \\ EB, Ps) :-
-    !, next(EA, Ps0),
-    ( param(EB), foreach((C, R1), Ps0), foreach((C, R), Ps1) do R = (R1 \\ EB) ),
-    next(EB, Ps2),
-    ( param(EA), foreach((C, R2), Ps2), foreach((C, R), Ps3) do R = (EA \\ R2) ),
-    append(Ps1, Ps3, Ps).
-next(E, Ps) :- error(2, next(E, Ps)).
+next(A, Ds) :- \+ \+ primitive_action(A), !, Ds = [(A, nil)].
+next(B, Ds) :- \+ \+ stochastic_action(B), !, Ds = [(B, nil)].
+next(T, Ds) :- \+ \+ T = ?(_), !, Ds = [(T, nil)].
+next(P, Ds) :- \+ \+ P = atomic(_), !, Ds = [(P, nil)].
+next(P, Ds) :- proc(P, E0), !, next(E0, Ds).
+next(pi(V, P), Ds) :- !, pi(V, P, E1), next(E1, Ds).
+next(EA # EB, Ds) :- !, next(EA, Ds0), next(EB, Ds1), append(Ds0, Ds1, Ds).
+next(star(P), Ds) :-
+    !, next(P, Ds0),
+    ( param(P), foreach((C, R1), Ds0), foreach((C, R), Ds) do
+        R = (R1 ; star(P))
+    ).
+next(EA ; EB, Ds) :-
+    !, next(EA, Ds0),
+    ( param(EB), foreach((C, R1), Ds0), foreach((C, R), Ds1) do
+        R = (R1 ; EB)
+    ),
+    ( maybe_final(EA) -> next(EB, Ds2) ; Ds2 = [] ),
+    append(Ds1, Ds2, Ds).
+next(EA \\ EB, Ds) :-
+    !, next(EA, Ds0),
+    ( param(EB), foreach((C, R1), Ds0), foreach((C, R), Ds1) do
+        R = (R1 \\ EB)
+    ),
+    next(EB, Ds2),
+    ( param(EA), foreach((C, R2), Ds2), foreach((C, R), Ds3) do
+        R = (EA \\ R2)
+    ),
+    append(Ds1, Ds3, Ds).
+next(P, Ds) :- error(2, next(P, Ds)).
 
-
-next2(E, Ps) :-
-    next(E, PsComplex),
-    ( foreach((C, R), PsComplex), fromto([], Ps0, Ps1, Ps) do
+next2(P, Ds) :-
+    next(P, DsComplex),
+    ( foreach((C, R), DsComplex), fromto([], Ds0, Ds1, Ds) do
         ( C = atomic(Complex) ->
-            next2(Complex ; R, PsSub)
+            next2(Complex ; R, DsSub)
         ;
-            PsSub = [(C, R)]
+            DsSub = [(C, R)]
         ),
-        append(PsSub, Ps0, Ps1)
+        append(DsSub, Ds0, Ds1)
     ).
 
 
@@ -82,107 +95,139 @@ maybe_final(nil).
 maybe_final(A) :- \+ \+ primitive_action(A), !, fail.
 maybe_final(B) :- \+ \+ stochastic_action(B), !, fail.
 maybe_final(T) :- \+ \+ T = ?(_), !, fail.
-maybe_final(E) :- \+ \+ E = atomic(_), !, fail.
-maybe_final(pi(V, E)) :- pi(V, E, E1), maybe_final(E1).
-maybe_final(EA # EB) :- once (maybe_final(EA) ; maybe_final(EB)).
+maybe_final(P) :- \+ \+ P = atomic(_), !, fail.
+maybe_final(pi(V, P)) :- pi(V, P, P1), maybe_final(P1).
+maybe_final(PA # PB) :- once (maybe_final(PA) ; maybe_final(PB)).
 maybe_final(star(_)).
-maybe_final(EA ; EB) :- maybe_final(EA), maybe_final(EB).
-maybe_final(EA \\ EB) :- maybe_final(EA), maybe_final(EB).
+maybe_final(PA ; PB) :- maybe_final(PA), maybe_final(PB).
+maybe_final(PA \\ PB) :- maybe_final(PA), maybe_final(PB).
 
 
-trans_atom(A, S, S1) :-
+trans_atom(A, S, S1, A1) :-
     \+ \+ primitive_action(A), !,
-    poss(A, S),
-    S1 = do(A, S).
-trans_atom(B, S, S1) :-
+    AT = A,
+    %time(AT, A, T),
+    %mintime(TMin),
+    %maxtime(TMax),
+    %domain(T, TMin..TMax),
+    %start(S, T0),
+    %call(T0 $=< T),
+    poss(AT, S),
+    S1 = do(AT, S),
+    A1 = A.
+trans_atom(B, S, S1, A1) :-
     \+ \+ stochastic_action(B), !,
     random_outcome(B, S, A),
-    trans_atom(A, S, S1).
-trans_atom(E, S, S1) :-
-    E = ?(G), !,
+    trans_atom(A, S, S1, A1).
+trans_atom(C, S, S1, C1) :-
+    C = ?(G), !,
     holds(G, S),
-    S1 = S.
+    S1 = S,
+    C1 = C.
 
 
-trans(RewardF, H, E, S, H1, E1, S1) :-
-    H < 0, !,
-    error(6, trans(RewardF, H, E, S, H1, E1, S1)).
-trans(RewardF, H, E, S, H1, E1, S1) :-
-    H > 0,
-    next2(E, Ps),
-    ( Ps = [] ->
-        fail
-    ; Ps = [(C, E1)] ->
-        trans_atom(C, S, S1),
-        H1 is new_horizon(H, C)
+reward(S, V) :-
+    reward_function(RewardF),
+    holds(V is RewardF, S).
+
+
+value(P, S, C, V) :-
+    lookahead(L),
+    V is value(L, P, S, C).
+
+
+value(L, P, S, C1, V) :-
+    L < 0, !,
+    error(6, value(L, P, S, C1, V)).
+value(L, _, S, 'invalid action', V) :-
+    L =:= 0, !,
+    V is reward(S).
+value(L, P, S, C, V) :-
+    next2(P, Ds),
+    ( param(L, S),
+      foreach((C, R), Ds),
+      fromto('invalid action', C0, C2, C),
+      fromto(-1, V0, V4, V) do
+        ( test((    trans_atom(C, S, S1, C1),
+                    L1 is new_lookahead(L, C1),
+                    V1 is value(L1, R, S1, _),
+                    ( maybe_final(R) ->
+                        V2 is reward(S1),
+                        V3 is max(V1, V2)
+                    ;
+                        V3 is V1
+                    ),
+                    V3 >= V0
+                ), (V3, C1))
+        ->
+            (V4, C2) = (V3, C1)
+        ;
+            (V4, C2) = (V0, C0)
+        )
+    ).
+
+
+trans(P, S, P1, S1) :-
+    next2(P, Ds),
+    ( Ds = [(C, P1)] ->
+        trans_atom(C, S, S1, _)
     ;
-        ( param(RewardF, H, S),
-          foreach((C, E), Ps),
-          fromto((0, nil, nullsit), (H0, E0, S0), (H1, E1, S1), (H1, E1, S1)),
-          fromto((0, 0),            (LR0, LM0),   (LR1, LM1),   _) do
-            (   trans_atom(C, S, LS1),
-                H2 is new_horizon(H, C),
-                trans_max_h(RewardF, H2, E, LS1, _LE2, LS2, LM2),
-                LR2 is reward(RewardF, LS2),
-                (   S0 == nullsit
-                ;   LR2 > LR0
-                ;   LR2 =:= LR0, LM2 > LM0)
-            ->
-                (H1, E1, S1) = (H2, E, LS1),
-                (LR1, LM1)   = (LR2, LM2)
+        ( param(S),
+          foreach((C, R), Ds),
+          fromto('invalid action', C0, C2, C),
+          fromto(nil, R0, R1, P1),
+          fromto(-1, V0, V2, _) do
+            V1 is value(C ; R, S, C1),
+            ( V1 >= V0 ->
+                (C2, R1, V2) = (C1, R, V1)
             ;
-                (H1, E1, S1) = (H0, E0, S0),
-                (LR1, LM1)   = (LR0, LM0)
+                (C2, R1, V2) = (C0, R0, V0)
             )
         ),
-        S1 \== nullsit
+        C \== 'invalid action',
+        trans_atom(C, S, S1, _)
     ).
 
 
-final(RewardF, H, E, S) :-
-    maybe_final(E),
-    \+ (next(E, Ps),
-        member((C, R), Ps),
-        trans_max_h(RewardF, H, (C ; R), S, _E1, S1, _M),
-        reward(RewardF, S1) > reward(RewardF, S)).
+final(P, S) :-
+    maybe_final(P),
+    reward(S) >= value(P, S, _).
 
 
-trans_max_h(RewardF, H, E, S, E1, S1, M) :-
-    H < 0, !,
-    error(6, trans_max_h(RewardF, H, E, S, E1, S1, M)).
-trans_max_h(_RewardF, H, E, S, E1, S1, M) :-
-    H =:= 0, !,
-    E1 = E,
-    S1 = S,
-    M is H.
-trans_max_h(RewardF, H, E, S, E1, S1, M) :-
-    final(RewardF, H, E, S), !,
-    %maybe_final(E), !,
-    E1 = E,
-    S1 = S,
-    M is 2*H*H.
-trans_max_h(RewardF, H, E, S, E2, S2, M) :-
-    trans(RewardF, H, E, S, H1, E1, S1), !,
-    trans_max_h(RewardF, H1, E1, S1, E2, S2, M0),
-    M is M0 + 1.
-trans_max_h(_RewardF, _H, E, S, E1, S1, M) :-
-    E1 = E,
-    S1 = S,
-    M is 0.
-
-
-
-do(RewardF, E, S, S2) :-
-    horizon(H),
-    ( final(RewardF, H, E, S) ->
-        S = S2
+do(P, S, S1) :-
+    ( final(P, S) ->
+        S = S1
     ;
-        trans(RewardF, H, E, S, _H1, E1, S1),
-        do(RewardF, E1, S1, S2)
+        trans(P, S, P0, S0),
+        do(P0, S0, S1)
     ).
 
 
-reward(RewardF, S, R) :- holds(R is RewardF, S).
+/*
+time(AT, A, T) :-
+    nonvar(AT),
+    functor(AT, F, N1),
+    N0 is N1 - 1,
+    functor(A, F, N0),
+    ( param(AT, A), for(I, 1, N0) do
+        arg(I, AT, Arg),
+        arg(I, A, Arg)
+    ),
+    arg(N1, AT, T),
+    !.
+time(AT, A, T) :- nonvar(A), A=..LA, append(LA, [T], LAT), AT=..LAT, !.
+time(AT, A, T) :- error(1, time(AT, A, T)).
+
+
+time(AT, T) :- functor(AT, _, Arity), arg(Arity, AT, T), !.
+time(AT, T) :- error(1, time(AT, T)).
+
+
+start(S, T) :- var(S), !, error(4, start(S, T)).
+start(s0, T) :- !, mintime(T).
+start(do(A, _), T) :- !, time(A, T).
+start(S, T) :- error(2, start(S, T)).
+*/
 
 
 :- export pi/3.
@@ -196,10 +241,17 @@ pi(N :: Domain, E0, E1) :-
         sub(N, Val, E0, EB0),
         ( EA == nil -> EB = EB0 ; EB = (EA # EB0) )
     ).
-pi(N :: Domain, E0, E1) :-
-    !, domain(Var, Domain), sub(N, Var, E0, E1).
+%pi(N :: Domain, E0, E1) :-
+%    !, domain(Var, Domain), sub(N, Var, E0, E1).
 pi(N, E0, E1) :-
     !, sub(N, _, E0, E1).
+
+
+/*
+domain(Var, Lo..Hi) :- atomic(Lo), atomic(Hi), !, Var :: Lo..Hi.
+domain(Var, Lo..Hi) :- !, call(Var $>= Lo), call(Var $=< Hi).
+domain(Var, Domain) :- Var :: Domain.
+*/
 
 
 sub(X1, X2, T1, T2) :-
@@ -249,12 +301,73 @@ holds(-some(V, P), S) :- !, \+ holds(some(V, P), S).
 holds(-P, S) :- !, \+ holds(P, S).
 holds(all(V, P), S) :- !, holds(-some(V, -P), S).
 holds(some(V, P), S) :- !, sub(V, _, P, P1), holds(P1, S).
-holds(poss(A), S) :- !, poss(A, S).
 holds(X is F, S) :- !, F =..L, append(L, [X], L1), F1 =..L1, holds(F1, S).
+%holds(eval(P), S) :- !, start(S, T), holds(eval(P, T), S).
+%holds(eval(P, T), S) :- !, holds(P, S, T).
+holds(poss(A), S) :- !, poss(A, S).
+%holds(start(T), S) :- !, start(S, T).
 holds(F, S) :- \+ \+ fluent(F), !, fluent(W, F), apply(F, [S])@W.
 holds(P, _) :- \+ \+ nonfluent(P), !, nonfluent(W, P), call(P)@W.
 holds(P, _) :- \+ \+ macro(P, _), !, macro(P, P0), call(P0)@W.
 holds(P, _) :- call(P).
+
+
+/*
+holds(P, S, T) :- tform(P, S, T, C), call(C).
+
+
+tform([], _, _, true) :- !.
+tform([P|Q], S, T, C0) :- !, tform(P & Q, S, T, C0).
+tform(P & Q, S, T, C0 and C1) :- !, tform(P, S, T, C0), tform(Q, S, T, C1).
+tform(P v Q, S, T, C0 or C1) :- !, tform(P, S, T, C0), tform(Q, S, T, C1).
+tform(-P, S, T, neg(C)) :- !, tform(P, S, T, C).
+tform(L < R, S, T, L0 $< R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(L > R, S, T, L0 $> R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(L =< R, S, T, L0 $=< R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(L >= R, S, T, L0 $>= R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(L = R, S, T, L0 $= R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(L \= R, S, T, L0 $\= R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(min(E), S, T, min(E0)) :- !, val(E, S, T, E0).
+tform(max(E), S, T, max(E0)) :- !, val(E, S, T, E0).
+tform(V in (Lo, Hi), S, T, (Lo $< V0) and (V0 $< Hi)) :- !, val(V, S, T, V0).
+tform(V in [Lo, Hi], S, T, (Lo $=< V0) and (V0 $=< Hi)) :- !, val(V, S, T, V0).
+tform(L is R, S, T, L0 issi R0) :- !, val(L, S, T, L0), val(R, S, T, R0).
+tform(P, S, T, C) :- \+ \+ macro(P, _), !, macro(P, P0), tform(P0, S, T, C).
+tform(P, S, T, C) :- error(2, tform(P, S, T, C)).
+
+
+val(V0, _, _, V1) :- var(V0), !, V1 = V0.
+val(V0, _, _, V1) :- number(V0), !, V1 = V0.
+val(F1 + F2, S, T, V1 + V2) :- !, val(F1, S, T, V1), val(F2, S, T, V2).
+val(F1 - F2, S, T, V1 - V2) :- !, val(F1, S, T, V1), val(F2, S, T, V2).
+val(F1 * F2, S, T, V1 * V2) :- !, val(F1, S, T, V1), val(F2, S, T, V2).
+val(F1 / F2, S, T, V1 / V2) :- !, val(F1, S, T, V1), val(F2, S, T, V2).
+val(F1 ^ F2, S, T, V1 ^ V2) :- !, val(F1, S, T, V1), val(F2, S, T, V2).
+val(sin(F), S, T, sin(V)) :- !, val(F, S, T, V).
+val(cos(F), S, T, cos(V)) :- !, val(F, S, T, V).
+val(tan(F), S, T, tan(V)) :- !, val(F, S, T, V).
+val(abs(F), S, T, abs(V)) :- !, val(F, S, T, V).
+val(constant(A0), S, T, Term) :-
+    !, val(A0, S, T, B0),
+    Term = B0.
+val(linear(A0, A1, T0), S, T, Term) :-
+    !, val(A0, S, T, B0), val(A1, S, T, B1),
+    Term = B0 + B1*(T-T0).
+val(quadratic(A0, A1, A2, T0), S, T, Term) :-
+    !, val(A0, S, T, B0), val(A1, S, T, B1), val(A2, S, T, B2),
+    Term = B0 + B1*(T-T0) + B2*(T-T0)*(T-T0).
+val(start, S, _, Term) :-
+    !, start(S, Term).
+val(f_N(Mu, Sigma), S, T, Term) :-
+    !, val(Mu, S, T, Mu0), val(Sigma, S, T, Sigma0),
+    Term = f_N(Mu0, Sigma0).
+val(F, S, T, V) :-
+    \+ \+ ccfluent(F), !,
+    ccfluent(W, F),
+    apply(F, [Func, S])@W,
+    val(Func, S, T, V).
+val(F, S, T, V) :- error(2, val(F, S, T, V)).
+*/
 
 
 ssa(F, A, S) :- gamma_plus(F, A, S).

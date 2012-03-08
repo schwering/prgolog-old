@@ -17,8 +17,9 @@
 :- use_module(worlds).
 :- use_module(library(apply)).
 
-:- export(horizon/1).
-:- export(new_horizon/3).
+:- export(reward_function/1).
+:- export(lookahead/1).
+:- export(new_lookahead/3).
 :- export(primitive_action/1).
 :- export(stochastic_action/1).
 :- export(random_outcome/3).
@@ -28,7 +29,7 @@
 
 :- export(main/0).
 
-room_size(80).
+room_size(20).
 room_height(X) :- room_size(X).
 room_width(X) :- room_size(X).
 
@@ -95,10 +96,9 @@ random_outcome(B, A, _S) :-
 
 
 
-horizon(H) :- H is 5.
-
-
-new_horizon(H, _C, H1) :- H1 is H - 1.
+reward_function(RewardF) :- RewardF = reward.
+lookahead(H) :- H is 5.
+new_lookahead(H, _C, H1) :- H1 is H - 1.
 
 
 proc(P, P1) :- P = bla, P1 = nil.
@@ -159,7 +159,7 @@ main :-
     Prog = star(Up # Down # Left # Right),
     %Prog = (Down ; Down ; Right ; Down),
     (
-        do(reward, Prog, s0, S1)
+        do(Prog, s0, S1)
     ->
         reward(Rew1, S1),
         pos(Pos1, S1),
