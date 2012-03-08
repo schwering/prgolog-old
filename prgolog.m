@@ -20,6 +20,7 @@
 % * next2/2 to resolve complex atomic actions,
 % * trans_atom/3 to execute primitive, stochastic (sampling), and test actions,
 % * trans/4 to pick one decomposition and execute its next step,
+% * final/2 decides whether or not a program is final,
 % * do/3 that executes a program until it's final.
 %
 % The interpreter features sequence, recursive procedure calls, nondeterministic
@@ -116,6 +117,9 @@
 
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in, in, out, out) is semidet.
+
+:- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
+:- mode final(in, in) is semidet.
 
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
 :- mode do(in, in, out) is semidet.
@@ -249,8 +253,13 @@ trans(P, S, P1, S1) :-
     trans_atom(C1, S, S1).
 
 
+final(P, S) :-
+    final(P),
+    reward(P, S) >= value(P, S, lookahead(S)).
+
+
 do(P, S, S2) :-
-    if      final(P), reward(P, S) >= value(P, S, lookahead(S))
+    if      final(P, S)
     then    S = S2
     else    trans(P, S, P1, S1),
             do(P1, S1, S2).

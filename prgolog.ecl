@@ -186,8 +186,13 @@ trans(P, S, P1, S1) :-
     ).
 
 
+final(P, S) :-
+    final(P),
+    reward(S) >= value(P, S, _).
+
+
 do(P, S, S1) :-
-    ( final(P), reward(S) >= value(P, S, _) ->
+    ( final(P, S) ->
         S = S1
     ;
         trans(P, S, P0, S0),
