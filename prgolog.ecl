@@ -8,10 +8,8 @@
 
 :- export(next/2).
 :- export(next2/2).
-:- export(maybe_final/1).
 :- export(trans_atom/4).
 :- export(trans/4).
-:- export(final/2).
 :- export(reward/2).
 :- export(do/3).
 
@@ -65,7 +63,7 @@ next(EA ; EB, Ds) :-
     ( param(EB), foreach((C, R1), Ds0), foreach((C, R), Ds1) do
         R = (R1 ; EB)
     ),
-    ( maybe_final(EA) -> next(EB, Ds2) ; Ds2 = [] ),
+    ( final(EA) -> next(EB, Ds2) ; Ds2 = [] ),
     append(Ds1, Ds2, Ds).
 next(EA \\ EB, Ds) :-
     !, next(EA, Ds0),
@@ -91,16 +89,16 @@ next2(P, Ds) :-
     ).
 
 
-maybe_final(nil).
-maybe_final(A) :- \+ \+ primitive_action(A), !, fail.
-maybe_final(B) :- \+ \+ stochastic_action(B), !, fail.
-maybe_final(T) :- \+ \+ T = ?(_), !, fail.
-maybe_final(P) :- \+ \+ P = atomic(_), !, fail.
-maybe_final(pi(V, P)) :- pi(V, P, P1), maybe_final(P1).
-maybe_final(PA # PB) :- once (maybe_final(PA) ; maybe_final(PB)).
-maybe_final(star(_)).
-maybe_final(PA ; PB) :- maybe_final(PA), maybe_final(PB).
-maybe_final(PA \\ PB) :- maybe_final(PA), maybe_final(PB).
+final(nil).
+final(A) :- \+ \+ primitive_action(A), !, fail.
+final(B) :- \+ \+ stochastic_action(B), !, fail.
+final(T) :- \+ \+ T = ?(_), !, fail.
+final(P) :- \+ \+ P = atomic(_), !, fail.
+final(pi(V, P)) :- pi(V, P, P1), final(P1).
+final(PA # PB) :- once (final(PA) ; final(PB)).
+final(star(_)).
+final(PA ; PB) :- final(PA), final(PB).
+final(PA \\ PB) :- final(PA), final(PB).
 
 
 trans_atom(A, S, S1, A1) :-
@@ -147,23 +145,22 @@ value(L, P, S, C, V) :-
     ( param(L, S),
       foreach((C, R), Ds),
       fromto('invalid action', C0, C2, C),
-      fromto(-1, V0, V4, V) do
+      fromto(-1, V0, V2, V2) do
         ( test((    trans_atom(C, S, S1, C1),
                     L1 is new_lookahead(L, C1),
                     V1 is value(L1, R, S1, _),
-                    ( maybe_final(R) ->
-                        V2 is reward(S1),
-                        V3 is max(V1, V2)
-                    ;
-                        V3 is V1
-                    ),
-                    V3 >= V0
-                ), (V3, C1))
+                    V1 >= V0
+                ), (V1, C1))
         ->
-            (V4, C2) = (V3, C1)
+            (V2, C2) = (V1, C1)
         ;
-            (V4, C2) = (V0, C0)
+            (V2, C2) = (V0, C0)
         )
+    ),
+    ( ( \+ final(P) ; V2 > reward(S) ) ->
+        V is V2
+    ;
+        V is reward(S)
     ).
 
 
@@ -178,7 +175,7 @@ trans(P, S, P1, S1) :-
           fromto(nil, R0, R1, P1),
           fromto(-1, V0, V2, _) do
             V1 is value(C ; R, S, C1),
-            ( V1 >= V0 ->
+            ( V1 > V0 ->
                 (C2, R1, V2) = (C1, R, V1)
             ;
                 (C2, R1, V2) = (C0, R0, V0)
@@ -189,13 +186,8 @@ trans(P, S, P1, S1) :-
     ).
 
 
-final(P, S) :-
-    maybe_final(P),
-    reward(S) >= value(P, S, _).
-
-
 do(P, S, S1) :-
-    ( final(P, S) ->
+    ( final(P), reward(S) >= value(P, S, _) ->
         S = S1
     ;
         trans(P, S, P0, S0),

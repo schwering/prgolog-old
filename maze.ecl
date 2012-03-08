@@ -29,7 +29,7 @@
 
 :- export(main/0).
 
-room_size(20).
+room_size(70).
 room_height(X) :- room_size(X).
 room_width(X) :- room_size(X).
 
@@ -138,18 +138,22 @@ standalone_unvisited(P1, P3, S1) :-
     ),
     P1 \= P3.
 
+sitlen(s0, 0).
+sitlen(do(_, S), L) :- L is 1 + sitlen(S).
+
 reward(R, S) :-
     Start is start,
     Goal is goal,
     pos(Pos, S),
-    R is dist(Start, Goal) - dist(Pos, Goal).
-
-
+    DistStart is dist(Start, Goal),
+    DistPos is dist(Pos, Goal),
+    SitLen is sitlen(S),
+    R is (DistStart - DistPos) * (DistStart - DistPos) - SitLen.
 
 main :-
-    Start is start,
+    %Start is start,
     Goal is goal,
-    RewMax is dist(Start, Goal),
+    %RewMax is dist(Start, Goal),
     pos(Pos0, s0),
     writeln(Pos0),
     Up = up,
@@ -163,7 +167,8 @@ main :-
     ->
         reward(Rew1, S1),
         pos(Pos1, S1),
-        ( Rew1 =:= RewMax -> Msg = "ok" ; Msg = "failed early" ),
+        %( Rew1 =:= RewMax -> Msg = "ok" ; Msg = "failed early" ),
+        ( Pos1 == Goal -> Msg = "ok" ; Msg = "failed early" ),
         writeln(Msg),
         writeln(Rew1),
         writeln(Pos1),

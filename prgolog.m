@@ -20,7 +20,6 @@
 % * next2/2 to resolve complex atomic actions,
 % * trans_atom/3 to execute primitive, stochastic (sampling), and test actions,
 % * trans/4 to pick one decomposition and execute its next step,
-% * final/2 decides whether or not a program is final,
 % * do/3 that executes a program until it's final.
 %
 % The interpreter features sequence, recursive procedure calls, nondeterministic
@@ -118,9 +117,6 @@
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in, in, out, out) is semidet.
 
-:- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
-:- mode final(in, in) is semidet.
-
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
 :- mode do(in, in, out) is semidet.
 
@@ -141,7 +137,7 @@
 
 next(seq(P1, P2), C, R) :-
     (   next(P1, C, R1), R = seq(R1, P2)
-    ;   next(P2, C, R), maybe_final(P1) ).
+    ;   next(P2, C, R), final(P1) ).
 next(non_det(P1, P2), C, R) :-
     (   next(P1, C, R)
     ;   next(P2, C, R) ).
@@ -160,22 +156,22 @@ next(nil, _, _) :-
     false.
 
 
-:- pred maybe_final(prog(A, B, P)) <= bat(A, B, P).
-:- mode maybe_final(in) is semidet.
+:- pred final(prog(A, B, P)) <= bat(A, B, P).
+:- mode final(in) is semidet.
 
-maybe_final(seq(P1, P2)) :-
-    maybe_final(P1),
-    maybe_final(P2).
-maybe_final(non_det(P1, P2)) :-
-    (   maybe_final(P1)
-    ;   maybe_final(P2) ).
-maybe_final(conc(P1, P2)) :-
-    maybe_final(P1),
-    maybe_final(P2).
-maybe_final(star(_)).
-maybe_final(pseudo_atom(_)) :-
+final(seq(P1, P2)) :-
+    final(P1),
+    final(P2).
+final(non_det(P1, P2)) :-
+    (   final(P1)
+    ;   final(P2) ).
+final(conc(P1, P2)) :-
+    final(P1),
+    final(P2).
+final(star(_)).
+final(pseudo_atom(_)) :-
     false.
-maybe_final(nil).
+final(nil).
 
 
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
@@ -209,17 +205,15 @@ trans_atom(test(T), S, S) :-
 
 value(P, S, L) = V :-
     if      L > 0,
-            solutions((pred(V2::out) is nondet :-
+            solutions((pred(V1::out) is nondet :-
                 next2(P, C1, R1),
                 trans_atom(C1, S, S1),
-                V1 = value(R1, S1, new_lookahead(L, C1)),
-                (   if      maybe_final(R1)
-                    then    V2 = int.max(V1, reward(P, S))
-                    else    V2 = V1
-                )
+                V1 = value(R1, S1, new_lookahead(L, C1))
             ), Values),
-            Values \= []
-    then    V = list.foldl(int.max, Values, int.min_int)
+            Values \= [],
+            V2 = list.foldl(int.max, Values, int.min_int),
+            ( final(P) => V2 > reward(P, S) )
+    then    V = V2
     else    V = reward(P, S).
 
 
@@ -255,13 +249,8 @@ trans(P, S, P1, S1) :-
     trans_atom(C1, S, S1).
 
 
-final(P, S) :-
-    maybe_final(P),
-    reward(P, S) >= value(P, S, lookahead(S)).
-
-
 do(P, S, S2) :-
-    if      final(P, S)
+    if      final(P), reward(P, S) >= value(P, S, lookahead(S))
     then    S = S2
     else    trans(P, S, P1, S1),
             do(P1, S1, S2).
