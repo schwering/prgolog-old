@@ -1,0 +1,299 @@
+<!-- vim:syntax=off:textwidth=80:shiftwidth=2:softtabstop=2:expandtab
+-->
+<html>
+  <head>
+  </head>
+  <body>
+    <h1>Mercury Golog interpreter</h1>
+    <p>Christoph Schwering (schwering at kbsg.rwth-aachen.de)</p>
+
+    <p>
+    This is about a Golog interpreter written in Mercury.
+    <a href="http://www.cs.toronto.edu/cogrobo/main/systems/">Golog</a> is a
+    <a href="http://en.wikipedia.org/wiki/Situation_calculus">situation
+      calculus</a>-based action language.
+    <a href="http://www.mercury.csse.unimelb.edu.au/">Mercury</a> is a logic
+    language similar to Prolog but with some ideas from Haskell.
+    This brings a strong static typing, determinism checks, and so on.
+    If you prefer compile time errors over runtime errors and want to
+    <em>read</em> your and other people's code, you might like Mercury.
+    </p>
+
+    <p>
+    The interpreter is implemented in the file <a href="prgolog.m"
+      style="font-weight: bold;">prgolog.m</a> and two helpers,
+    <a href="prgolog.nice.m" style="font-weight: bold;">prgolog.nice.m</a> for a
+    nicer syntax and <a href="prgolog.fluents.m"
+      style="font-weight: bold;">prgolog.fluents.m</a> for some convenience
+    functions for fluent formulas.
+    <ul>
+      <li> Nonderministic pick is NOT implemented. I'll probably go with the
+      pick restricted to finite domains. </li>
+      <li> Semantics from my diploma thesis:
+      <ul>
+        <li> Transition semantics using program decomposition.
+        <li> Decision theory to resolve nondeterminism.
+        <li> Stochastic actions.
+        <li> Dropped support for continuous change and time.
+      </ul>
+      </li>
+    </ul>
+    As example, I implemented a maze in <a href="maze.m" style="font-weight:
+      bold;">maze.m</a> consisting of four rooms, each of which as two doors.
+    The agent wants to get from the top left to the bottom right.
+    The agent's actions are deterministic (i.e., non-stochastic).
+    </p>
+
+    <h2>Example: A Maze</h2>
+
+    <p>
+    In a <em>N&times;N</em> maze, we have four rooms, each of which consists of
+    <em>N</em>.
+    discrete fields.
+    The rooms are top-left, top-right, bottom-left, and bottom-right.
+    Adjacent rooms are connected by at their <em>&lceil;N/2&rceil;</em>th
+    field.
+    The agent starts at in the top-left field of the top-left room and wants to
+    get to the top-right field of the top-right room.
+    </p>
+
+    <p>
+    For example, the following depicts a <em>5&times;5</em> maze.
+    Gray lines represent borders between fields, black lines represent walls.
+    The agent starts in the green field and wants to get to the orange field.
+    The very light gray fields marks an optimal way the agent might go.
+    </p>
+
+    <style type="text/css">
+      td { width: 25pt; height: 25pt; border: 1pt solid lightgray; }
+      .t { border-top: 1pt solid black; }
+      .b { border-bottom: 1pt solid black; }
+      .l { border-left: 1pt solid black; }
+      .r { border-right: 1pt solid black; }
+      .s { background-color: green; }
+      .g { background-color: orange; }
+      .x { background-color: #f5f5f5; }
+    </style>
+
+    <table style="margin-left:5em; border-collapse:collapse;">
+      <tr>
+        <td class="t l s"></td> <td class="t x"></td> <td class="t x"></td> <td class="t x"></td> <td class="t r x"></td>
+        <td class="t l"></td> <td class="t"></td> <td class="t"></td> <td class="t"></td> <td class="t r"></td>
+      </tr>
+      <tr>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r x"></td>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r"></td>
+      </tr>
+      <tr>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="x"></td>
+        <td class="x"></td> <td class="x"></td> <td class="x"></td> <td class=""></td> <td class="r"></td>
+      </tr>
+      <tr>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r"></td>
+        <td class="l"></td> <td class=""></td> <td class="x"></td> <td class=""></td> <td class="r"></td>
+      </tr>
+      <tr>
+        <td class="b l"></td> <td class="b"></td> <td class=""></td> <td class="b"></td> <td class="b r"></td>
+        <td class="b l"></td> <td class="b"></td> <td class="x"></td> <td class="b"></td> <td class="b r"></td>
+      </tr>
+
+      <tr>
+        <td class="t l"></td> <td class="t"></td> <td class="t"></td> <td class="t"></td> <td class="t r"></td>
+        <td class="t l"></td> <td class="t"></td> <td class="t x"></td> <td class="t x"></td> <td class="t r x"></td>
+      </tr>
+      <tr>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r"></td>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r x"></td>
+      </tr>
+      <tr>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class=""></td>
+        <td class=""></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r x"></td>
+      </tr>
+      <tr>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r"></td>
+        <td class="l"></td> <td class=""></td> <td class=""></td> <td class=""></td> <td class="r x"></td>
+      </tr>
+      <tr>
+        <td class="b l"></td> <td class="b"></td> <td class="b"></td> <td class="b"></td> <td class="b r"></td>
+        <td class="b l"></td> <td class="b"></td> <td class="b"></td> <td class="b"></td> <td class="b r g"></td>
+      </tr>
+    </table>
+
+    <p>
+    The basic action theory provides four actions, <em>up</em>, <em>down</em>,
+    <em>left</em>, <em>right</em> and a fluent function <em>P = pos(S)</em> that
+    returns the agent's coordinate <em>P</em> in a given situation <em>S</em>.
+    <em>pos(S)</em> needs to unwind the situation term <em>S</em> to determine
+    the current position.<br />
+    To avoid loops, the precondition axioms <em>poss(A)</em> should disallow
+    moves to a field that was visited before.
+    To ensure this, we have a fluent predicate <em>unvisited(P, S)</em> that
+    holds iff <em>P</em> was not yet visited in <em>S</em>.
+    There are two alternative ways to implemented <em>unvisited(P, S)</em>:
+    </p>
+    <ul>
+      <li> "naive": for each predecessor situation <em>S'</em> assert that
+      <em>pos(S') &ne; P</em> </li>
+      <li> "standalone": starting from <em>S<sub>0</sub></em>, follow the
+      agent's movement and assert that for the resulting intermediate position
+      <em>P'</em> we have <em>P' &ne; P</em> </li>
+    </ul>
+    <p>
+    Obviously, regressing naive <em>unvisited(P, S)</em> is way more expensive
+    (<em>O(k<sup>2</sup>)</em> for a situation term with <em>k</em> actions)
+    than the standalone variant (<em>O(k)</em>).
+    </p>
+
+    <h2>Benchmarks</h2>
+
+    <p>
+    We compared our Mercury interpreter with an equivalent implementation in
+    ECLiPSe-CLP.
+    We tried both, naive and standalone <em>unvisited(P, S)</em>.
+    We not only tested Mercury's standard backend (binary code), but also its
+    Java backend.
+    Finally we also tested the effect of <a
+      href="http://en.wikipedia.org/wiki/Memoization">memoization</a> (aka
+    tabling) of the naive <em>unvisited(P, S)</em> implementation.
+    </p>
+
+    <p>
+    Now, our test has the following dimensions:
+    </p>
+    <ul>
+      <li> Mercury/binary with naive <em>unvisited(P, S)</em> with tabling </li>
+      <li> Mercury/binary with naive <em>unvisited(P, S)</em> (without tabling) </li>
+      <li> Mercury/binary with standalone <em>unvisited(P, S)</em> (without tabling, since
+      this makes no sense here) </li>
+      <li> Mercury/Java with naive <em>unvisited(P, S)</em> (without tabling, which is not
+      supported in the Java backend) </li>
+      <li> Mercury/Java with standalone <em>unvisited(P, S)</em> (without tabling) </li>
+      <li> ECLiPSe-CLP with naive <em>unvisited(P, S)</em> (without tabling, which is not
+      supported by ECLiPSe-CLP) </li>
+      <li> ECLiPSe-CLP with standalone <em>unvisited(P, S)</em> (without tabling) </li>
+    </ul>
+
+    <p>
+    Each configuration was tested for different mazes with the following room
+    sizes:
+    <em>3&times;3</em>,
+    <em>10&times;10</em>,
+    <em>15&times;15</em>,
+    <em>10&times;10</em>,
+    <em>20&times;20</em>,
+    <em>30&times;30</em>,
+    <em>40&times;40</em>,
+    <em>50&times;50</em>,
+    <em>60&times;60</em>,
+    <em>70&times;70</em>,
+    <em>80&times;80</em>.
+    </p>
+
+    <p>
+    The running time was measured using GNU's <code>time</code> utility.
+    Thus, it also includes initialization of the JVM in the Mercury/Java case.
+    As for ECLiPSE-CLP, we used <code>profile/1</code>.
+    Durations are given in seconds on a Intel Core 2 Duo @ 2.26 GHz.
+    </p>
+
+    <p>
+    The following charts adhere to the following convention:
+    <ul>
+      <li> Mercury/binary is blue, Mercury/Java in orange, ECLiPSe-CLP in
+      green. </li>
+      <li> Naive <em>unvisited(P, S)</em> has empty circles, standalone
+      <em>unvisited(P, S)</em> has filled circles, naive
+      <em>unvisited(P, S)</em> with tabling has squares. </li>
+    </ul>
+    </p>
+
+    <p>
+    Using naive <em>unvisited(P, S)</em> (without any tabling), Mercury/binary
+    and Mercury/Java perform better than ECLiPSe-CLP at first.
+    Surprisingly, ECLiPSe-CLP grows more slowly than Mercury/binary and
+    seemlingly also Mercury/Java in the long run.
+    I have no explanation for this.
+    Maybe the fact that VMs (ECLiPSe-CLP, Java) are faster than the binary code
+    is due to some runtime optimizations?<br />
+    <img src="plot_naive.svg" alt="plot of Mercury/binary, Mercury/Java, and
+    ECLiPSe-CLP using naive unvisited/2" />
+    </p>
+
+    <p>
+    The standalone <em>unvisited(P, S)</em> improves the performance
+    drastically.
+    Both Mercury variants outperform ECLiPSe-CLP:<br />
+    <img src="plot_stndaln.svg" alt="plot of Mercury/binary, Mercury/Java, and
+    ECLiPSe-CLP using standalone unvisited/2" />
+    </p>
+
+    <p>
+    But Mercury supports
+    <a href="http://en.wikipedia.org/wiki/Memoization">memoization</a> aka
+    tabling.
+    This sounds very promising because we very often evaluate the same fluent
+    in the same situation due to regression.
+    When we enable tabling for <em>pos(S)</em> fluent and use the <em>naive</em>
+    <em>unvisited(P, S)</em>, the performance should improve drastically,
+    because all those regressions of <em>pos(S')</em> made by
+    <em>unvisited(P, S)</em> are cache hits:<br />
+    <img src="plot_binary.svg" alt="plot of Mercury/binary using tabled naive,
+    naive, and standalone unvisited/2" />
+    </p>
+
+    <p>
+    And the race is not even close:
+    <em>tabling</em> and <em>naive</em> <em>unvisited(P, S)</em> outscores all
+    other variants, even the <em>standalone</em> versions:<br />
+    <img src="plot_best.svg" alt="plot of Mercury/binary, Mercury/Java, and
+    ECLiPSe-CLP using standalone unvisited/2" />
+    </p>
+
+    <p>
+    Let's finally throw everything together in one chart:<br />
+    <img src="plot_all.svg" alt="plot of Mercury/binary, Mercury/Java, and
+    ECLiPSe-CLP using naive tabled, naive, and standalone unvisited/2" />
+    </p>
+
+    <!--
+    <h3>The Complete Table</h3>
+
+    <p>The complete table of runtimes is a bit confusing:
+    <pre>
+       +------+---------------------------------------+---------------+
+       |      |    M    e    r    c    u    r    y    | E C L i P S e |
+       |      +-----------------------+---------------+---------------+
+       | Room |   B  i  n  a  r  y    |    J a v a    | E C L i P S e |
+       |      +-------+---------------+---------------+---------------+
+       | Size |Tabling|  No  Tabling  |  No  Tabling  |  No  Tabling  |
+       |      +-------+-------+-------+-------+-------+-------+-------+
+       |      | naive | naive |stndaln| naive |stndaln| naive |stndaln|
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |   3  |  0.02 |  0.03 |  0.02 |  0.82 |  0.77 |  0.87 |  0.25 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  10  |  0.21 |  0.90 |  0.35 |  1.50 |  1.27 |  6.29 |  2.63 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  15  |  0.41 |  3.08 |  0.79 |  2.79 |  1.60 | 12.24 |  5.47 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  20  |  0.68 |  7.75 |  1.44 |  5.29 |  2.07 | 19.19 |  8.85 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  30  |  1.55 | 26.90 |  3.48 | 15.79 |  3.34 | 38.44 | 18.27 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  40  |  2.63 | 63.16 |  6.36 | 37.49 |  5.10 | 61.90 | 30.31 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  50  |  4.16 |125.02 |  9.85 | 73.89 |  7.51 | 90.33 | 45.22 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  60  |  6.05 |221.01 | 14.81 |122.98 | 10.78 |126.04 | 64.23 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  70  |  7.76 |358.04 | 20.17 |181.52 | 15.18 |160.88 | 81.30 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |  80  | 10.50 |544.89 | 27.33 |258.81 | 19.04 |205.34 |104.59 |
+       +------+-------+-------+-------+-------+-------+-------+-------+
+       |Column|  (1)  |  (2)  |  (3)  |  (4)  |  (5)  |  (6)  |  (7)  | 
+       +------+-------+-------+-------+-------+-------+-------+-------+
+    </pre>
+    -->
+
+  </body>
+</html>
+
