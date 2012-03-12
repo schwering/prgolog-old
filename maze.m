@@ -192,20 +192,21 @@ random_supply(RS, do(A, S)) :-
 random_outcome(B, A, S) :-
     random_supply(RS0, S),
     random.random(R, RS0, RS1),
-    N = 4,
+    N = 100,
     Aup = up_out(B, R mod N, RS1),
     Adown = down_out(B, R mod N, RS1),
     Aleft = left_out(B, R mod N, RS1),
     Aright = right_out(B, R mod N, RS1),
-    (   B = s_up,    A0 = Adown,  A1 = Aleft,  A2 = Aright, A3 = Aup
-    ;   B = s_down,  A0 = Aleft,  A1 = Aright, A2 = Aup,    A3 = Adown
-    ;   B = s_left,  A0 = Aright, A1 = Aup,    A2 = Adown,  A3 = Aleft
-    ;   B = s_right, A0 = Aup,    A1 = Adown,  A2 = Aleft,  A3 = Aright
+    (   B = s_up,    {A0, A1, A2, A3} = {Adown, Aleft, Aright, Aup}
+    ;   B = s_down,  {A0, A1, A2, A3} = {Aup, Aright, Aleft, Adown}
+    ;   B = s_left,  {A0, A1, A2, A3} = {Aright, Aup, Adown, Aleft}
+    ;   B = s_right, {A0, A1, A2, A3} = {Aleft, Adown, Aup, Aright}
     ),
-    (   if      R mod N = 0, maze.poss(A0, S) then A = A0
-        else if R mod N = 1, maze.poss(A1, S) then A = A1
-        else if R mod N = 2, maze.poss(A2, S) then A = A2
-        else                                       A = A3
+    X = R mod N,
+    (   if       0 =< X, X < 10, maze.poss(A0, S) then A = A0
+        else if 10 =< X, X < 30, maze.poss(A1, S) then A = A1
+        else if 30 =< X, X < 50, maze.poss(A2, S) then A = A2
+        else                                           A = A3
     ),
     %trace [io(!IO)] (
         %io.write(A, !IO), io.nl(!IO)
