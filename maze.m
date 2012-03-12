@@ -64,19 +64,22 @@
 :- import_module float.
 :- import_module list.
 :- import_module math.
+:- use_module random.
 :- use_module string.
 :- import_module solutions.
 :- import_module table_statistics.
 
 :- type point ---> p(int, int).
 
+
 :- func room_size   = int is det.
 :- func room_height = int is det.
 :- func room_width  = int is det.
 
-room_size = 70.
+room_size = 3.
 room_height = room_size.
 room_width = room_height.
+
 
 :- func start = point is det.
 :- func goal  = point is det.
@@ -85,10 +88,13 @@ start = p(0, 0).
 %goal = p(4, 4).
 goal = p(2 * room_width - 1, 2 * room_height - 1).
 
+
 :- pred in_maze(point::in) is semidet.
+
 in_maze(p(X, Y)) :-
     0 =< X, X < 2 * room_width,
     0 =< Y, Y < 2 * room_height.
+
 
 :- pred at_upper_wall(int::in) is semidet.
 :- pred at_lower_wall(int::in) is semidet.
@@ -100,11 +106,13 @@ at_lower_wall(Y) :- (Y + 1) mod room_height = 0.
 at_left_wall(X)  :-  X      mod room_width  = 0.
 at_right_wall(X) :- (X + 1) mod room_width  = 0.
 
+
 :- pred at_td_door(int::in) is semidet.
 :- pred at_lr_door(int::in) is semidet.
 
 at_td_door(X) :- X mod room_width = room_width / 2.
 at_lr_door(Y) :- Y mod room_height = room_height / 2.
+
 
 :- func north(point) = point is det.
 :- func south(point) = point is det.
@@ -116,9 +124,11 @@ south(p(X, Y)) = p(X, Y+1).
 west(p(X, Y))  = p(X-1, Y).
 east(p(X, Y))  = p(X+1, Y).
 
+
 :- pred conn(point, point).
 :- mode conn(in, out) is nondet.
 :- mode conn(in, in) is semidet.
+
 conn(P1, P2) :-
     P1 = p(X, Y),
     in_maze(P1),
@@ -129,24 +139,32 @@ conn(P1, P2) :-
     ;   P2 = east(P1),  ( if not at_right_wall(X) then true else at_lr_door(Y) )
     ).
 
-:- func dist(point, point) = int is det.
+
+:- func dist(point, point) = float is det.
+
 dist(p(X1, Y1), p(X2, Y2)) =
-    floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
+    math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2)).
+    %floor_to_int(math.sqrt(pow(float(X1-X2), 2) + pow(float(Y1-Y2), 2))).
 %dist(p(X1, Y1), p(X2, Y2)) = abs(X1 - X2) + abs(Y1 - Y2).
 
 
-:- type prim_action ---> left ; right ; up ; down.
-:- type stoch_action ---> s_left ; s_right ; s_up ; s_down.
+:- type prim ---> left ; right ; up ; down
+                ; left_out(stoch, int, random.supply)
+                ; right_out(stoch, int, random.supply)
+                ; up_out(stoch, int, random.supply)
+                ; down_out(stoch, int, random.supply).
+:- type stoch ---> s_left ; s_right ; s_up ; s_down.
 :- type procedure ---> bla.
 
 
-:- func sitlen(sit(prim_action)) = int is det.
+:- func sitlen(sit(prim)) = int is det.
 
 sitlen(s0)       = 0.
 sitlen(do(_, S)) = 1 + sitlen(S).
 
 
-:- pred poss(prim_action::in, sit(prim_action)::in) is semidet.
+:- pred poss(prim::in, sit(prim)::in) is semidet.
+
 poss(A, S) :-
     P1 = pos(S),
     P2 = new_pos(A, P1),
@@ -154,38 +172,72 @@ poss(A, S) :-
     unvisited(P2, S).
 
 
-:- pred random_outcome(stoch_action::in, prim_action::out, S::in) is det.
-random_outcome(B, A, _S) :-
-    (   B = s_up,    A = up
-    ;   B = s_down,  A = down
-    ;   B = s_left,  A = left
-    ;   B = s_right, A = right
-    ).
+:- pred random_supply(random.supply, sit(prim)).
+:- mode random_supply(out, in) is det.
+
+random_supply(RS, s0) :-
+    random.init(3, RS).
+random_supply(RS, do(A, S)) :-
+    if      (   A = up_out(_, _, RS0)
+            ;   A = down_out(_, _, RS0)
+            ;   A = left_out(_, _, RS0)
+            ;   A = right_out(_, _, RS0) )
+    then    RS = RS0
+    else    random_supply(RS, S).
 
 
-:- func reward(prog(prim_action, stoch_action, procedure), sit(prim_action))
-    = reward.
+:- pred random_outcome(stoch, prim, sit(prim)).
+:- mode random_outcome(in, out, in) is det.
+
+random_outcome(B, A, S) :-
+    random_supply(RS0, S),
+    random.random(R, RS0, RS1),
+    N = 4,
+    Aup = up_out(B, R mod N, RS1),
+    Adown = down_out(B, R mod N, RS1),
+    Aleft = left_out(B, R mod N, RS1),
+    Aright = right_out(B, R mod N, RS1),
+    (   B = s_up,    A0 = Adown,  A1 = Aleft,  A2 = Aright, A3 = Aup
+    ;   B = s_down,  A0 = Aleft,  A1 = Aright, A2 = Aup,    A3 = Adown
+    ;   B = s_left,  A0 = Aright, A1 = Aup,    A2 = Adown,  A3 = Aleft
+    ;   B = s_right, A0 = Aup,    A1 = Adown,  A2 = Aleft,  A3 = Aright
+    ),
+    (   if      R mod N = 0, maze.poss(A0, S) then A = A0
+        else if R mod N = 1, maze.poss(A1, S) then A = A1
+        else if R mod N = 2, maze.poss(A2, S) then A = A2
+        else                                       A = A3
+    ),
+    %trace [io(!IO)] (
+        %io.write(A, !IO), io.nl(!IO)
+    %).
+    true.
+
+
+:- func reward(prog(prim, stoch, procedure), sit(prim)) = reward.
 :- mode reward(unused, in) = out is det.
+
 reward(_, S) = (dist(start, goal) - dist(pos(S), goal))
              * (dist(start, goal) - dist(pos(S), goal))
-             - sitlen(S).
+             - float(sitlen(S)).
 
 
-:- func lookahead(sit(prim_action)) = lookahead is det.
+:- func lookahead(sit(prim)) = lookahead is det.
+
 lookahead(_S) = 5.
 
 
-:- func new_lookahead(lookahead, atom(prim_action, stoch_action))
-    = lookahead is det.
+:- func new_lookahead(lookahead, atom(prim, stoch)) = lookahead is det.
+
 new_lookahead(H, _C) = H - 1.
 
 
-:- pred proc(procedure, prog(prim_action, stoch_action, procedure)).
+:- pred proc(procedure, prog(prim, stoch, procedure)).
 :- mode proc(in, out) is det.
+
 proc(P, P1) :- P = bla, P1 = nil.
 
 
-:- instance bat(maze.prim_action, maze.stoch_action, maze.procedure) where [
+:- instance bat(maze.prim, maze.stoch, maze.procedure) where [
     pred(poss/2) is maze.poss,
     pred(random_outcome/3) is maze.random_outcome,
     func(reward/2) is maze.reward,
@@ -195,41 +247,56 @@ proc(P, P1) :- P = bla, P1 = nil.
 ].
 
 
-:- func new_pos(prim_action, point) = point is det.
+:- func new_pos(prim, point) = point is det.
+
 new_pos(A, P1) = P2 :-
-    (   A = up,    P2 = north(P1)
-    ;   A = down,  P2 = south(P1)
-    ;   A = left,  P2 = west(P1)
-    ;   A = right, P2 = east(P1)
+    (   A = up,             P2 = north(P1)
+    ;   A = down,           P2 = south(P1)
+    ;   A = left,           P2 = west(P1)
+    ;   A = right,          P2 = east(P1)
+    ;   A = up_out(_, _, _),   P2 = north(P1)
+    ;   A = down_out(_, _, _), P2 = south(P1)
+    ;   A = left_out(_, _, _), P2 = west(P1)
+    ;   A = right_out(_, _, _),P2 = east(P1)
     ).
 
-:- func pos(sit(prim_action)) = point is det.
-:- pragma memo(pos/1, [allow_reset, fast_loose]). 
+
+:- func pos(sit(prim)) = point is det.
+%:- pragma memo(pos/1, [allow_reset, fast_loose]). 
+
 pos(S1) = P :-
     (   S1 = s0, P = start
     ;   S1 = do(A, S), P = new_pos(A, pos(S))
     ).
 
-:- pred unvisited(point::in, sit(prim_action)::in) is semidet.
+
+:- pred unvisited(point::in, sit(prim)::in) is semidet.
+
 unvisited(P, S1) :- standalone_unvisited(P, S1).
 
-:- pred naive_unvisited(point::in, sit(prim_action)::in) is semidet.
+
+:- pred naive_unvisited(point::in, sit(prim)::in) is semidet.
+
 naive_unvisited(P, S1) :-
     pos(S1) \= P,
     (   S1 = do(_, S), naive_unvisited(P, S)
     ;   S1 = s0
     ).
 
-:- pred standalone_unvisited(point::in, sit(prim_action)::in) is semidet.
+
+:- pred standalone_unvisited(point::in, sit(prim)::in) is semidet.
+
 standalone_unvisited(P, S) :- standalone_unvisited(P, _, S).
 
-:- pred standalone_unvisited(point::in, point::out, sit(prim_action)::in)
-    is semidet.
+
+:- pred standalone_unvisited(point::in, point::out, sit(prim)::in) is semidet.
+
 standalone_unvisited(P1, P3, S1) :-
     (   S1 = s0, P3 = start
     ;   S1 = do(A, S), standalone_unvisited(P1, P2, S), P3 = new_pos(A, P2)
     ),
     P1 \= P3.
+
 
 /*
 :- use_module term.
@@ -246,6 +313,7 @@ test(!IO) :-
     io.write(NewProg, !IO), io.nl(!IO).
 */
 
+
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
@@ -261,7 +329,7 @@ main(!IO) :-
     io.write(Pos0, !IO), io.nl(!IO),
     io.write(start, !IO), io.nl(!IO),
     io.write(goal, !IO), io.nl(!IO),
-    Prog = star(a(up) or a(down) or a(left) or a(right)),
+    Prog = star(b(s_up) or b(s_down) or b(s_left) or b(s_right)),
     %Prog1 = t(pos == f(start)) `;` Prog0 `;` t(pos == f(goal)),
     (   if      do(Prog, s0, S1)
         then    Rew1 = maze.reward(_, S1),

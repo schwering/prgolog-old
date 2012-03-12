@@ -69,7 +69,7 @@
 
 :- type sit(A) ---> s0 ; do(A, sit(A)).
 
-:- type reward == int.
+:- type reward == float.
 :- type lookahead == int.
 
 :- type funfluent(A, R) == (func(sit(A)) = R).
@@ -98,7 +98,7 @@
     pred poss(A, sit(A)),
     mode poss(in, in) is semidet,
 
-    pred random_outcome(B, A, S),
+    pred random_outcome(B, A, sit(A)),
     mode random_outcome(in, out, in) is det,
 
     func reward(prog(A, B, P), sit(A)) = reward,
@@ -130,6 +130,7 @@
 
 :- implementation.
 
+:- import_module float.
 :- import_module int.
 :- import_module list.
 :- import_module solutions.
@@ -138,6 +139,7 @@
 :- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
     <= bat(A, B, P).
 :- mode next(in, out, out) is nondet.
+:- mode next(in, in, in) is semidet.
 
 next(seq(P1, P2), C, R) :-
     (   next(P1, C, R1), R = seq(R1, P2)
@@ -215,14 +217,13 @@ value(P, S, L) = V :-
                 V1 = value(R1, S1, new_lookahead(L, C1))
             ), Values),
             Values \= [],
-            V2 = list.foldl(int.max, Values, int.min_int),
+            V2 = list.foldl(float.max, Values, float.min),
             ( final(P) => V2 > reward(P, S) )
     then    V = V2
     else    V = reward(P, S).
 
 
 :- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
-
 :- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: reward).
 
 
