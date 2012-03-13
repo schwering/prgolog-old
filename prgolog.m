@@ -95,8 +95,8 @@
 
 
 :- typeclass bat(A, B, P) <= ((A -> B), (A, B -> P)) where [
-    pred poss(A, sit(A)),
-    mode poss(in, in) is semidet,
+    pred poss(A, A, sit(A)),
+    mode poss(in, out, in) is semidet,
 
     pred random_outcome(B, A, sit(A)),
     mode random_outcome(in, out, in) is det,
@@ -124,6 +124,7 @@
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
 :- mode do(in, in, out) is semidet.
 
+:- include_module ccfluents.
 :- include_module fluents.
 :- include_module nice.
 
@@ -197,8 +198,8 @@ next2(P, C, R) :-
 :- mode trans_atom(in, in, out) is semidet.
 
 trans_atom(prim(A), S, S1) :-
-    poss(A, S),
-    S1 = do(A, S).
+    poss(A, A1, S),
+    S1 = do(A1, S).
 trans_atom(stoch(B), S, S1) :-
     random_outcome(B, A, S),
     trans_atom(prim(A), S, S1).

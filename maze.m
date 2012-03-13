@@ -62,6 +62,7 @@
 :- import_module prgolog.nice.
 :- import_module int.
 :- import_module float.
+:- use_module hash_table.
 :- import_module list.
 :- import_module math.
 :- use_module random.
@@ -163,9 +164,9 @@ sitlen(s0)       = 0.
 sitlen(do(_, S)) = 1 + sitlen(S).
 
 
-:- pred poss(prim::in, sit(prim)::in) is semidet.
+:- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
 
-poss(A, S) :-
+poss(A, A, S) :-
     P1 = pos(S),
     P2 = new_pos(A, P1),
     conn(P1, P2),
@@ -191,21 +192,26 @@ random_supply(RS, do(A, S)) :-
 
 random_outcome(B, A, S) :-
     random_supply(RS0, S),
-    random.random(R, RS0, RS1),
-    N = 100,
-    Aup = up_out(B, R mod N, RS1),
-    Adown = down_out(B, R mod N, RS1),
-    Aleft = left_out(B, R mod N, RS1),
-    Aright = right_out(B, R mod N, RS1),
-    (   B = s_up,    {A0, A1, A2, A3} = {Adown, Aleft, Aright, Aup}
-    ;   B = s_down,  {A0, A1, A2, A3} = {Aup, Aright, Aleft, Adown}
-    ;   B = s_left,  {A0, A1, A2, A3} = {Aright, Aup, Adown, Aleft}
-    ;   B = s_right, {A0, A1, A2, A3} = {Aleft, Adown, Aup, Aright}
+    random.random(R, RS0, _),
+    (   B = s_up, Y = 7
+    ;   B = s_down, Y = 13
+    ;   B = s_left, Y = 19
+    ;   B = s_right, Y = 31
     ),
-    X = R mod N,
-    (   if       0 =< X, X < 10, maze.poss(A0, S) then A = A0
-        else if 10 =< X, X < 30, maze.poss(A1, S) then A = A1
-        else if 30 =< X, X < 50, maze.poss(A2, S) then A = A2
+    X = R mod 100,
+    random.init(R * Y, RS1),
+    Aup    = up_out(B, X, RS1),
+    Adown  = down_out(B, X, RS1),
+    Aleft  = left_out(B, X, RS1),
+    Aright = right_out(B, X, RS1),
+    (   B = s_up,    {A0, A1, A2, A3} = {Adown, Aleft, Aright, Aup}% {Adown,  Aleft,  Aright, Aup}
+    ;   B = s_down,  {A0, A1, A2, A3} = {Aup, Aleft, Aright, Adown}% {Aup,    Aright, Aleft,  Adown}
+    ;   B = s_left,  {A0, A1, A2, A3} = {Aup, Adown, Aright, Aleft}% {Aright, Aup,    Adown,  Aleft}
+    ;   B = s_right, {A0, A1, A2, A3} = {Aup, Adown, Aleft, Aright}% {Aleft,  Adown,  Aup,    Aright}
+    ),
+    (   if       0 =< X, X < 10, maze.poss(A0, _, S) then A = A0
+        else if 10 =< X, X < 30, maze.poss(A1, _, S) then A = A1
+        else if 30 =< X, X < 50, maze.poss(A2, _, S) then A = A2
         else                                           A = A3
     ),
     %trace [io(!IO)] (
@@ -239,7 +245,7 @@ proc(P, P1) :- P = bla, P1 = nil.
 
 
 :- instance bat(maze.prim, maze.stoch, maze.procedure) where [
-    pred(poss/2) is maze.poss,
+    pred(poss/3) is maze.poss,
     pred(random_outcome/3) is maze.random_outcome,
     func(reward/2) is maze.reward,
     func(lookahead/1) is maze.lookahead,
