@@ -12,11 +12,13 @@
 
 :- import_module lp.
 :- import_module prgolog.
+:- import_module prgolog.ccfluents.
 :- import_module prgolog.fluents.
 :- import_module prgolog.nice.
 :- import_module int.
 :- import_module float.
 :- import_module list.
+:- import_module map.
 :- import_module math.
 :- import_module maybe.
 :- use_module random.
@@ -24,12 +26,17 @@
 :- import_module solutions.
 :- import_module term.
 :- import_module table_statistics.
+:- use_module varset.
 
 :- type velocity == float.
 :- type yaw == float.
+:- type time == aterm.
 
-:- type prim --->   setVeloc(velocity, velocity, maybe(random.supply))
-                ;   setYaw(yaw, yaw, maybe(random.supply)).
+:- type prim --->
+        setVeloc(velocity, velocity, maybe(random.supply), maybe(varset.varset),
+                 list(equation), time)
+    ;   setYaw(yaw, yaw, maybe(random.supply), maybe(varset.varset),
+               list(equation), time).
 :- type stoch --->  setVelocSt(velocity)
                 ;   setYawSt(yaw).
 :- type procedure ---> drive.
@@ -41,32 +48,93 @@ sitlen(s0) = 0.
 sitlen(do(_, S)) = 1 + sitlen(S).
 
 
-%:- type var_supply == var_supply(generic).
+:- func notime = time.
+:- mode notime = out is det.
 
-%:- pred collect(sit(prim)::in,
-%                var_supply::in, var_supply::out,
-%                equations::in,  equations::out) is det.
-
-%collect(s0, !_VS, _, []).
-%collect(do(A, S), !VS, !EQ).
+notime = constant(-1.0).
 
 
-:- pred poss(prim::in, prim::out, sit(prim)::in) is det.% semidet.
+:- func varset(sit(prim)) = varset.varset.
+:- mode varset(in) = out is det.
 
-poss(A, A, _) :- A = setVeloc(_, _, _).
-poss(A, A, _) :- A = setYaw(_, _, _).
+varset(s0) = VS:-
+    varset.init(VS).
+varset(do(A, S)) = VS :-
+    if      (   A = setVeloc(_, _, _, yes(VS0), _, _)
+            ;   A = setYaw(_, _, _, yes(VS0), _, _) )
+    then    VS = VS0
+    else    VS = varset(S).
 
 
-:- pred random_supply(random.supply, sit(prim)).
-:- mode random_supply(out, in) is det.
+:- func random_supply(sit(prim)) = random.supply.
+:- mode random_supply(in) = out is det.
 
-random_supply(RS, s0) :-
+random_supply(s0) = RS :-
     random.init(3, RS).
-random_supply(RS, do(A, S)) :-
-    if      (   A = setVeloc(_, _, yes(RS0))
-            ;   A = setYaw(_, _, yes(RS0)) )
+random_supply(do(A, S)) = RS :-
+    if      (   A = setVeloc(_, _, yes(RS0), _, _, _)
+            ;   A = setYaw(_, _, yes(RS0), _, _, _) )
     then    RS = RS0
-    else    random_supply(RS, S).
+    else    RS = random_supply(S).
+
+
+:- func constraints(sit(prim)) = list(equation).
+:- mode constraints(in) = out is det.
+
+constraints(s0) = [].
+constraints(do(A, S)) = Cs ++ constraints(S) :-
+    (   A = setVeloc(_, _, _, _, Cs, _)
+    ;   A = setYaw(_, _, _, _, Cs, _) ).
+
+
+:- func start(sit(prim)) = aterm.
+:- mode start(in) = out is det.
+
+start(s0) = constant(0.0).
+start(do(A, _)) = T :-
+    (   A = setVeloc(_, _, _, _, _, T)
+    ;   A = setYaw(_, _, _, _, _, T)
+    ).
+
+
+:- pred solve(sit(prim)).
+:- mode solve(in) is semidet.
+
+solve(S) :- solve(S, varset(S), []).
+
+
+:- pred solve(sit(prim), varset.varset, list(equation)).
+:- mode solve(in, in, in) is semidet.
+
+solve(S, VS, Cs) :- solve(S, VS, Cs, _, _).
+
+
+:- pred solve(sit(prim), varset.varset, list(equation), float, map(var, float)).
+:- mode solve(in, in, in, out, out) is semidet.
+
+solve(S, VS, Cs, Val, Map) :-
+    Constraints = Cs ++ constraints(S),
+    Objective = variables(VS),
+    lp_solve(Constraints, min, Objective, VS, [], R),
+    R = satisfiable(Val, Map).
+
+
+:- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
+
+poss(setVeloc(V, Tol, RS, no, [], notime),
+     setVeloc(V, Tol, RS, yes(VS1), Cs, T), S) :-
+    VS0 = varset(S),
+    varset.new_var(TV, VS0, VS1),
+    T = variable(TV),
+    Cs = [T `>=` (start(S) + constant(1.0))],
+    solve(S, VS1, Cs ++ constraints(S)).
+poss(setYaw(Y, Tol, RS, no, [], notime),
+     setYaw(Y, Tol, RS, yes(VS1), Cs, T), S) :-
+    VS0 = varset(S),
+    varset.new_var(TV, VS0, VS1),
+    T = variable(TV),
+    Cs = [T `>=` (start(S) + constant(1.0))],
+    solve(S, VS1, Cs ++ constraints(S)).
 
 
 :- pred random_normal(float::out, float::out,
@@ -78,7 +146,7 @@ random_normal(X1, X2, !RS) :-
     random.random(R2, !RS),
     U1 = float(R1) / float(Max) * 2.0 - 1.0,
     U2 = float(R2) / float(Max) * 2.0 - 1.0,
-    Q = pow(U1, 2.0) + pow(U2, 2.0),
+    Q = U1*U1 + U2*U2,
     (   if      Q > 1.0
         then    random_normal(X1, X2, !RS)
         else    P = sqrt(-2.0 * ln(Q) / Q),
@@ -99,12 +167,12 @@ random_lognormal(Mu, Sigma, Y1, Y2, !RS) :-
 
 :- pred random_outcome(stoch::in, prim::out, sit(prim)::in) is det.
 
-random_outcome(setVelocSt(V), setVeloc(V, Tol, yes(RS1)), S) :-
-    random_supply(RS0, S),
-    random_normal(Tol, _, RS0, RS1).
-random_outcome(setYawSt(Y), setYaw(Y, Tol, yes(RS1)), S) :-
-    random_supply(RS0, S),
-    random_normal(_, Tol, RS0, RS1).
+random_outcome(setVelocSt(V), setVeloc(V, Tol, yes(RS1), no, [], notime), S) :-
+    RS0 = random_supply(S),
+    random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
+random_outcome(setYawSt(Y), setYaw(Y, Tol, yes(RS1), no, [], notime), S) :-
+    RS0 = random_supply(S),
+    random_lognormal(1.0, 1.0, _, Tol, RS0, RS1).
 
 
 :- func reward(prog(prim, stoch, procedure), sit(prim)) = reward.
@@ -139,8 +207,25 @@ proc(drive, P) :- P = nil.
 ].
 
 
+:- pred print(sit(prim)::in, io.io::di, io.io::uo) is det.
+
+print(s0, !IO) :-
+    io.nl(!IO).
+print(do(A, S), !IO) :-
+    print(S, !IO),
+    io.write(A, !IO), io.nl(!IO).
+
+
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
-    io.write("huhu", !IO), io.nl(!IO).
+    io.write("huhu", !IO), io.nl(!IO),
+    (   if      do(b(setYawSt(0.5)) `;` b(setVelocSt(15.0)), s0, S),
+                solve(S, varset(S), [], Val, Map)
+        then    print(S, !IO), io.nl(!IO),
+                io.write(Val, !IO), io.nl(!IO),
+                io.write(Map, !IO), io.nl(!IO),
+                io.write(constraints(S), !IO), io.nl(!IO)
+        else    io.write_string("failed", !IO), io.nl(!IO)
+    ).
 

@@ -34,7 +34,7 @@
 :- module lp.
 :- interface.
 
-:- import_module io.
+%:- import_module io.
 :- import_module list.
 :- import_module map.
 :- import_module pair.
@@ -81,7 +81,7 @@
     % MapFromObjVarsToVals)'.
     %
 :- pred lp_solve(equations::in, direction::in, objective::in, varset::in,
-    list(var)::in, lp.result::out, io::di, io::uo) is det.
+    list(var)::in, lp.result::out) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -91,6 +91,7 @@
 :- import_module bool.
 :- import_module float.
 :- import_module int.
+:- import_module io.
 :- import_module maybe.
 :- import_module require.
 :- import_module set.
@@ -114,9 +115,9 @@
 
 %-----------------------------------------------------------------------------%
 
-lp_solve(Eqns, Dir, Obj, Varset0, URSVars, Result, !IO) :-
+lp_solve(Eqns, Dir, Obj, Varset0, URSVars, Result) :-
     lp_info_init(Varset0, URSVars, Info0),
-    lp_solve_2(Eqns, Dir, Obj, Result, Info0, _, !IO).
+    lp_solve_2(Eqns, Dir, Obj, Result, Info0, _).
 
     % lp_solve2(Eqns, Dir, Obj, Res, IO0, IO, LPInfo0, LPInfo) takes
     % a list of inequations `Eqns', a direction for optimization
@@ -125,10 +126,9 @@ lp_solve(Eqns, Dir, Obj, Varset0, URSVars, Result, !IO) :-
     % on the algorithm.
     %
 :- pred lp_solve_2(equations::in, direction::in, objective::in,
-    lp.result::out, lp_info::in, lp_info::out, io::di, io::uo)
-    is det.
+    lp.result::out, lp_info::in, lp_info::out) is det.
 
-lp_solve_2(Eqns0, Dir, Obj0, Result, !Info, !IO) :-
+lp_solve_2(Eqns0, Dir, Obj0, Result, !Info) :-
     %
     % Simplify the inequations and convert them to standard form by
     % introducing slack/excess/artificial variables. We also expand
