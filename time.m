@@ -46,25 +46,29 @@
 %-----------------------------------------------------------------------------%
 
 :- type degree == float.
-:- type radiant == float.
-:- type kmh == float.
-:- type ms == float.
-:- type velocity == float.
-:- type yaw == float.
+:- type rad == float.
+:- type kmph == float.
+:- type mps == float.
+:- type mpss == float.
+:- type m == float.
+:- type s == float.
 :- type time == aterm.
 
+:- type wait_for_cond == (func(time, sit(prim)) = equation).
+
 :- type prim --->
-        setVeloc(velocity, velocity, maybe(random.supply),
-                 maybe(varset.varset), list(equation), time)
-    ;   setYaw(yaw, yaw, maybe(random.supply), maybe(varset.varset),
-               list(equation), time).
-:- type stoch --->  setVelocSt(velocity)
-                ;   setYawSt(yaw).
+        set_veloc(mps, mps, maybe(random.supply),
+                 maybe(varset.varset), equations, time)
+    ;   set_yaw(rad, rad, maybe(random.supply), maybe(varset.varset),
+               equations, time)
+    ;   wait_for(wait_for_cond, maybe(varset.varset), equations, time).
+:- type stoch --->  set_veloc_st(mps)
+                ;   set_yaw_st(rad).
 :- type procedure ---> drive.
 
 %-----------------------------------------------------------------------------%
 
-:- pred deg2rad(degree, radiant).
+:- pred deg2rad(degree, rad).
 :- mode deg2rad(in, out) is det.
 :- mode deg2rad(out, in) is det.
 :- pragma promise_equivalent_clauses(deg2rad/2).
@@ -73,7 +77,7 @@ deg2rad(Deg::in, Rad::out) :- Rad = Deg / 180.0 * pi.
 deg2rad(Deg::out, Rad::in) :- Deg = Rad * 180.0 / pi.
 
 
-:- pred kmh2ms(kmh, ms).
+:- pred kmh2ms(kmph, mps).
 :- mode kmh2ms(in, out) is det.
 :- mode kmh2ms(out, in) is det.
 :- pragma promise_equivalent_clauses(kmh2ms/2).
@@ -89,6 +93,67 @@ kmh2ms(Kmh::out, Ms::in) :- Kmh = Ms * 3.6.
 deg_zero = 0.0.
 deg_min = deg_zero - 25.0.
 deg_max = deg_zero - 25.0.
+
+%-----------------------------------------------------------------------------%
+
+:- func r0 = (m::out) is det.
+:- func mu = (float::out) is det.
+:- func g = (mpss::out) is det.
+
+r0 = 5.0.
+mu = 0.8.
+g = 9.81.
+
+
+:- func r(mps::in) = (m::out) is det.
+:- func t_pos(mps::in, rad::in) = (m::out) is det.
+:- func t_neg(mps::in, rad::in) = (m::out) is det.
+
+r(V) = r0 + V*V / (g*mu).
+t_pos(V, A) = A * r(V) / V.
+t_neg(V, A) = -1.0 * t_pos(V, A).
+
+
+:- func r_(mps::in) = (float::out) is det.
+:- func t_pos_v(mps::in, rad::in) = (float::out) is det.
+:- func t_pos_a(mps::in, rad::in) = (float::out) is det.
+:- func t_neg_v(mps::in, rad::in) = (float::out) is det.
+:- func t_neg_a(mps::in, rad::in) = (float::out) is det.
+
+r_(V) = 2.0 * V / (g*mu).
+t_pos_v(V, A) = A * (r_(V) * V - r(V)) / (V*V).
+t_pos_a(V, _A) = r(V) / V.
+t_neg_v(V, A) = -1.0 * t_pos_v(V, A).
+t_neg_a(V, A) = -1.0 * t_pos_a(V, A).
+
+
+:- func tang_t_pos(mps::in, rad::in, mps::in, rad::in) = (s::out) is det.
+:- func tang_t_neg(mps::in, rad::in, mps::in, rad::in) = (s::out) is det.
+
+tang_t_pos(VV, AA, V, A) = T :-
+    Tangential = t_pos(VV, AA),
+    SlopeVV = t_pos_v(VV, AA),
+    SlopeAA = t_pos_a(VV, AA),
+    Constant = Tangential - VV * SlopeVV - AA * SlopeAA,
+    T = Constant + V * SlopeVV + A * SlopeAA.
+
+tang_t_neg(VV, AA, V, A) = T :-
+    Tangential = t_neg(VV, AA),
+    SlopeVV = t_neg_v(VV, AA),
+    SlopeAA = t_neg_a(VV, AA),
+    Constant = Tangential - VV * SlopeVV - AA * SlopeAA,
+    T = Constant + V * SlopeVV + A * SlopeAA.
+
+
+:- func plane1_pos(mps::in, rad::in) = (s::out) is det.
+:- func plane2_pos(mps::in, rad::in) = (s::out) is det.
+:- func plane1_neg(mps::in, rad::in) = (s::out) is det.
+:- func plane2_neg(mps::in, rad::in) = (s::out) is det.
+
+plane1_pos(V, A) = tang_t_pos(60.0,  pi, V, A).
+plane2_pos(V, A) = tang_t_pos( 7.0, 0.0, V, A).
+plane1_neg(V, A) = tang_t_neg(60.0, -pi, V, A).
+plane2_neg(V, A) = tang_t_neg( 7.0, 0.0, V, A).
 
 %-----------------------------------------------------------------------------%
 
@@ -109,8 +174,9 @@ notime = constant(-1.0).
 
 start(s0) = constant(0.0).
 start(do(A, _)) = T :-
-    (   A = setVeloc(_, _, _, _, _, T)
-    ;   A = setYaw(_, _, _, _, _, T)
+    (   A = set_veloc(_, _, _, _, _, T)
+    ;   A = set_yaw(_, _, _, _, _, T)
+    ;   A = wait_for(_, _, _, T)
     ).
 
 %-----------------------------------------------------------------------------%
@@ -120,8 +186,8 @@ start(do(A, _)) = T :-
 random_supply(s0) = RS :-
     random.init(3, RS).
 random_supply(do(A, S)) = RS :-
-    if      (   A = setVeloc(_, _, yes(RS0), _, _, _)
-            ;   A = setYaw(_, _, yes(RS0), _, _, _) )
+    if      (   A = set_veloc(_, _, yes(RS0), _, _, _)
+            ;   A = set_yaw(_, _, yes(RS0), _, _, _) )
     then    RS = RS0
     else    RS = random_supply(S).
 
@@ -132,19 +198,21 @@ random_supply(do(A, S)) = RS :-
 varset(s0) = VS:-
     varset.init(VS).
 varset(do(A, S)) = VS :-
-    if      (   A = setVeloc(_, _, _, yes(VS0), _, _)
-            ;   A = setYaw(_, _, _, yes(VS0), _, _) )
+    if      (   A = set_veloc(_, _, _, yes(VS0), _, _)
+            ;   A = set_yaw(_, _, _, yes(VS0), _, _) )
     then    VS = VS0
     else    VS = varset(S).
 
 %-----------------------------------------------------------------------------%
 
-:- func constraints(sit(prim)::in) = (list(equation)::out) is det.
+:- func constraints(sit(prim)::in) = (equations::out) is det.
 
 constraints(s0) = [].
 constraints(do(A, S)) = Cs ++ constraints(S) :-
-    (   A = setVeloc(_, _, _, _, Cs, _)
-    ;   A = setYaw(_, _, _, _, Cs, _) ).
+    (   A = set_veloc(_, _, _, _, Cs, _)
+    ;   A = set_yaw(_, _, _, _, Cs, _)
+    ;   A = wait_for(_, _, Cs, _)
+    ).
 
 %-----------------------------------------------------------------------------%
 
@@ -153,12 +221,12 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 solve(S) :- solve(S, varset(S), []).
 
 
-:- pred solve(sit(prim)::in, varset.varset::in, list(equation)::in) is semidet.
+:- pred solve(sit(prim)::in, varset.varset::in, equations::in) is semidet.
 
 solve(S, VS, Cs) :- solve(S, VS, Cs, _, _).
 
 
-:- pred solve(sit(prim)::in, varset.varset::in, list(equation)::in,
+:- pred solve(sit(prim)::in, varset.varset::in, equations::in,
               float::out, map(var, float)::out) is semidet.
 
 solve(S, VS, Cs, Val, Map) :-
@@ -171,19 +239,29 @@ solve(S, VS, Cs, Val, Map) :-
 
 :- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
 
-poss(setVeloc(V, Tol, RS, no, [], notime),
-     setVeloc(V, Tol, RS, yes(VS1), Cs, T), S) :-
+poss(set_veloc(V, Tol, RS, no, [], notime),
+     set_veloc(V, Tol, RS, yes(VS1), Cs, T),
+     S) :-
     VS0 = varset(S),
     varset.new_var(TV, VS0, VS1),
     T = variable(TV),
-    Cs = [T `>=` (start(S) + constant(1.0))],
+    Cs = [T `>=` start(S)],
     solve(S, VS1, Cs ++ constraints(S)).
-poss(setYaw(Y, Tol, RS, no, [], notime),
-     setYaw(Y, Tol, RS, yes(VS1), Cs, T), S) :-
+poss(set_yaw(Y, Tol, RS, no, [], notime),
+     set_yaw(Y, Tol, RS, yes(VS1), Cs, T),
+     S) :-
     VS0 = varset(S),
     varset.new_var(TV, VS0, VS1),
     T = variable(TV),
-    Cs = [T `>=` (start(S) + constant(1.0))],
+    Cs = [T `>=` start(S)],
+    solve(S, VS1, Cs ++ constraints(S)).
+poss(wait_for(G, no, [], notime),
+     wait_for(G, yes(VS1), Cs, T),
+     S) :-
+    VS0 = varset(S),
+    varset.new_var(TV, VS0, VS1),
+    T = variable(TV),
+    Cs = [G(T, S), T `>=` start(S)],
     solve(S, VS1, Cs ++ constraints(S)).
 
 %-----------------------------------------------------------------------------%
@@ -218,10 +296,14 @@ random_lognormal(Mu, Sigma, Y1, Y2, !RS) :-
 
 :- pred random_outcome(stoch::in, prim::out, sit(prim)::in) is det.
 
-random_outcome(setVelocSt(V), setVeloc(V, Tol, yes(RS1), no, [], notime), S) :-
+random_outcome(set_veloc_st(V),
+               set_veloc(V, Tol, yes(RS1), no, [], notime),
+               S) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
-random_outcome(setYawSt(Y), setYaw(Y, Tol, yes(RS1), no, [], notime), S) :-
+random_outcome(set_yaw_st(Y),
+               set_yaw(Y, Tol, yes(RS1), no, [], notime),
+               S) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, _, Tol, RS0, RS1).
 
@@ -278,7 +360,7 @@ print(do(A, S), !IO) :-
 %    (up | down | left | right)*
 main(!IO) :-
     io.write("huhu", !IO), io.nl(!IO),
-    (   if      do(b(setYawSt(0.5)) `;` b(setVelocSt(15.0)), s0, S),
+    (   if      do(b(set_yaw_st(0.5)) `;` b(set_veloc_st(15.0)), s0, S),
                 solve(S, varset(S), [], Val, Map)
         then    print(S, !IO), io.nl(!IO),
                 io.write(Val, !IO), io.nl(!IO),
