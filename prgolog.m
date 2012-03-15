@@ -1,4 +1,9 @@
+%-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+%-----------------------------------------------------------------------------%
+%
+% File: prgolog.m.
+% Main author: schwering.
 %
 % A simple Golog interpreter with decomposition semantics, stochastic actions,
 % and decision theory.
@@ -10,10 +15,9 @@
 % 4. P for procedures.
 %
 % The user needs to define a type for primitive actions, stochastic actions
-% and procedures.
-% For these types, the type class bat must be implemented, which together
-% gives us everything we need of a basic action theory.
-% Note that the lookahead must be positive and reward non-negative.
+% and procedures.  For these types, the type class bat must be implemented,
+% which together gives us everything we need of a basic action theory.  Note
+% that the lookahead must be positive and reward non-negative.
 %
 % The core predicates are:
 % * next/2 to decompose a program into one next atomic action its remainder,
@@ -23,49 +27,51 @@
 % * final/2 decides whether or not a program is final,
 % * do/3 that executes a program until it's final.
 %
-% The interpreter features sequence, recursive procedure calls, nondeterministic
-% branch, nondeterministic loop, concurrency through nondeterministic
-% interleaving, sequence, test actions, primitive actions, stochastic actions,
-% and atomic complex actions.
-% Nondeterminism is resolved by choosing the alternative that maximizes a
-% reward after a lookahead lookahead defined in the BAT.
+% The interpreter features sequence, recursive procedure calls,
+% nondeterministic branch, nondeterministic loop, concurrency through
+% nondeterministic interleaving, sequence, test actions, primitive actions,
+% stochastic actions, and atomic complex actions.  Nondeterminism is resolved
+% by choosing the alternative that maximizes a reward after a lookahead
+% lookahead defined in the BAT.
 %
 % To implement fluent formulas in test actions, we exploit Mercury's
-% higher-order types.
-% Each fluent predicate is represented as a boolean function that returns `yes'
-% if the predicate holds in the given situation and `no' otherwise.
-% The fact that we don't use higher-order predicate terms is due to a
-% technicality in Mercury: the inst of a higher-order predicate term is
-% determined by its mode, not by its type, while higher-order functions have a
-% default inst (see Section 8.3 (``Higher-order modes'') in the Mercury LRM for
-% details).
-% If we didn't go with boolean functions but higher-order predicates instead,
-% we would have to add inst definitions for all types just to tell Mercury
-% that relational fluents have the boring inst `pred(in) is semidet'.
-% Further complication arises when we use higher-order predicates like solutions
-% and foldl which we need to wrap into anonymous lambda expressions to get the
-% modes right.
-% Some general helper predicates and functions to construct fluents (and
-% abstract from the aforementioned technicality) are defined in the submodule
-% prgolog.fluents.m.
+% higher-order types.  Each fluent predicate is represented as a boolean
+% function that returns `yes' if the predicate holds in the given situation
+% and `no' otherwise.  The fact that we don't use higher-order predicate terms
+% is due to a technicality in Mercury: the inst of a higher-order predicate
+% term is determined by its mode, not by its type, while higher-order
+% functions have a default inst (see Section 8.3 (``Higher-order modes'') in
+% the Mercury LRM for details).  If we didn't go with boolean functions but
+% higher-order predicates instead, we would have to add inst definitions for
+% all types just to tell Mercury that relational fluents have the boring inst
+% `pred(in) is semidet'.  Further complication arises when we use higher-order
+% predicates like solutions and foldl which we need to wrap into anonymous
+% lambda expressions to get the modes right.  Some general helper predicates
+% and functions to construct fluents (and abstract from the aforementioned
+% technicality) are defined in the submodule prgolog.fluents.m.
 %
-% The pick operator is not implemented. It seems to be difficult to do so:
-% Higher-order terms apparently cannot contain unbound variables, and I
-% don't know how to inspect and modify terms.
-% I guess it is pretty difficult to express this in the type system. Maybe
-% one needs the univ type and/or the deconstruct module or so.
+% The pick operator is not implemented.  It seems to be difficult to do so:
+% Higher-order terms apparently cannot contain unbound variables, and I don't
+% know how to inspect and modify terms.  I guess it is pretty difficult to
+% express this in the type system.  Maybe one needs the univ type and/or the
+% deconstruct module or so.
 %
 % The type system makes the Mercury terms that represent Golog terms more
-% complex. For more concise programs, one may use the nice syntax layer that
+% complex.  For more concise programs, one may use the nice syntax layer that
 % resides in the submodule prgolog.nice.
 %
 % Christoph Schwering (schwering@gmail.com)
+%
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
 
 :- module prgolog.
 
 :- interface.
 
 :- use_module bool.
+
+%-----------------------------------------------------------------------------%
 
 :- type sit(A) ---> s0 ; do(A, sit(A)).
 
@@ -93,6 +99,7 @@
     ;       pseudo_atom(pseudo_atom(A, B, P))
     ;       nil.
 
+%-----------------------------------------------------------------------------%
 
 :- typeclass bat(A, B, P) <= ((A -> B), (A, B -> P)) where [
     pred poss(A, A, sit(A)),
@@ -114,6 +121,7 @@
     mode proc(in, out) is det
 ].
 
+%-----------------------------------------------------------------------------%
 
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in, in, out, out) is semidet.
@@ -128,6 +136,8 @@
 :- include_module fluents.
 :- include_module nice.
 
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
 
 :- implementation.
 
@@ -136,6 +146,7 @@
 :- import_module list.
 :- import_module solutions.
 
+%-----------------------------------------------------------------------------%
 
 :- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
     <= bat(A, B, P).
@@ -162,6 +173,7 @@ next(pseudo_atom(C), C, R) :-
 next(nil, _, _) :-
     false.
 
+%-----------------------------------------------------------------------------%
 
 :- pred final(prog(A, B, P)) <= bat(A, B, P).
 :- mode final(in) is semidet.
@@ -180,6 +192,7 @@ final(pseudo_atom(_)) :-
     false.
 final(nil).
 
+%-----------------------------------------------------------------------------%
 
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
 :- mode next2(in, out, out) is nondet.
@@ -193,6 +206,7 @@ next2(P, C, R) :-
         R = R1
     ).
 
+%-----------------------------------------------------------------------------%
 
 :- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
 :- mode trans_atom(in, in, out) is semidet.
@@ -206,6 +220,7 @@ trans_atom(stoch(B), S, S1) :-
 trans_atom(test(T), S, S) :-
     T(S) = bool.yes.
 
+%-----------------------------------------------------------------------------%
 
 :- func value(prog(A, B, P), sit(A), lookahead) = reward <= bat(A, B, P).
 :- mode value(in, in, in) = out is det.
@@ -223,6 +238,7 @@ value(P, S, L) = V :-
     then    V = V2
     else    V = reward(P, S).
 
+%-----------------------------------------------------------------------------%
 
 :- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
 :- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: reward).
@@ -254,11 +270,13 @@ trans(P, S, P1, S1) :-
     ),
     trans_atom(C1, S, S1).
 
+%-----------------------------------------------------------------------------%
 
 final(P, S) :-
     final(P),
     reward(P, S) >= value(P, S, lookahead(S)).
 
+%-----------------------------------------------------------------------------%
 
 do(P, S, S2) :-
     if      final(P, S)
@@ -266,3 +284,6 @@ do(P, S, S2) :-
     else    trans(P, S, P1, S1),
             do(P1, S1, S2).
 
+%-----------------------------------------------------------------------------%
+:- end_module prgolog.
+%-----------------------------------------------------------------------------%

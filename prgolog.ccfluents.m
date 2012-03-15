@@ -1,4 +1,9 @@
+%-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+%-----------------------------------------------------------------------------%
+%
+% File: prgolog.fluents.m.
+% Main author: schwering.
 %
 % Helper functions for continuous fluents.
 %
@@ -10,6 +15,9 @@
 % instead of normal predicates is due to a technicality in Mercury.
 %
 % Christoph Schwering (schwering@gmail.com)
+%
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
 
 :- module prgolog.ccfluents.
 
@@ -19,11 +27,15 @@
 :- import_module term.
 :- import_module varset.
 
+%-----------------------------------------------------------------------------%
+
 :- type aterm.
 
 :- type ccfunfluent(A) == funfluent(A, aterm).
 
 :- type var_supply == var_supply(generic).
+
+%-----------------------------------------------------------------------------%
 
 :- func constant(float) = aterm.
 :- mode constant(in) = out is det.
@@ -53,22 +65,28 @@
 :- func variables(varset) = list(coeff).
 :- mode variables(in) = out is det.
 
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
 
 :- implementation.
 
 :- import_module list.
 :- import_module pair.
 
+%-----------------------------------------------------------------------------%
+
 :- type summand ---> mult(float, var) ; const(float).
 
 :- type aterm == list(summand).
 
+%-----------------------------------------------------------------------------%
 
 constant(C) = [const(C)].
 
 
 variable(V) = [mult(1.0, V)].
 
+%-----------------------------------------------------------------------------%
 
 C * V = [mult(C, V)].
 
@@ -82,6 +100,7 @@ T1 - T2 = T1 ++ T3 :-
         ;   Summand = const(C),   Summand1 = const(-C) )
     ), T2).
 
+%-----------------------------------------------------------------------------%
 
 :- pred split(aterm, list(coeff), float).
 :- mode split(in, out, out) is det.
@@ -102,3 +121,6 @@ T1 `=` T2 = eqn(Sum, (=), -1.0 * Constant) :- split(T1 - T2, Sum, Constant).
 
 variables(VS) = map((func(V) = (V - 1.0)), vars(VS)).
 
+%-----------------------------------------------------------------------------%
+:- end_module prgolog.ccfluents.
+%-----------------------------------------------------------------------------%

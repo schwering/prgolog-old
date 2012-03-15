@@ -1,4 +1,9 @@
+%-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+%-----------------------------------------------------------------------------%
+%
+% File: prgolog.nice.m.
+% Main author: schwering.
 %
 % Wrappers for typical constructor combinations which provide a cleaner way to
 % construct Golog programs.
@@ -19,6 +24,9 @@
 % anyway.
 %
 % Christoph Schwering (schwering@gmail.com)
+%
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
 
 :- module prgolog.nice.
 
@@ -26,6 +34,8 @@
 
 :- import_module list.
 :- use_module term.
+
+%-----------------------------------------------------------------------------%
 
 :- type conf(A, B, P) ---> conf(rest :: prog(A, B, P), sit :: sit(A)).
 
@@ -38,6 +48,7 @@
 :- pred do(conf(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode do(in, out) is semidet.
 
+%-----------------------------------------------------------------------------%
 
 :- func a(A) = prog(A, B, P) <= bat(A, B, P).
 :- mode a(in) = out is det.
@@ -73,6 +84,7 @@
 :- func while(relfluent(A), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
 :- mode while(in, in) = out is det.
 
+%-----------------------------------------------------------------------------%
 
 :- typeclass pickable(V, T, A) where [
     func substitute(V, T, A) = A,
@@ -86,25 +98,32 @@
 :- mode pick(in, in(non_empty_list), in) = out is det.
 :- mode pick(in, in, in) = out is semidet.
 
-:- func pick2(term.var(T), list(T), prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
+:- func pick2(term.var(T), list(T), prog(A, B, P)) = prog(A, B, P)
+    <= bat(A, B, P).
 :- mode pick2(in, in(non_empty_list), in) = out is det.
 :- mode pick2(in, in, in) = out is semidet.
 
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
 
 :- implementation.
 
 :- import_module prgolog.fluents.
 
+%-----------------------------------------------------------------------------%
+
 init(P) = conf(P, s0).
 trans(conf(P, S), conf(P1, S1)) :- trans(P, S, P1, S1).
 do(conf(P, S), S1) :- do(P, S, S1).
 
+%-----------------------------------------------------------------------------%
 
 a(A) = prgolog.pseudo_atom(prgolog.atom(prgolog.prim(A))).
 b(B) = prgolog.pseudo_atom(prgolog.atom(prgolog.stoch(B))).
 t(T) = prgolog.pseudo_atom(prgolog.atom(prgolog.test(T))).
 p(P) = prgolog.proc(P).
 
+%-----------------------------------------------------------------------------%
 
 P1 `;` P2  = prgolog.seq(P1, P2).
 P1 // P2 = prgolog.conc(P1, P2).
@@ -114,6 +133,7 @@ ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
 while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
 
+%-----------------------------------------------------------------------------%
 
 :- func subst(term.var(T), T, prog(A, B, P)) = prog(A, B, P) <= bat(A, B, P).
 :- mode subst(in, in, in) = out is det.
@@ -160,3 +180,6 @@ replace(V, T, pseudo_atom(complex(P))) =
     pseudo_atom(complex(replace(V, T, P))).
 replace(_, _, nil) = nil.
 
+%-----------------------------------------------------------------------------%
+:- end_module prgolog.nice.
+%-----------------------------------------------------------------------------%
