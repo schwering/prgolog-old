@@ -23,8 +23,9 @@
 
 :- interface.
 
-:- import_module lp.
+:- use_module lpq.
 :- import_module map.
+:- import_module rat.
 :- use_module term.
 :- use_module varset.
 
@@ -50,18 +51,20 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type number == rat.
+:- type constraint == lpq.constraint.
 :- type aterm.
 :- type tfunc(T) == (func(aterm) = T).
 :- type tfunc == tfunc(aterm).
 :- type ccfunfluent(A) == funfluent(A, tfunc). % not needed -- remove?
 
-:- func constant(float) = aterm.
+:- func constant(number) = aterm.
 :- mode constant(in) = out is det.
 
 :- func variable(var) = aterm.
 :- mode variable(in) = out is det.
 
-:- func float * aterm = aterm.
+:- func number * aterm = aterm.
 :- mode in * in = out is det.
 
 :- func aterm + aterm = aterm.
@@ -70,23 +73,33 @@
 :- func aterm - aterm = aterm.
 :- mode in - in = out is det.
 
-:- func aterm `=<` aterm = equation.
+:- func aterm `=<` aterm = constraint.
 :- mode in `=<` in = out is det.
 
-:- func aterm `>=` aterm = equation.
+:- func aterm `>=` aterm = constraint.
 :- mode in `>=` in = out is det.
 
-:- func aterm `=` aterm = equation.
+:- func aterm `=` aterm = constraint.
 :- mode in `=` in = out is det.
+
+%-----------------------------------------------------------------------------%
+
+:- type objective ---> min(aterm) ; max(aterm).
+
+:- pred solve(vargen, list(constraint), objective, map(var, number), number).
+:- mode solve(in, in, in, out, out) is semidet.
 
 :- func variables(vargen) = list(var).
 :- mode variables(in) = out is det.
 
-:- func variable_sum(vargen) = list(coeff).
+:- func variable_sum(vargen) = aterm.
 :- mode variable_sum(in) = out is det.
 
-:- func eval(map(var, float), aterm) = float.
+:- func eval(map(var, number), aterm) = number.
 :- mode eval(in, in) = out is det.
+
+:- func eval_float(map(var, number), aterm) = float.
+:- mode eval_float(in, in) = out is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -114,7 +127,7 @@ new_variable(VG0, VG1) = variable(new_var(VG0, VG1)).
 
 %-----------------------------------------------------------------------------%
 
-:- type summand ---> mult(float, var) ; const(float).
+:- type summand ---> mult(number, var) ; const(number).
 
 :- type aterm == list(summand).
 
@@ -122,7 +135,7 @@ new_variable(VG0, VG1) = variable(new_var(VG0, VG1)).
 
 constant(C) = [const(C)].
 
-variable(V) = [mult(1.0, V)].
+variable(V) = [mult(one, V)].
 
 %-----------------------------------------------------------------------------%
 
@@ -138,26 +151,40 @@ T1 - T2 = T1 ++ T3 :-
         ;   Summand = const(C),   Summand1 = const(-C) )
     ), T2).
 
-%-----------------------------------------------------------------------------%
-
-:- pred split(aterm, list(coeff), float).
+:- pred split(aterm, lpq.lp_terms, number).
 :- mode split(in, out, out) is det.
 
-split([], [], 0.0).
+split([], [], zero).
 split([const(C0) | Ts], Vs, C0 + C1) :- split(Ts, Vs, C1).
 split([mult(C, V) | Ts], [(V - C) | Vs], C1) :- split(Ts, Vs, C1).
 
-T1 `=<` T2 = eqn(Sum, (=<), -Constant) :- split(T1 - T2, Sum, Constant).
-T1 `>=` T2 = eqn(Sum, (>=), -Constant) :- split(T1 - T2, Sum, Constant).
-T1 `=`  T2 = eqn(Sum, (=),  -Constant) :- split(T1 - T2, Sum, Constant).
+T1 `=<` T2 = lpq.construct_constraint(Sum, lpq.lp_lt_eq, -Constant) :-
+    split(T1 - T2, Sum, Constant).
+T1 `=`  T2 = lpq.construct_constraint(Sum, lpq.lp_eq,    -Constant) :-
+    split(T1 - T2, Sum, Constant).
+T1 `>=` T2 = lpq.construct_constraint(Sum, lpq.lp_gt_eq, -Constant) :-
+    split(T1 - T2, Sum, Constant).
+
+%-----------------------------------------------------------------------------%
+
+solve(Vargen, Constraints, Obj, Map, Val) :-
+    (   Obj = max(ObjTerm), Dir = lpq.max
+    ;   Obj = min(ObjTerm), Dir = lpq.min
+    ),
+    split(ObjTerm, ObjVars, ObjCons),
+    Res = lpq.solve(Constraints, Dir, ObjVars, varset(Vargen)),
+    Res = lpq.lp_res_satisfiable(Val0, Map),
+    Val = Val0 + ObjCons.
 
 variables(vargen(VS)) = varset.vars(VS).
 
-variable_sum(vargen(VS)) = map((func(V) = (V - 1.0)), varset.vars(VS)).
+variable_sum(vargen(VS)) = map((func(V) = mult(one, V)), varset.vars(VS)).
 
-eval(_, []) = 0.0.
+eval(_, []) = zero.
 eval(M, [const(C) | Ts]) = C + eval(M, Ts).
 eval(M, [mult(C, V) | Ts]) = C * det_elem(V, M) + eval(M, Ts).
+
+eval_float(M, T) = float(numer(R)) / float(denom(R)) :- R = eval(M, T).
 
 %-----------------------------------------------------------------------------%
 :- end_module prgolog.ccfluents.

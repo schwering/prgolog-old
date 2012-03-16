@@ -25,7 +25,6 @@
 
 :- implementation.
 
-:- import_module lp.
 :- import_module prgolog.
 :- import_module prgolog.ccfluents.
 :- import_module prgolog.fluents.
@@ -36,6 +35,7 @@
 :- import_module map.
 :- import_module math.
 :- import_module maybe.
+:- import_module rat.
 :- use_module random.
 :- import_module string.
 :- import_module solutions.
@@ -52,14 +52,14 @@
 :- type s == float.
 :- type time == aterm.
 
-:- type wait_for_cond == (func(time, sit(prim)) = equations).
+:- type wait_for_cond == (func(time, sit(prim)) = list(constraint)).
 
 :- type prim --->
         set_veloc(mps, mps, maybe(random.supply),
-                 maybe(vargen), equations, time)
+                 maybe(vargen), list(constraint), time)
     ;   set_yaw(rad, rad, maybe(random.supply), maybe(vargen),
-               equations, time)
-    ;   wait_for(wait_for_cond, maybe(vargen), equations, time).
+               list(constraint), time)
+    ;   wait_for(wait_for_cond, maybe(vargen), list(constraint), time).
 :- type stoch --->  set_veloc_st(mps)
                 ;   set_yaw_st(rad).
 :- type procedure ---> drive.
@@ -164,13 +164,13 @@ sitlen(do(_, S)) = 1 + sitlen(S).
 
 :- func notime = (time::out) is det.
 
-notime = constant(-1.0).
+notime = constant(-one).
 
 %-----------------------------------------------------------------------------%
 
 :- func start(sit(prim)::in) = (time::out) is det.
 
-start(s0) = constant(epsilon).
+start(s0) = constant(zero).
 start(do(A, _)) = T :-
     (   A = set_veloc(_, _, _, _, _, T)
     ;   A = set_yaw(_, _, _, _, _, T)
@@ -204,7 +204,7 @@ vargen(do(A, S)) = VG :-
 
 %-----------------------------------------------------------------------------%
 
-:- func constraints(sit(prim)::in) = (equations::out) is det.
+:- func constraints(sit(prim)::in) = (list(constraint)::out) is det.
 
 constraints(s0) = [].
 constraints(do(A, S)) = Cs ++ constraints(S) :-
@@ -237,12 +237,12 @@ yaw(do(A, S)) = Rad :-
 
 :- func y(sit(prim)::in) = (tfunc::out).
 
-y(s0) = (func(_) = constant(epsilon)).
+y(s0) = (func(_) = constant(zero)).
 y(do(A, S)) = Y :-
     if      (   A = set_veloc(Veloc, _, _, _, _, T0), Rad = yaw(S)
             ;   A = set_yaw(Rad, _, _, _, _, T0), Veloc = veloc(S)
             )
-    then    Y = ( func(T) = sin(Rad) * Veloc * T + y(S)(T0) )
+    then    Y = ( func(T) = from_float(sin(Rad) * Veloc) * T + y(S)(T0) )
     else    Y = y(S).
 
 
@@ -250,59 +250,62 @@ y(do(A, S)) = Y :-
 
 :- func x(sit(prim)::in) = (tfunc::out).
 
-x(s0) = (func(_) = constant(epsilon)).
+x(s0) = (func(_) = constant(zero)).
 x(do(A, S)) = X :-
     if      (   A = set_veloc(Veloc, _, _, _, _, T0), Rad = yaw(S)
             ;   A = set_yaw(Rad, _, _, _, _, T0), Veloc = veloc(S)
             )
-    then    X = ( func(T) = cos(Rad) * Veloc * T + x(S)(T0) )
+    then    X = ( func(T) = from_float(cos(Rad) * Veloc) * T + x(S)(T0) )
     else    X = x(S).
 
 %-----------------------------------------------------------------------------%
 
-:- pred solve(sit(prim)::in) is semidet.
+%:- pred solve(sit(prim)::in) is semidet.
 
-solve(S) :- solve(S, vargen(S), []).
-
-
-:- pred solve(sit(prim)::in, vargen::in, equations::in) is semidet.
-
-solve(S, VG, Cs) :- solve(S, VG, Cs, _, _).
+%solve(S) :- solve(S, vargen(S), []).
 
 
-:- pred solve(sit(prim)::in, vargen::in, equations::in,
-              float::out, map(var, float)::out) is semidet.
+%:- pred solve(sit(prim)::in, vargen::in, equations::in) is semidet.
 
-solve(S, VG, Cs, Val, Map) :-
-    Constraints = Cs ++ constraints(S),
-    Objective = variable_sum(VG),
-    URSVars = [],% variables(VG),
-    trace [io(!IO)] ( io.nl(!IO), io.write(Constraints, !IO), io.nl(!IO) ),
-    lp_solve(Constraints, min, Objective, varset(VG), URSVars, R),
-    R = satisfiable(Val, Map).
+%solve(S, VG, Cs) :- solve(S, VG, Cs, _, _).
+
+
+%:- pred solve(sit(prim)::in, vargen::in, equations::in,
+%              float::out, map(var, float)::out) is semidet.
+
+%solve(S, VG, Cs, Val, Map) :-
+%    Constraints = Cs ++ constraints(S),% ++ list.map((func(V) = variable(V) `>=` constant(epsilon)), variables(VG)),
+%    Objective = variable_sum(VG),
+%    URSVars = [],% variables(VG),
+%    trace [io(!IO)] ( io.nl(!IO), io.write(Constraints, !IO), io.nl(!IO) ),
+%    lp_solve(Constraints, min, Objective, varset(VG), URSVars, R),
+%    R = satisfiable(Val, Map).
 
 %-----------------------------------------------------------------------------%
 
 :- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
 
 poss(set_veloc(V, Tol, RS, no, [], notime),
-     set_veloc(V, Tol, RS, yes(VG1), Cs, T),
+     set_veloc(V, Tol, RS, yes(VG), Cs0, T),
      S) :-
-    T = new_variable(vargen(S), VG1),
-    Cs = [T `>=` start(S)],
-    solve(S, VG1, Cs ++ constraints(S)).
+    T = new_variable(vargen(S), VG),
+    Cs0 = [T `>=` start(S)],
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
 poss(set_yaw(Y, Tol, RS, no, [], notime),
-     set_yaw(Y, Tol, RS, yes(VG1), Cs, T),
+     set_yaw(Y, Tol, RS, yes(VG), Cs1, T),
      S) :-
-    T = new_variable(vargen(S), VG1),
-    Cs = [T `>=` start(S)],
-    solve(S, VG1, Cs ++ constraints(S)).
+    T = new_variable(vargen(S), VG),
+    Cs0 = [T `>=` start(S)],
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
 poss(wait_for(G, no, [], notime),
-     wait_for(G, yes(VG1), Cs, T),
+     wait_for(G, yes(VG), Cs1, T),
      S) :-
-    T = new_variable(vargen(S), VG1),
-    Cs = [T `>=` start(S)] ++ G(T, S),
-    solve(S, VG1, Cs ++ constraints(S)).
+    T = new_variable(vargen(S), VG),
+    Cs0 = [T `>=` start(S)] ++ G(T, S),
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
 
 %-----------------------------------------------------------------------------%
 
@@ -403,16 +406,20 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
+%    if true then (if test then true else write_string("failed", !IO), nl(!IO) ) else
+    (
     write("huhu", !IO), nl(!IO),
     (   if      do( b(set_yaw_st(0.5)) `;`
                     b(set_veloc_st(15.0)) `;`
-                    a(wait_for( func(T, S) = [x(S)(T) `>=` constant(60.0),
-                                              y(S)(T) `>=` constant(0.1)],
+                    a(wait_for( func(T, S) = [x(S)(T) `>=` constant(rat(60)),
+                                              y(S)(T) `>=` constant(rat(1))],
                                 no, [], notime))
                 , s0, S1),
-                solve(S1, vargen(S1), [], Val, Map)
+                VG = vargen(S1),
+                Cs = constraints(S1),
+                solve(VG, Cs, min(variable_sum(VG)), Map, Val)
         then    print_sit(S1, !IO), nl(!IO),
-                E = ( func(T) = eval(Map, T) ),
+                E = ( func(T) = eval_float(Map, T) ),
                 %wrt("constraints = ", constraints(S1), !IO),
                 %wrt("vars = ", variables(vargen(S1)), !IO),
                 %wrt("vargen = ", vargen(S1), !IO),
@@ -428,6 +435,7 @@ main(!IO) :-
                 nl(!IO),
                 write(constraints(S1), !IO), nl(!IO)
         else    write_string("failed", !IO), nl(!IO)
+    )
     ).
 
 %-----------------------------------------------------------------------------%

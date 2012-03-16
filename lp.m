@@ -160,15 +160,20 @@ lp_solve_2(Eqns0, Dir, Obj0, Result, !Info) :-
     get_art_vars(!.Info, ArtVars),
     some [!Tableau] (
         init_tableau(Rows, Cols, VarNums, URS, !:Tableau),
+        trace [io(!IO)] (
+            write(Eqns, !IO), nl(!IO)
+        ),
         insert_equations(Eqns, 1, Cols, VarNums, !Tableau),
         (
             ArtVars = [_|_],
             % There are one or more artificial variables, so we use
             % the two-phase method for solving the system.
-            two_phase(Obj0, Obj, ArtVars, VarNums, !.Tableau, Result0)
+            one_phase(Obj0, Obj, VarNums, !.Tableau, Result0),
+            trace [io(!IO)] ( write("two_phase", !IO), nl(!IO), show_tableau(!.Tableau, !IO) )
         ;
             ArtVars = [],
-            one_phase(Obj0, Obj, VarNums, !.Tableau, Result0)
+            one_phase(Obj0, Obj, VarNums, !.Tableau, Result0),
+            trace [io(!IO)] ( write("one_phase", !IO), nl(!IO), show_tableau(!.Tableau, !IO) )
         )
     ),
     (
@@ -227,9 +232,11 @@ two_phase(Obj0, Obj, ArtVars, VarNums, Tableau0, Result) :-
         optimize(ArtVars, !Tableau, Res0),
         (
             Res0 = unsatisfiable,
+            trace [io(!IO)] ( write("two_phase: 1", !IO), nl(!IO) ),
             Result = unsatisfiable
         ;
             Res0 = satisfiable(Val, _ArtRes),
+            trace [io(!IO)] ( write("two_phase: 2", !IO), nl(!IO) ),
             ( Val \= 0.0 ->
                 Result = unsatisfiable
             ;
@@ -327,6 +334,30 @@ negate_equation(eqn(Coeffs0, Op0, Const0), eqn(Coeffs, Op, Const)) :-
     ),
     Coeffs = list.map((func(V - X) = V - (-X)), Coeffs0),
     Const = -Const0.
+
+:- pred reduce_eq(equation::in, equation::out) is det.
+
+reduce_eq(eqn(Coeffs0, Op0, Const0), eqn(Coeffs3, Op1, Const1)) :-
+    (
+        if      Filter = (pred(X::in) is semidet :- X = pair.'-'(_, 0.0)),
+                list.negated_filter(Filter, Coeffs0, Coeffs1),
+                Coeffs1 \= []
+        then    Coeffs2 = Coeffs1
+        else    Coeffs2 = Coeffs0
+    ),
+    (
+        if      Coeffs2 = [Var - Coeff]
+        then    Coeffs3 = [Var - 1.0], Const1 = Const0 / Coeff,
+                (   if       Coeff < 0.0, Op0 = (=<) then Op1 = (>=)
+                    else if  Coeff < 0.0, Op0 = (>=) then Op1 = (=<)
+                    else                                  Op1 = Op0 )
+        else    Coeffs3 = Coeffs2, Op1 = Op0, Const1 = Const0
+    ),
+    trace [io(!IO)] (
+        write(eqn(Coeffs0, Op0, Const0), !IO), nl(!IO),
+        write(eqn(Coeffs3, Op1, Const1), !IO), nl(!IO),
+        nl(!IO)
+    ).
 
 :- pred simplify_eq(equation::in, equation::out) is det.
 
@@ -548,6 +579,7 @@ simplex(A0, A, Result) :-
             MaxResult = no,
             A = A0,
             Result = no
+            ,trace [io(!IO)] ( write("simplex: 2", !IO), nl(!IO) )
         ;
             MaxResult = yes(P - _),
             pivot(P, Q, A0, A1),
