@@ -50,19 +50,24 @@
 :- type mpss == float.
 :- type m == float.
 :- type s == float.
-:- type time == aterm.
 
-:- type wait_for_cond == (func(time, sit(prim)) = list(constraint)).
-
+:- type agent ---> a ; b.
 :- type prim --->
-        set_veloc(mps, mps, maybe(random.supply),
-                 maybe(vargen), list(constraint), time)
-    ;   set_yaw(rad, rad, maybe(random.supply), maybe(vargen),
-               list(constraint), time)
-    ;   wait_for(wait_for_cond, maybe(vargen), list(constraint), time).
-:- type stoch --->  set_veloc_st(mps)
-                ;   set_yaw_st(rad).
-:- type procedure ---> drive.
+        set_veloc(agent, mps, mps, maybe(random.supply),
+                  maybe(vargen), list(constraint), time)
+    ;   set_yaw(agent, rad, rad, maybe(random.supply), maybe(vargen),
+                list(constraint), time)
+    ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
+    ;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
+    ;   eval(ccformula(prim), maybe(vargen), list(constraint), time).
+:- type stoch --->  set_veloc_st(agent, mps)
+                ;   set_yaw_st(agent, rad).
+:- type procedure --->  straight_left(agent)
+                    ;   straight_right(agent)
+                    ;   left_lane_change(agent)
+                    ;   right_lane_change(agent)
+                    ;   cruise(agent)
+                    ;   overtake(agent, agent).
 
 %-----------------------------------------------------------------------------%
 
@@ -155,6 +160,12 @@ plane2_neg(V, A) = tang_t_neg( 7.0, 0.0, V, A).
 
 %-----------------------------------------------------------------------------%
 
+:- func notime = (time::out) is det.
+
+notime = constant(-one).
+
+%-----------------------------------------------------------------------------%
+
 :- func sitlen(sit(prim)::in) = (int::out) is det.
 
 sitlen(s0) = 0.
@@ -162,20 +173,22 @@ sitlen(do(_, S)) = 1 + sitlen(S).
 
 %-----------------------------------------------------------------------------%
 
-:- func notime = (time::out) is det.
-
-notime = constant(-one).
-
-%-----------------------------------------------------------------------------%
-
 :- func start(sit(prim)::in) = (time::out) is det.
 
 start(s0) = constant(zero).
 start(do(A, _)) = T :-
-    (   A = set_veloc(_, _, _, _, _, T)
-    ;   A = set_yaw(_, _, _, _, _, T)
+    (   A = set_veloc(_, _, _, _, _, _, T)
+    ;   A = set_yaw(_, _, _, _, _, _, T)
     ;   A = wait_for(_, _, _, T)
+    ;   A = match(_, _, _, _, T)
+    ;   A = eval(_, _, _, T)
     ).
+
+%-----------------------------------------------------------------------------%
+
+:- func now(sit(prim)::in) = (tfunc::out).
+
+now(_) = ( func(T) = T ).
 
 %-----------------------------------------------------------------------------%
 
@@ -184,8 +197,8 @@ start(do(A, _)) = T :-
 random_supply(s0) = RS :-
     random.init(3, RS).
 random_supply(do(A, S)) = RS :-
-    if      (   A = set_veloc(_, _, yes(RS0), _, _, _)
-            ;   A = set_yaw(_, _, yes(RS0), _, _, _) )
+    if      (   A = set_veloc(_, _, _, yes(RS0), _, _, _)
+            ;   A = set_yaw(_, _, _, yes(RS0), _, _, _) )
     then    RS = RS0
     else    RS = random_supply(S).
 
@@ -195,9 +208,11 @@ random_supply(do(A, S)) = RS :-
 
 vargen(s0) = init_vargen.
 vargen(do(A, S)) = VG :-
-    if      (   A = set_veloc(_, _, _, yes(VG0), _, _)
-            ;   A = set_yaw(_, _, _, yes(VG0), _, _)
+    if      (   A = set_veloc(_, _, _, _, yes(VG0), _, _)
+            ;   A = set_yaw(_, _, _, _, yes(VG0), _, _)
             ;   A = wait_for(_, yes(VG0), _, _)
+            ;   A = match(_, _, yes(VG0), _, _)
+            ;   A = eval(_, yes(VG0), _, _)
             )
     then    VG = VG0
     else    VG = vargen(S).
@@ -208,9 +223,11 @@ vargen(do(A, S)) = VG :-
 
 constraints(s0) = [].
 constraints(do(A, S)) = Cs ++ constraints(S) :-
-    (   A = set_veloc(_, _, _, _, Cs, _)
-    ;   A = set_yaw(_, _, _, _, Cs, _)
+    (   A = set_veloc(_, _, _, _, _, Cs, _)
+    ;   A = set_yaw(_, _, _, _, _, Cs, _)
     ;   A = wait_for(_, _, Cs, _)
+    ;   A = match(_, _, _, Cs, _)
+    ;   A = eval(_, _, Cs, _)
     ).
 
 %-----------------------------------------------------------------------------%
@@ -219,7 +236,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 
 veloc(s0) = 0.0.
 veloc(do(A, S)) = V :-
-    if      A = set_veloc(V0, _, _, _, _, _)
+    if      A = set_veloc(_, V0, _, _, _, _, _)
     then    V = V0
     else    V = veloc(S).
 
@@ -229,81 +246,121 @@ veloc(do(A, S)) = V :-
 
 yaw(s0) = 0.0.
 yaw(do(A, S)) = Rad :-
-    if      A = set_yaw(Rad0, _, _, _, _, _)
+    if      A = set_yaw(_, Rad0, _, _, _, _, _)
     then    Rad = Rad0
     else    Rad = yaw(S).
 
 %-----------------------------------------------------------------------------%
 
-:- func y(sit(prim)::in) = (tfunc::out).
+:- func x(agent::in, sit(prim)::in) = (tfunc::out).
 
-y(s0) = (func(_) = constant(zero)).
-y(do(A, S)) = Y :-
-    if      (   A = set_veloc(Veloc, _, _, _, _, T0), Rad = yaw(S)
-            ;   A = set_yaw(Rad, _, _, _, _, T0), Veloc = veloc(S)
+x(_, s0) = ( func(_) = constant(zero) ).
+x(Agent, do(A, S)) = X :-
+    if      (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(S)
+            ;   A = set_yaw(Agent, Rad, _, _, _, _, T0), Veloc = veloc(S)
             )
-    then    Y = ( func(T) = from_float(sin(Rad) * Veloc) * T + y(S)(T0) )
-    else    Y = y(S).
+    then    X = ( func(T) = from_float(cos(Rad) * Veloc) * (T - T0) +
+                            x(Agent, S)(T0) )
+    else    X = x(Agent, S).
+
+%-----------------------------------------------------------------------------%
+
+:- func y(agent::in, sit(prim)::in) = (tfunc::out).
+
+y(_, s0) = ( func(_) = constant(zero) ).
+y(Agent, do(A, S)) = Y :-
+    if      (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(S)
+            ;   A = set_yaw(Agent, Rad, _, _, _, _, T0), Veloc = veloc(S)
+            )
+    then    Y = ( func(T) = from_float(sin(Rad) * Veloc) * (T - T0) +
+                            y(Agent, S)(T0) )
+    else    Y = y(Agent, S).
 
 
 %-----------------------------------------------------------------------------%
 
-:- func x(sit(prim)::in) = (tfunc::out).
+:- func x_tol(agent::in, sit(prim)::in) = (m::out).
 
-x(s0) = (func(_) = constant(zero)).
-x(do(A, S)) = X :-
-    if      (   A = set_veloc(Veloc, _, _, _, _, T0), Rad = yaw(S)
-            ;   A = set_yaw(Rad, _, _, _, _, T0), Veloc = veloc(S)
-            )
-    then    X = ( func(T) = from_float(cos(Rad) * Veloc) * T + x(S)(T0) )
-    else    X = x(S).
+x_tol(_, s0) = 0.0.
+x_tol(Agent, do(A, S)) = Tol :-
+    if      A = set_veloc(Agent, _, Tol0, _, _, _, _)
+    then    Tol = Tol0
+    else    Tol = x_tol(Agent, S).
+
 
 %-----------------------------------------------------------------------------%
 
-%:- pred solve(sit(prim)::in) is semidet.
+:- func y_tol(agent::in, sit(prim)::in) = (m::out).
 
-%solve(S) :- solve(S, vargen(S), []).
+y_tol(_, s0) = 0.0.
+y_tol(Agent, do(A, S)) = Tol :-
+    if      A = set_yaw(Agent, _, Tol0, _, _, _, _)
+    then    Tol = Tol0
+    else    Tol = y_tol(Agent, S).
 
+%-----------------------------------------------------------------------------%
 
-%:- pred solve(sit(prim)::in, vargen::in, equations::in) is semidet.
+:- func on_right_lane(agent) = ccformula(prim) is det.
 
-%solve(S, VG, Cs) :- solve(S, VG, Cs, _, _).
+on_right_lane(Agent) = ( func(T, S) = [
+        constant(rat(-9, 2)) `=<` y(Agent, S)(T),
+                                  y(Agent, S)(T) `>=` constant(rat(1, 2))
+    ] ).
 
+:- func on_left_lane(agent) = ccformula(prim) is det.
 
-%:- pred solve(sit(prim)::in, vargen::in, equations::in,
-%              float::out, map(var, float)::out) is semidet.
+on_left_lane(Agent) = ( func(T, S) = [
+        constant(rat(1, 2)) `=<` y(Agent, S)(T),
+                                 y(Agent, S)(T) `>=` constant(rat(9, 2))
+    ] ).
 
-%solve(S, VG, Cs, Val, Map) :-
-%    Constraints = Cs ++ constraints(S),% ++ list.map((func(V) = variable(V) `>=` constant(epsilon)), variables(VG)),
-%    Objective = variable_sum(VG),
-%    URSVars = [],% variables(VG),
-%    trace [io(!IO)] ( io.nl(!IO), io.write(Constraints, !IO), io.nl(!IO) ),
-%    lp_solve(Constraints, min, Objective, varset(VG), URSVars, R),
-%    R = satisfiable(Val, Map).
+:- func behind(agent, agent) = ccformula(prim) is det.
+
+behind(Agent0, Agent1) = ( func(T, S) = [
+        x(Agent0, S)(T) `=<` x(Agent1, S)(T)
+    ] ).
 
 %-----------------------------------------------------------------------------%
 
 :- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
 
-poss(set_veloc(V, Tol, RS, no, [], notime),
-     set_veloc(V, Tol, RS, yes(VG), Cs0, T),
+poss(set_veloc(Agent, V, Tol, RS, no, [], notime),
+     set_veloc(Agent, V, Tol, RS, yes(VG), Cs0, T),
      S) :-
     T = new_variable(vargen(S), VG),
     Cs0 = [T `>=` start(S)],
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
-poss(set_yaw(Y, Tol, RS, no, [], notime),
-     set_yaw(Y, Tol, RS, yes(VG), Cs1, T),
+
+poss(set_yaw(Agent, Y, Tol, RS, no, [], notime),
+     set_yaw(Agent, Y, Tol, RS, yes(VG), Cs0, T),
      S) :-
     T = new_variable(vargen(S), VG),
     Cs0 = [T `>=` start(S)],
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
+
 poss(wait_for(G, no, [], notime),
-     wait_for(G, yes(VG), Cs1, T),
+     wait_for(G, yes(VG), Cs0, T),
      S) :-
     T = new_variable(vargen(S), VG),
     Cs0 = [T `>=` start(S)] ++ G(T, S),
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
+
+poss(match(OT, OF, no, [], notime),
+     match(OT, OF, yes(VG), Cs0, T),
+     S) :-
+    T = new_variable(vargen(S), VG),
+    Cs0 = [T `>=` start(S), T `=` constant(from_float(OT))] ++ OF(T, S),
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
+
+poss(eval(G, no, [], notime),
+     eval(G, yes(VG), Cs0, T),
+     S) :-
+    T = new_variable(vargen(S), VG),
+    Cs0 = [T `=` start(S)] ++ G(T, S),
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1, min(variable_sum(VG)), _Map, _Val).
 
@@ -339,13 +396,13 @@ random_lognormal(Mu, Sigma, Y1, Y2, !RS) :-
 
 :- pred random_outcome(stoch::in, prim::out, sit(prim)::in) is det.
 
-random_outcome(set_veloc_st(V),
-               set_veloc(V, Tol, yes(RS1), no, [], notime),
+random_outcome(set_veloc_st(Agent, V),
+               set_veloc(Agent, V, Tol, yes(RS1), no, [], notime),
                S) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
-random_outcome(set_yaw_st(Y),
-               set_yaw(Y, Tol, yes(RS1), no, [], notime),
+random_outcome(set_yaw_st(Agent, Y),
+               set_yaw(Agent, Y, Tol, yes(RS1), no, [], notime),
                S) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, _, Tol, RS0, RS1).
@@ -355,7 +412,31 @@ random_outcome(set_yaw_st(Y),
 :- func reward(prog(prim, stoch, procedure), sit(prim)) = reward.
 :- mode reward(unused, in) = out is det.
 
-reward(_, S) = float(sitlen(S)).
+reward(_, S) = reward(S).
+
+:- func reward(sit(prim)) = reward.
+:- mode reward(in) = out is det.
+
+reward(s0) = 0.0.
+reward(do(A, S)) =
+    (   if      A = match(_, _, _, _, _)
+        then    reward(S) + 1.0
+        else    reward(S)
+    ).
+
+%-----------------------------------------------------------------------------%
+
+:- func match_count(prog(prim, stoch, procedure)) = int.
+
+match_count(seq(P1, P2)) = match_count(P1) + match_count(P2).
+match_count(non_det(P1, P2)) = min(match_count(P1), match_count(P2)).
+match_count(conc(P1, P2)) = match_count(P1) + match_count(P2).
+match_count(star(_)) = 0.
+match_count(proc(_)) = 0.
+match_count(nil) = 0.
+match_count(pseudo_atom(complex(P))) = match_count(P).
+match_count(pseudo_atom(atom(A))) =
+    ( if A = prim(match(_, _, _, _, _)) then 1 else 0 ).
 
 %-----------------------------------------------------------------------------%
 
@@ -374,7 +455,56 @@ new_lookahead(H, _C) = H - 1.
 :- pred proc(procedure, prog(prim, stoch, procedure)).
 :- mode proc(in, out) is det.
 
-proc(drive, P) :- P = nil.
+proc(straight_left(Agent), P) :-
+    deg2rad(0.0, Rad),
+    P = atomic(
+            b(set_yaw_st(Agent, Rad)) `;`
+            a(eval(on_left_lane(Agent), no, [], notime))
+        ).
+
+proc(straight_right(Agent), P) :-
+    deg2rad(0.0, Rad),
+    P = atomic(
+            b(set_yaw_st(Agent, Rad)) `;`
+            a(eval(on_right_lane(Agent), no, [], notime))
+        ).
+
+proc(left_lane_change(Agent), P) :-
+    deg2rad(6.0, Rad0),
+    deg2rad(9.0, Rad1),
+    P = atomic(
+            ( b(set_yaw_st(Agent, Rad0)) or b(set_yaw_st(Agent, Rad1)) ) `;`
+            a(eval(on_right_lane(Agent), no, [], notime))
+        ) `;`
+        p(straight_left(Agent)).
+
+proc(right_lane_change(Agent), P) :-
+    deg2rad(6.0, Rad0),
+    deg2rad(9.0, Rad1),
+    P = atomic(
+            ( b(set_yaw_st(Agent, Rad0)) or b(set_yaw_st(Agent, Rad1)) ) `;`
+            a(eval(on_left_lane(Agent), no, [], notime))
+        ) `;`
+        p(straight_right(Agent)).
+
+proc(cruise(Agent), P) :-
+    P = p(straight_right(Agent)) `;`
+        b(set_veloc_st(Agent, 15.09)).
+
+proc(overtake(Agent, Victim), P) :-
+    P = a(eval(on_right_lane(Agent) and
+               on_right_lane(Victim) and
+               behind(Agent, Victim), no, [], notime)) `;`
+        p(straight_right(Agent)) `;`
+        ((
+            p(left_lane_change(Agent)) `;`
+            a(wait_for(behind(Victim, Agent), no, [], notime)) `;`
+            p(right_lane_change(Agent))
+        ) // (
+            b(set_veloc_st(Agent, 20.8))
+        )) `;`
+        a(eval(on_right_lane(Agent) and
+               behind(Victim, Agent), no, [], notime)).
 
 %-----------------------------------------------------------------------------%
 
@@ -389,13 +519,79 @@ proc(drive, P) :- P = nil.
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_sit(sit(prim)::in, io::di, io::uo) is det.
+:- pred obs(s::out, agent::out, m::out, m::out,
+                    agent::out, m::out, m::out) is multi.
 
-print_sit(s0, !IO) :-
+obs(5.594000,  a, 34.776825, -2.999933,  b, 6.304431, -3.273941).
+obs(6.100000,  a, 42.410252, -2.999933,  b, 16.886641, -3.226734).
+obs(6.606000,  a, 50.046276, -2.999933,  b, 27.465494, -3.191746).
+obs(7.112000,  a, 57.682270, -2.999933,  b, 38.043564, -3.213415).
+obs(7.618000,  a, 65.313354, -2.999933,  b, 48.628551, -3.218992).
+obs(8.132000,  a, 73.062225, -2.999933,  b, 59.107368, -1.065044).
+obs(8.632000,  a, 80.600098, -2.999933,  b, 69.129898, 1.880987).
+obs(9.132000,  a, 88.137970, -2.999933,  b, 79.493713, 2.901567).
+obs(9.632000,  a, 95.675766, -2.999933,  b, 89.940277, 2.991667).
+obs(10.132000, a, 103.213608, -2.999933, b, 100.390549, 3.025797).
+obs(10.632000, b, 110.836411, 3.002779,  a, 110.751450, -2.999933).
+obs(11.132000, b, 121.284592, 2.924112,  a, 118.289291, -2.999933).
+obs(11.632000, b, 131.733932, 2.790201,  a, 125.827133, -2.999933).
+obs(12.132000, b, 142.175156, 2.600296,  a, 133.364975, -2.999933).
+obs(12.632000, b, 152.542404, 1.616369,  a, 140.902817, -2.999933).
+obs(13.132000, b, 162.487106, -1.544439, a, 148.440659, -2.999933).
+obs(13.632000, b, 172.840927, -2.558414, a, 155.988510, -2.999933).
+obs(14.132000, b, 183.293320, -2.678141, a, 163.527390, -2.999933).
+obs(14.632000, b, 193.741440, -2.689064, a, 171.065231, -2.999933).
+obs(15.132000, b, 204.195236, -2.745777, a, 178.591293, -2.999933).
+obs(15.632000, b, 214.648361, -2.857815, a, 186.113022, -2.999933).
+
+:- pred obs(prim::out) is multi.
+
+obs(match(OT, OF, no, [], notime)) :-
+    obs(OT, A0, X0, Y0, A1, X1, Y1),
+    C = ( func(F) = constant(from_float(F)) ),
+    OF = ( func(T, S) = [
+        C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T),
+                                  x(A0, S)(T) `=<` C(X0 + x_tol(A0, S)),
+        C(Y0 - y_tol(A0, S)) `=<` y(A0, S)(T),
+                                  y(A0, S)(T) `=<` C(Y0 + y_tol(A0, S)),
+        C(X1 - x_tol(A1, S)) `=<` x(A1, S)(T),
+                                  x(A1, S)(T) `=<` C(X1 + x_tol(A1, S)),
+        C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T),
+                                  y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
+    ] ).
+
+:- func obs_prog = prog(prim, stoch, procedure) is det.
+
+obs_prog = Prog :-
+    solutions(obs, Actions),
+    Progs = list.map(( func(A) = pseudo_atom(atom(prim(A))) ), Actions),
+    Prog = list.foldl(( func(P1, P2) = seq(P1, P2) ), Progs, nil).
+
+%-----------------------------------------------------------------------------%
+
+:- pred print_sit(map(var, number)::in, sit(prim)::in, io::di, io::uo) is det.
+
+print_sit(Map, s0, !IO) :-
+    write_string("initial situation", !IO), nl(!IO),
+    print_sit_info(Map, s0, !IO),
     nl(!IO).
-print_sit(do(A, S), !IO) :-
-    print_sit(S, !IO),
-    write(A, !IO), nl(!IO).
+print_sit(Map, S1 @ do(A, S), !IO) :-
+    print_sit(Map, S, !IO),
+    write(A, !IO), nl(!IO),
+    print_sit_info(Map, S1, !IO),
+    nl(!IO).
+
+:- pred print_sit_info(map(var, number)::in, sit(prim)::in,
+                       io::di, io::uo) is det.
+
+print_sit_info(Map, S, !IO) :-
+    E = ( func(T) = eval_float(Map, T) ),
+    wrt("veloc(S) = ", veloc(S), !IO),
+    wrt("yaw(S) = ", yaw(S), !IO),
+    wrt("start(S) = ", E(start(S)), !IO),
+    wrt("x(a, S) = ", E(x(a, S)(start(S))), !IO),
+    wrt("y(a, S) = ", E(y(a, S)(start(S))), !IO),
+    wrt("now(S) = ", E(now(S)(start(S))), !IO).
 
 :- pred wrt(string::in, T::in, io::di, io::uo) is det.
 
@@ -406,36 +602,30 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
-%    if true then (if test then true else write_string("failed", !IO), nl(!IO) ) else
-    (
     write("huhu", !IO), nl(!IO),
-    (   if      do( b(set_yaw_st(0.5)) `;`
-                    b(set_veloc_st(15.0)) `;`
-                    a(wait_for( func(T, S) = [x(S)(T) `>=` constant(rat(60)),
-                                              y(S)(T) `>=` constant(rat(1))],
-                                no, [], notime))
+    deg2rad(10.0, Rad),
+    (   if      do( b(set_yaw_st(a, Rad)) `;`
+                    b(set_veloc_st(a, 15.0)) `;`
+                    a(wait_for( func(T, S) = [
+                        x(a, S)(T) `>=` constant(rat(10)),
+                        y(a, S)(T) `>=` constant(rat(5))
+                    ], no, [], notime)) `;`
+                    b(set_yaw_st(a, 0.0)) `;`
+                    a(wait_for( func(T, S) = [
+                        x(a, S)(T) `>=` constant(rat(900))
+                    ], no, [], notime))
                 , s0, S1),
                 VG = vargen(S1),
                 Cs = constraints(S1),
                 solve(VG, Cs, min(variable_sum(VG)), Map, Val)
-        then    print_sit(S1, !IO), nl(!IO),
-                E = ( func(T) = eval_float(Map, T) ),
-                %wrt("constraints = ", constraints(S1), !IO),
-                %wrt("vars = ", variables(vargen(S1)), !IO),
-                %wrt("vargen = ", vargen(S1), !IO),
-                %nl(!IO),
-                wrt("veloc(S1) = ", veloc(S1), !IO),
-                wrt("yaw(S1) = ", yaw(S1), !IO),
-                wrt("start(S1) = ", E(start(S1)), !IO),
-                wrt("x(S1) = ", E(x(S1)(start(S1))), !IO),
-                wrt("y(S1) = ", E(y(S1)(start(S1))), !IO),
-                nl(!IO),
-                write(Val, !IO), nl(!IO),
+        then    nl(!IO), nl(!IO), write_string("  ---", !IO), nl(!IO), nl(!IO),
+                print_sit(Map, S1, !IO),
+                write_string("  ---", !IO), nl(!IO), nl(!IO),
+                write(to_float(Val), !IO), nl(!IO),
                 write(Map, !IO), nl(!IO),
                 nl(!IO),
                 write(constraints(S1), !IO), nl(!IO)
         else    write_string("failed", !IO), nl(!IO)
-    )
     ).
 
 %-----------------------------------------------------------------------------%

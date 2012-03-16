@@ -54,7 +54,7 @@
 :- type number == rat.
 :- type constraint == lpq.constraint.
 :- type aterm.
-:- type tfunc(T) == (func(aterm) = T).
+:- type tfunc(T) == ( func(aterm) = T ).
 :- type tfunc == tfunc(aterm).
 :- type ccfunfluent(A) == funfluent(A, tfunc). % not needed -- remove?
 
@@ -100,6 +100,14 @@
 
 :- func eval_float(map(var, number), aterm) = float.
 :- mode eval_float(in, in) = out is det.
+
+%-----------------------------------------------------------------------------%
+
+:- type time == aterm.
+:- type ccformula(A) == ( func(time, sit(A)) = list(constraint) ).
+
+:- func (ccformula(A) and ccformula(A)) = ccformula(A).
+:- mode (in and in) = out is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -185,6 +193,10 @@ eval(M, [const(C) | Ts]) = C + eval(M, Ts).
 eval(M, [mult(C, V) | Ts]) = C * det_elem(V, M) + eval(M, Ts).
 
 eval_float(M, T) = float(numer(R)) / float(denom(R)) :- R = eval(M, T).
+
+%-----------------------------------------------------------------------------%
+
+(F1 and F2) = ( func(T, S) = F1(T, S) ++ F2(T, S) ).
 
 %-----------------------------------------------------------------------------%
 :- end_module prgolog.ccfluents.

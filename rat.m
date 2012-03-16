@@ -68,6 +68,8 @@
 
 :- func rat.from_float(float) = rat.
 
+:- func rat.to_float(rat) = float.
+
     % Convert a rational to a string of the form: "(<Num>/<Denom>)".
     %
 :- func rat.to_string(rat) = string.
@@ -124,6 +126,8 @@ rat.one = r(1, 1).
 rat.zero = r(0, 1).
 
 rat.from_float(F) = r(truncate_to_int(F * float(N)), N) :- N = 65536.
+
+rat.to_float(r(N, D)) = float(N) / float(D).
 
 '+'(Rat) = Rat.
 
