@@ -86,6 +86,9 @@
 
 :- type objective ---> min(aterm) ; max(aterm).
 
+:- pred solve(vargen, list(constraint)).
+:- mode solve(in, in) is semidet.
+
 :- pred solve(vargen, list(constraint), objective, map(var, number), number).
 :- mode solve(in, in, in, out, out) is semidet.
 
@@ -174,6 +177,11 @@ T1 `>=` T2 = lpq.construct_constraint(Sum, lpq.lp_gt_eq, -Constant) :-
     split(T1 - T2, Sum, Constant).
 
 %-----------------------------------------------------------------------------%
+
+solve(Vargen, Constraints) :-
+    solve(Vargen, Constraints, max([]), _, _).
+
+:- pragma memo(solve/5, [allow_reset, fast_loose]). 
 
 solve(Vargen, Constraints, Obj, Map, Val) :-
     (   Obj = max(ObjTerm), Dir = lpq.max

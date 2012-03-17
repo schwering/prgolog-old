@@ -222,33 +222,43 @@ trans_atom(test(T), S, S) :-
 
 %-----------------------------------------------------------------------------%
 
-:- func value(prog(A, B, P), sit(A), lookahead) = reward <= bat(A, B, P).
+:- pred '>'({reward, lookahead}::in, {reward, lookahead}::in) is semidet.
+
+'>'({V1, N1}, {V2, N2})  :- V1 > V2 ; V1 = V2, N1 > N2.
+
+:- func max({reward, lookahead}::in, {reward, lookahead}::in) =
+    ({reward, lookahead}::out) is det.
+
+max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
+
+:- func value(prog(A, B, P), sit(A), lookahead) =
+    {reward, lookahead} <= bat(A, B, P).
 :- mode value(in, in, in) = out is det.
 
-value(P, S, L) = V :-
+value(P, S, L) = {V, N} :-
     if      L > 0,
-            solutions((pred(V1::out) is nondet :-
+            solutions((pred({V1, N1 + 1}::out) is nondet :-
                 next2(P, C1, R1),
                 trans_atom(C1, S, S1),
-                V1 = value(R1, S1, new_lookahead(L, C1))
+                {V1, N1} = value(R1, S1, new_lookahead(L, C1))
             ), Values),
             Values \= [],
-            V2 = list.foldl(float.max, Values, float.min),
+            {V2, N2} = list.foldl(max, Values, {min, min_int}),
             ( final(P) => V2 > reward(P, S) )
-    then    V = V2
-    else    V = reward(P, S).
+    then    V = V2, N = N2
+    else    V = reward(P, S), N = ( if final(P) then L else 0 ).
 
 %-----------------------------------------------------------------------------%
 
 :- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
-:- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: reward).
+:- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: {reward, lookahead}).
 
 
 :- func new_cand(sit(A), decomp(A, B, P)) = cand(A, B, P) <= bat(A, B, P).
 :- mode new_cand(in, in) = out is det.
 
-new_cand(S, decomp(C, R)) = cand(decomp(C, R), V) :-
-    V = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
+new_cand(S, decomp(C, R)) = cand(decomp(C, R), {V, N}) :-
+    {V, N} = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
 
 
 :- func fold(sit(A), decomp(A, B, P), cand(A, B, P)) = cand(A, B, P)
@@ -274,7 +284,8 @@ trans(P, S, P1, S1) :-
 
 final(P, S) :-
     final(P),
-    reward(P, S) >= value(P, S, lookahead(S)).
+    {V, _} = value(P, S, lookahead(S)),
+    reward(P, S) >= V.
 
 %-----------------------------------------------------------------------------%
 

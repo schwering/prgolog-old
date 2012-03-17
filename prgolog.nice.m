@@ -45,6 +45,9 @@
 :- pred trans(conf(A, B, P), conf(A, B, P)) <= bat(A, B, P).
 :- mode trans(in, out) is semidet.
 
+:- pred final(conf(A, B, P)) <= bat(A, B, P).
+:- mode final(in) is semidet.
+
 :- pred do(conf(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode do(in, out) is semidet.
 
@@ -114,6 +117,7 @@
 
 init(P) = conf(P, s0).
 trans(conf(P, S), conf(P1, S1)) :- trans(P, S, P1, S1).
+final(conf(P, S)) :- final(P, S).
 do(conf(P, S), S1) :- do(P, S, S1).
 
 %-----------------------------------------------------------------------------%
