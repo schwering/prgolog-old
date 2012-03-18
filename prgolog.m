@@ -123,6 +123,9 @@
 
 %-----------------------------------------------------------------------------%
 
+:- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
+:- mode next2(in, out, out) is nondet.
+
 :- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
 :- mode trans(in, in, out, out) is semidet.
 
@@ -194,9 +197,6 @@ final(nil).
 
 %-----------------------------------------------------------------------------%
 
-:- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
-:- mode next2(in, out, out) is nondet.
-
 next2(P, C, R) :-
     next(P, C1, R1),
     (   C1 = complex(P1),
@@ -224,12 +224,14 @@ trans_atom(test(T), S, S) :-
 
 :- pred '>'({reward, lookahead}::in, {reward, lookahead}::in) is semidet.
 
-'>'({V1, N1}, {V2, N2})  :- V1 > V2 ; V1 = V2, N1 > N2.
+'>'({V1, N1}, {V2, N2}) :- V1 > V2 ; V1 = V2, N1 > N2.
+
 
 :- func max({reward, lookahead}::in, {reward, lookahead}::in) =
     ({reward, lookahead}::out) is det.
 
 max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
+
 
 :- func value(prog(A, B, P), sit(A), lookahead) =
     {reward, lookahead} <= bat(A, B, P).

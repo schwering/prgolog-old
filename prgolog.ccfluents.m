@@ -40,8 +40,8 @@
 :- func init_vargen = vargen.
 :- mode init_vargen = out is det.
 
-:- func new_var(vargen, vargen) = var.
-:- mode new_var(in, out) = out is det.
+:- pred new_var(vargen, vargen, var).
+:- mode new_var(in, out, out) is det.
 
 :- func new_variable(vargen, vargen) = aterm.
 :- mode new_variable(in, out) = out is det.
@@ -128,13 +128,13 @@
 
 varset(vargen(VS)) = VS.
 
-init_vargen = VG :- varset.init(VS), _ = new_var(vargen(VS), VG).
+init_vargen = VG :- varset.init(VS), new_var(vargen(VS), VG, _).
 
-null_var = V :- varset.init(VS), V = new_var(vargen(VS), _).
+null_var = V :- varset.init(VS), new_var(vargen(VS), _, V).
 
-new_var(vargen(!.VS), vargen(!:VS)) = V :- varset.new_var(V, !VS).
+new_var(vargen(!.VS), vargen(!:VS), V) :- varset.new_var(V, !VS).
 
-new_variable(VG0, VG1) = variable(new_var(VG0, VG1)).
+new_variable(VG0, VG1) = variable(V) :- new_var(VG0, VG1, V).
 
 %-----------------------------------------------------------------------------%
 
@@ -181,7 +181,7 @@ T1 `>=` T2 = lpq.construct_constraint(Sum, lpq.lp_gt_eq, -Constant) :-
 solve(Vargen, Constraints) :-
     solve(Vargen, Constraints, max([]), _, _).
 
-:- pragma memo(solve/5, [allow_reset, fast_loose]). 
+%:- pragma memo(solve/5, [allow_reset, fast_loose]). 
 
 solve(Vargen, Constraints, Obj, Map, Val) :-
     (   Obj = max(ObjTerm), Dir = lpq.max

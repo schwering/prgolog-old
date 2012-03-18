@@ -61,7 +61,10 @@
 
     % A primitive linear arithmetic constraint.
     %
-:- type constraint.
+:- type constraint
+    --->    lte(lp_terms, constant)     % sumof(Terms) =< Constant
+    ;       eq(lp_terms, constant)      % sumof(Terms) =  Constant
+    ;       gte(lp_terms, constant).    % sumof(Terms) >= Constant
 
     % A conjunction of primitive constraints.
     %
@@ -348,10 +351,6 @@
     %   of zero - in which case the term list is empty).
     % - variables with coefficient zero are *not* included in the list
     %   of terms.
-:- type constraint
-    --->    lte(lp_terms, constant)     % sumof(Terms) =< Constant
-    ;       eq(lp_terms, constant)      % sumof(Terms) =  Constant
-    ;       gte(lp_terms, constant).    % sumof(Terms) >= Constant
 
 %-----------------------------------------------------------------------------%
 %

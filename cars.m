@@ -52,16 +52,17 @@
 :- type s == float.
 
 :- type agent ---> a ; b.
+:- type lane ---> left ; right.
 :- type prim --->
         set_veloc(agent, mps, mps, maybe(random.supply),
                   maybe(vargen), list(constraint), time)
-    ;   set_yaw(agent, rad, rad, maybe(random.supply), maybe(vargen),
+    ;   set_yaw(agent, lane, rad, rad, maybe(random.supply), maybe(vargen),
                 list(constraint), time)
     ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
     ;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
     ;   eval(ccformula(prim), maybe(vargen), list(constraint), time).
 :- type stoch --->  set_veloc_st(agent, mps)
-                ;   set_yaw_st(agent, rad).
+                ;   set_yaw_st(agent, lane, rad).
 :- type procedure --->  straight_left(agent)
                     ;   straight_right(agent)
                     ;   left_lane_change(agent)
@@ -174,7 +175,7 @@ sitlen(do(_, S)) = 1 + sitlen(S).
 start(s0) = constant(from_float(T)) :- initial_time(T).
 start(do(A, _)) = T :-
     (   A = set_veloc(_, _, _, _, _, _, T)
-    ;   A = set_yaw(_, _, _, _, _, _, T)
+    ;   A = set_yaw(_, _, _, _, _, _, _, T)
     ;   A = wait_for(_, _, _, T)
     ;   A = match(_, _, _, _, T)
     ;   A = eval(_, _, _, T)
@@ -194,7 +195,7 @@ random_supply(s0) = RS :-
     random.init(3, RS).
 random_supply(do(A, S)) = RS :-
     if      (   A = set_veloc(_, _, _, yes(RS0), _, _, _)
-            ;   A = set_yaw(_, _, _, yes(RS0), _, _, _) )
+            ;   A = set_yaw(_, _, _, _, yes(RS0), _, _, _) )
     then    RS = RS0
     else    RS = random_supply(S).
 
@@ -205,7 +206,7 @@ random_supply(do(A, S)) = RS :-
 vargen(s0) = init_vargen.
 vargen(do(A, S)) = VG :-
     if      (   A = set_veloc(_, _, _, _, yes(VG0), _, _)
-            ;   A = set_yaw(_, _, _, _, yes(VG0), _, _)
+            ;   A = set_yaw(_, _, _, _, _, yes(VG0), _, _)
             ;   A = wait_for(_, yes(VG0), _, _)
             ;   A = match(_, _, yes(VG0), _, _)
             ;   A = eval(_, yes(VG0), _, _)
@@ -220,7 +221,7 @@ vargen(do(A, S)) = VG :-
 constraints(s0) = [].
 constraints(do(A, S)) = Cs ++ constraints(S) :-
     (   A = set_veloc(_, _, _, _, _, Cs, _)
-    ;   A = set_yaw(_, _, _, _, _, Cs, _)
+    ;   A = set_yaw(_, _, _, _, _, _, Cs, _)
     ;   A = wait_for(_, _, Cs, _)
     ;   A = match(_, _, _, Cs, _)
     ;   A = eval(_, _, Cs, _)
@@ -242,7 +243,7 @@ veloc(do(A, S)) = V :-
 
 yaw(s0) = 0.0.
 yaw(do(A, S)) = Rad :-
-    if      A = set_yaw(_, Rad0, _, _, _, _, _)
+    if      A = set_yaw(_, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
     else    Rad = yaw(S).
 
@@ -255,7 +256,7 @@ x(Agent, s0) = ( func(_) = constant(from_float(X)) ) :-
     initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
     if      (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(S)
-            ;   A = set_yaw(Agent, Rad, _, _, _, _, T0), Veloc = veloc(S)
+            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(S)
             )
     then    X = ( func(T) = from_float(cos(Rad) * Veloc) * (T - T0) +
                             x(Agent, S)(T0) )
@@ -270,12 +271,11 @@ y(Agent, s0) = ( func(_) = constant(from_float(Y)) ) :-
     initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
     if      (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(S)
-            ;   A = set_yaw(Agent, Rad, _, _, _, _, T0), Veloc = veloc(S)
+            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(S)
             )
     then    Y = ( func(T) = from_float(sin(Rad) * Veloc) * (T - T0) +
                             y(Agent, S)(T0) )
     else    Y = y(Agent, S).
-
 
 %-----------------------------------------------------------------------------%
 
@@ -294,7 +294,7 @@ x_tol(Agent, do(A, S)) = Tol :-
 
 y_tol(_, s0) = 0.0.
 y_tol(Agent, do(A, S)) = Tol :-
-    if      A = set_yaw(Agent, _, Tol0, _, _, _, _)
+    if      A = set_yaw(Agent, _, _, Tol0, _, _, _, _)
     then    Tol = Tol0
     else    Tol = y_tol(Agent, S).
 
@@ -304,7 +304,7 @@ y_tol(Agent, do(A, S)) = Tol :-
 
 on_right_lane(Agent) = ( func(T, S) = [
         constant(rat(-9, 2)) `=<` y(Agent, S)(T),
-                                  y(Agent, S)(T) `=<` constant(rat(1, 2))
+                                  y(Agent, S)(T) `=<` constant(rat(-1, 2))
     ] ).
 
 :- func on_left_lane(agent) = ccformula(prim) is det.
@@ -328,17 +328,20 @@ poss(set_veloc(Agent, V, Tol, RS, no, [], notime),
      set_veloc(Agent, V, Tol, RS, yes(VG), Cs0, T),
      S) :-
     T = new_variable(vargen(S), VG),
-    Cs0 = [T `>=` start(S)].
-    %Cs1 = Cs0 ++ constraints(S),
-    %solve(VG, Cs1).
+    Cs0 = [T `>=` start(S)],
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1).
 
-poss(set_yaw(Agent, Y, Tol, RS, no, [], notime),
-     set_yaw(Agent, Y, Tol, RS, yes(VG), Cs0, T),
+poss(set_yaw(Agent, Lane, Y, Tol, RS, no, [], notime),
+     set_yaw(Agent, Lane, Y, Tol, RS, yes(VG), Cs0, T),
      S) :-
     T = new_variable(vargen(S), VG),
-    Cs0 = [T `>=` start(S)].
-    %Cs1 = Cs0 ++ constraints(S),
-    %solve(VG, Cs1).
+    (   Lane = right, OnLane = on_right_lane(Agent)(T, S)
+    ;   Lane = left,  OnLane = on_left_lane(Agent)(T, S)
+    ),
+    Cs0 = [T `>=` start(S)] ++ OnLane,
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1).
 
 poss(wait_for(G, no, [], notime),
      wait_for(G, yes(VG), Cs0, T),
@@ -352,7 +355,7 @@ poss(match(OT, OF, no, [], notime),
      match(OT, OF, yes(VG), Cs0, T),
      S) :-
     T = new_variable(vargen(S), VG),
-    Cs0 = [T `>=` start(S), T `=` constant(from_float(OT))] ++ OF(T, S),
+    Cs0 = [T `>=` start(S), T `=` constant(from_float(OT)), constant(from_float(OT)) `>=` start(S)] ++ OF(T, S),
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1).
 
@@ -401,17 +404,19 @@ random_outcome(set_veloc_st(Agent, V),
                S) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
-random_outcome(set_yaw_st(Agent, Y),
-               set_yaw(Agent, Y, Tol, yes(RS1), no, [], notime),
+
+random_outcome(set_yaw_st(Agent, Lane, Y),
+               set_yaw(Agent, Lane, Y, Tol, yes(RS1), no, [], notime),
                S) :-
+    Tol = 0.5,
     RS0 = random_supply(S),
-    random_lognormal(1.0, 1.0, _, Tol, RS0, RS1).
+    random_lognormal(1.0, 1.0, _, _Tol, RS0, RS1).
 
 %-----------------------------------------------------------------------------%
 
 :- func lookahead(sit(prim)) = lookahead is det.
 
-lookahead(_S) = 2.
+lookahead(_S) = 3.
 
 %-----------------------------------------------------------------------------%
 
@@ -457,29 +462,29 @@ match_count(pseudo_atom(atom(A))) =
 
 proc(straight_left(Agent), P) :-
     P = atomic(
-            b(set_yaw_st(Agent, deg2rad(0.0))) `;`
-            a(eval(on_left_lane(Agent), no, [], notime))
+            b(set_yaw_st(Agent, left, deg2rad(0.0))) `;`
+            nil% a(eval(on_left_lane(Agent), no, [], notime))
         ).
 
 proc(straight_right(Agent), P) :-
     P = atomic(
-            b(set_yaw_st(Agent, deg2rad(0.0))) `;`
-            a(eval(on_right_lane(Agent), no, [], notime))
+            b(set_yaw_st(Agent, right, deg2rad(0.0))) `;`
+            nil% a(eval(on_right_lane(Agent), no, [], notime))
         ).
 
 proc(left_lane_change(Agent), P) :-
     P = atomic(
-            ( b(set_yaw_st(Agent, deg2rad(6.0))) or
-              b(set_yaw_st(Agent, deg2rad(9.0))) ) `;`
-            a(eval(on_right_lane(Agent), no, [], notime))
+            ( b(set_yaw_st(Agent, right, deg2rad(14.0))) or
+              b(set_yaw_st(Agent, right, deg2rad(9.0))) ) `;`
+            nil% a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
         p(straight_left(Agent)).
 
 proc(right_lane_change(Agent), P) :-
     P = atomic(
-            ( b(set_yaw_st(Agent, deg2rad(-6.0))) or
-              b(set_yaw_st(Agent, deg2rad(-9.0))) ) `;`
-            a(eval(on_left_lane(Agent), no, [], notime))
+            ( b(set_yaw_st(Agent, left, deg2rad(-14.0))) or
+              b(set_yaw_st(Agent, left, deg2rad(-9.0))) ) `;`
+            nil% a(eval(on_left_lane(Agent), no, [], notime))
         ) `;`
         p(straight_right(Agent)).
 
@@ -531,11 +536,11 @@ initial(b, 6.304431, -3.273941).
 
 obs(5.594000,  a, 34.776825, -2.999933,  b, 6.304431, -3.273941).
 obs(6.100000,  a, 42.410252, -2.999933,  b, 16.886641, -3.226734).
-/*
 obs(6.606000,  a, 50.046276, -2.999933,  b, 27.465494, -3.191746).
 obs(7.112000,  a, 57.682270, -2.999933,  b, 38.043564, -3.213415).
 obs(7.618000,  a, 65.313354, -2.999933,  b, 48.628551, -3.218992).
 obs(8.132000,  a, 73.062225, -2.999933,  b, 59.107368, -1.065044).
+/*
 obs(8.632000,  a, 80.600098, -2.999933,  b, 69.129898, 1.880987).
 obs(9.132000,  a, 88.137970, -2.999933,  b, 79.493713, 2.901567).
 obs(9.632000,  a, 95.675766, -2.999933,  b, 89.940277, 2.991667).
@@ -560,9 +565,9 @@ obs(match(OT, OF, no, [], notime)) :-
     C = ( func(F) = constant(from_float(F)) ),
     OF = ( func(T, S) = [
         C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T), x(A0, S)(T) `=<` C(X0 + x_tol(A0, S)),
-        C(Y0 - y_tol(A0, S)) `=<` y(A0, S)(T), y(A0, S)(T) `=<` C(Y0 + y_tol(A0, S))%,
-        %C(X1 - x_tol(A1, S)) `=<` x(A1, S)(T), x(A1, S)(T) `=<` C(X1 + x_tol(A1, S)),
-        %C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T), y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
+        C(Y0 - y_tol(A0, S)) `=<` y(A0, S)(T), y(A0, S)(T) `=<` C(Y0 + y_tol(A0, S)),
+        C(X1 - x_tol(A1, S)) `=<` x(A1, S)(T), x(A1, S)(T) `=<` C(X1 + x_tol(A1, S)),
+        C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T), y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
     ] ).
 
 :- func obs_prog = prog(prim, stoch, procedure) is det.
@@ -601,10 +606,10 @@ print_sit_info(Map, S, !IO) :-
     wrt("veloc(S) = ", veloc(S), !IO),
     wrt("yaw(S) = ", yaw(S), !IO),
     wrt("start(S) = ", E(start(S)), !IO),
-    wrt("x(a, S) = ", E(x(a, S)(start(S))), !IO),
-    wrt("y(a, S) = ", E(y(a, S)(start(S))), !IO),
-    wrt("x_tol(a, S) = ", x_tol(a, S), !IO),
-    wrt("y_tol(a, S) = ", y_tol(a, S), !IO),
+    wrt("x(b, S) = ", E(x(b, S)(start(S))), !IO),
+    wrt("y(b, S) = ", E(y(b, S)(start(S))), !IO),
+    wrt("x_tol(b, S) = ", x_tol(b, S), !IO),
+    wrt("y_tol(b, S) = ", y_tol(b, S), !IO),
     wrt("now(S) = ", E(now(S)(start(S))), !IO).
 
 :- pred wrt(string::in, T::in, io::di, io::uo) is det.
@@ -616,7 +621,7 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 :- pred exec(io::di, io::uo) is det.
 
 exec(!IO) :-
-    P = obs_prog // p(cruise(a)),% // p(overtake(b, a)),
+    P = obs_prog // p(cruise(a)) // p(overtake(b, a)),
     C = init(P),
     write_string("initial situation", !IO), nl(!IO),
     (   if      S1 = sit(C),
@@ -633,10 +638,10 @@ exec(!IO) :-
              io::di, io::uo) is det.
 
 exec(!C, !IO) :-
-    read_line_as_string(Line, !IO),
+    %read_line_as_string(Line, !IO),
     (   if      final(!.C)
         then    write_string("finished", !IO), nl(!IO)
-        else if Line \= ok("q"),
+        else if %Line \= ok("q"),
                 trans(!C),
                 S1 = sit(!.C),
                 VG = vargen(S1),
@@ -644,10 +649,12 @@ exec(!C, !IO) :-
                 solve(VG, Cs, min(variable_sum(VG)), Map, _Val)
         then    print_sit(sit(!.C), !IO), nl(!IO),
                 print_sit_info(Map, sit(!.C), !IO), nl(!IO),
+                %write(constraints(sit(!.C)), !IO), nl(!IO),
                 exec(!C, !IO)
         else    write(rest(!.C), !IO), nl(!IO),
-                write_string("stopped", !IO), nl(!IO)
+                write_string("stopped", !IO), nl(!IO),
 /*
+*/
                 solutions((pred(X::out) is nondet :-
                     next2(rest(!.C), X, Y),
                     trace [io(!IO)] (
@@ -660,14 +667,56 @@ exec(!C, !IO) :-
                         nl(!IO)
                     )
                 ), _)
+/*
 */
     ).
 
 %-----------------------------------------------------------------------------%
 
+:- use_module lpq.
+:- import_module pair.
+
+:- pred test(vargen::in, vargen::out, io::di, io::uo) is det.
+
+test(!VG, !IO) :-
+    new_var(!VG, V2),
+    new_var(!VG, V3),
+    new_var(!VG, V4),
+    new_var(!VG, V5),
+    new_var(!VG, V6),
+    new_var(!VG, V7),
+    new_var(!VG, V8),
+    new_var(!VG, V9),
+    new_var(!VG, V10),
+    new_var(!VG, V11),
+    new_var(!VG, V12),
+    new_var(!VG, V13),
+    new_var(!VG, V14),
+    new_var(!VG, V15),
+    new_var(!VG, V16),
+    new_var(!VG, V17),
+    new_var(!VG, V18),
+    new_var(!VG, V19),
+    Eqs = [lpq.eq([V18 - rat(1, 1), V19 - rat(-1, 1)], rat(0, 1)), lpq.lte([V10 - rat(1, 1), V12 - rat(-1, 1), V15 - rat(-213243, 142487), V17 - rat(213243, 142487)], rat(80352, 142487)), lpq.lte([V10 - rat(-1, 1), V12 - rat(1, 1), V15 - rat(213243, 142487), V17 - rat(-213243, 142487)], rat(181792, 142487)), lpq.lte([V6 - rat(-1, 1), V7 - rat(1, 1), V9 - rat(187105, 494469), V10 - rat(-2489, 329646), V12 - rat(2489, 329646), V15 - rat(-2797, 164823), V17 - rat(2797, 164823), V19 - rat(-187105, 494469)], rat(-621989, 329646)), lpq.eq([V17 - rat(1, 1), V18 - rat(-1, 1)], rat(0, 1)), lpq.lte([V10 - rat(1, 1), V12 - rat(-1, 1), V15 - rat(-213243, 142487), V17 - rat(213243, 142487)], rat(80352, 142487)), lpq.lte([V10 - rat(-1, 1), V12 - rat(1, 1), V15 - rat(213243, 142487), V17 - rat(-213243, 142487)], rat(181792, 142487)), lpq.lte([V16 - rat(1, 1), V17 - rat(-1, 1)], rat(0, 1)), lpq.eq([V15 - rat(1, 1), V16 - rat(-1, 1)], rat(0, 1)), lpq.lte([V10 - rat(1, 1), V12 - rat(-1, 1), V15 - rat(-213243, 142487), V16 - rat(213243, 142487)], rat(-247328, 142487)), lpq.lte([V10 - rat(-1, 1), V12 - rat(1, 1), V15 - rat(213243, 142487), V16 - rat(-213243, 142487)], rat(509472, 142487)), lpq.lte([V14 - rat(1, 1), V15 - rat(-1, 1)], rat(0, 1)), lpq.lte([V13 - rat(1, 1), V14 - rat(-1, 1)], rat(0, 1)), lpq.lte([V6 - rat(-1, 1), V7 - rat(1, 1), V9 - rat(187105, 494469), V10 - rat(-2489, 329646), V12 - rat(2489, 329646), V14 - rat(-187105, 494469)], rat(-621989, 329646)), lpq.eq([V12 - rat(1, 1), V13 - rat(-1, 1)], rat(0, 1)), lpq.lte([V10 - rat(1, 1), V12 - rat(-1, 1)], rat(-247328, 142487)), lpq.lte([V10 - rat(-1, 1), V12 - rat(1, 1)], rat(509472, 142487)), lpq.lte([V11 - rat(1, 1), V12 - rat(-1, 1)], rat(0, 1)), lpq.eq([V10 - rat(1, 1), V11 - rat(-1, 1)], rat(0, 1)), lpq.lte([V10 - rat(1, 1), V11 - rat(-1, 1)], rat(80352, 142487)), lpq.lte([V10 - rat(-1, 1), V11 - rat(1, 1)], rat(181792, 142487)), lpq.lte([V9 - rat(1, 1), V10 - rat(-1, 1)], rat(0, 1)), lpq.lte([V8 - rat(1, 1), V9 - rat(-1, 1)], rat(0, 1)), lpq.eq([V7 - rat(1, 1), V8 - rat(-1, 1)], rat(0, 1)), lpq.lte([], rat(2511, 2048)), lpq.lte([], rat(5681, 2048)), lpq.lte([V6 - rat(1, 1), V7 - rat(-1, 1)], rat(0, 1)), lpq.lte([V5 - rat(1, 1), V6 - rat(-1, 1)], rat(0, 1)), lpq.eq([V4 - rat(1, 1), V5 - rat(-1, 1)], rat(0, 1)), lpq.lte([], rat(98309, 65536)), lpq.lte([], rat(163835, 65536)), lpq.lte([V3 - rat(1, 1), V4 - rat(-1, 1)], rat(0, 1)), lpq.eq([V2 - rat(1, 1), V3 - rat(-1, 1)], rat(0, 1)), lpq.lte([], rat(2511, 2048)), lpq.lte([], rat(5681, 2048)), lpq.lte([], rat(98309, 65536)), lpq.lte([], rat(163835, 65536)), lpq.lte([], rat(1865967, 65536)), lpq.lte([V2 - rat(-1, 1)], rat(-22913, 4096)), lpq.eq([V2 - rat(1, 1)], rat(22913, 4096)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1)), lpq.lte([], rat(0, 1))],
+    Vars = variables(!.VG),
+    Sum = map((func(V) = V - one), Vars),
+    Res = lpq.solve(Eqs, lpq.min, Sum, varset(!.VG)),
+    (   if      Res = lpq.lp_res_satisfiable(Val, Map)
+        then    E13 = det_elem(V13, Map),
+                E14 = det_elem(V14, Map),
+                write(E13, !IO), nl(!IO),
+                write(E14, !IO), nl(!IO),
+                ( if E13 =< E14 then write_string("less", !IO) else write_string("greater", !IO) ), nl(!IO),
+                nl(!IO),
+                write(Val, !IO), nl(!IO)
+        else    true
+    ),
+    write(Res, !IO), nl(!IO).
+
 % Solve the maze using a program:
 %    (up | down | left | right)*
 main(!IO) :-
+    %test(init_vargen, _, !IO).
 /*
     deg2rad(10.0, Rad),
     P = b(set_yaw_st(a, Rad)) `;`
@@ -680,6 +729,8 @@ main(!IO) :-
         a(wait_for( func(T, S) = [
             x(a, S)(T) `>=` constant(rat(900))
         ], no, [], notime)),
+*/
+/*
 */
     exec(!IO).
 /*

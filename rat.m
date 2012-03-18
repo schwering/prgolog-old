@@ -125,7 +125,7 @@ rat.one = r(1, 1).
 
 rat.zero = r(0, 1).
 
-rat.from_float(F) = r(truncate_to_int(F * float(N)), N) :- N = 65536.
+rat.from_float(F) = r(truncate_to_int(F * float(N)), N) :- N = 2*3*5*7*11.
 
 rat.to_float(r(N, D)) = float(N) / float(D).
 
