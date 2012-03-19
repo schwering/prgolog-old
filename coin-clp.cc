@@ -87,7 +87,7 @@ bool solve(SolverContext* ctx, double* obj_val, double** var_vals, int* nvars)
 {
   ctx->solver->initialSolve();
   bool optimal = ctx->solver->isProvenOptimal();
-  ctx->solver->writeMps("problem");
+  //ctx->solver->writeMps("problem");
   if (optimal) {
     *obj_val = ctx->solver->getObjValue();
     // use malloc() because Mercury has only free() but no delete

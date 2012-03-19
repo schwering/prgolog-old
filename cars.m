@@ -416,7 +416,7 @@ random_outcome(set_veloc_st(Agent, V),
 random_outcome(set_yaw_st(Agent, Lane, Yaw),
                set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime),
                S) :-
-    Tol = 0.9 + Yaw * 4.0,
+    Tol = 0.5 + abs(Yaw) * 4.0,
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, _, _Tol, RS0, RS1).
 
@@ -486,8 +486,8 @@ proc(left_lane_change(Agent), P) :-
               b(set_yaw_st(Agent, right, deg2rad(12.0))) or
               b(set_yaw_st(Agent, right, deg2rad(10.0))) or
               b(set_yaw_st(Agent, right, deg2rad(8.0))) or
-              b(set_yaw_st(Agent, right, deg2rad(6.0))) ) `;`
-            a(eval(on_right_lane(Agent), no, [], notime))
+              b(set_yaw_st(Agent, right, deg2rad(6.0))) ) %`;`
+            %a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
         p(straight_left(Agent)).
 
@@ -497,8 +497,8 @@ proc(right_lane_change(Agent), P) :-
               b(set_yaw_st(Agent, left, deg2rad(-12.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-10.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-8.0))) or
-              b(set_yaw_st(Agent, left, deg2rad(-6.0))) ) `;`
-            a(eval(on_right_lane(Agent), no, [], notime))
+              b(set_yaw_st(Agent, left, deg2rad(-6.0))) ) %`;`
+            %a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
         p(straight_right(Agent)).
 
@@ -517,7 +517,7 @@ proc(overtake(Agent, Victim), P) :-
             a(wait_for(Victim `behind` Agent, no, [], notime)) `;`
             p(right_lane_change(Agent))
         ) // (
-            b(set_veloc_st(Agent, 20.2))
+            b(set_veloc_st(Agent, 20.8))
         )) `;`
         a(eval(on_right_lane(Agent)
            and Victim `behind` Agent
@@ -564,13 +564,13 @@ obs(11.132000,  a, 118.289291, -2.999933, b, 121.284592, 2.924112).
 obs(11.632000,  a, 125.827133, -2.999933, b, 131.733932, 2.790201).
 obs(12.132000,  a, 133.364975, -2.999933, b, 142.175156, 2.600296).
 obs(12.632000,  a, 140.902817, -2.999933, b, 152.542404, 1.616369).
-/*
 obs(13.132000, a, 148.440659, -2.999933, b, 162.487106, -1.544439).
 obs(13.632000, a, 155.988510, -2.999933, b, 172.840927, -2.558414).
 obs(14.132000, a, 163.527390, -2.999933, b, 183.293320, -2.678141).
 obs(14.632000, a, 171.065231, -2.999933, b, 193.741440, -2.689064).
 obs(15.132000, a, 178.591293, -2.999933, b, 204.195236, -2.745777).
 obs(15.632000, a, 186.113022, -2.999933, b, 214.648361, -2.857815).
+/*
 */
 
 :- pred obs(prim::out) is multi.
@@ -579,10 +579,14 @@ obs(match(OT, OF, no, [], notime)) :-
     obs(OT, A0, X0, Y0, A1, X1, Y1),
     C = ( func(F) = constant(F) ),
     OF = ( func(T, S) = [
-        C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T), x(A0, S)(T) `=<` C(X0 + x_tol(A0, S)),
-        C(Y0 - y_tol(A0, S)) `=<` y(A0, S)(T), y(A0, S)(T) `=<` C(Y0 + y_tol(A0, S)),
-        C(X1 - x_tol(A1, S)) `=<` x(A1, S)(T), x(A1, S)(T) `=<` C(X1 + x_tol(A1, S)),
-        C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T), y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
+        C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T),
+                                  x(A0, S)(T) `=<` C(X0 + x_tol(A0, S)),
+        C(Y0 - y_tol(A0, S)) `=<` y(A0, S)(T),
+                                  y(A0, S)(T) `=<` C(Y0 + y_tol(A0, S)),
+        C(X1 - x_tol(A1, S)) `=<` x(A1, S)(T),
+                                  x(A1, S)(T) `=<` C(X1 + x_tol(A1, S)),
+        C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T),
+                                  y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
     ] ).
 
 :- func obs_prog = prog(prim, stoch, procedure) is det.
@@ -701,7 +705,6 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 :- pred exec(io::di, io::uo) is det.
 
 exec(!IO) :-
-    %P = p(cruise(a)) // p(overtake(b, a)),
     P = obs_prog // p(cruise(a)) // p(overtake(b, a)),
     C = init(P),
     write_string("initial situation", !IO), nl(!IO),
@@ -729,8 +732,7 @@ exec(!C, !IO) :-
                 Cs = constraints(S1),
                 solve(VG, Cs, min(variable_sum(VG)), Map, _Val)
         then    %print_sit(Map, sit(!.C), !IO), nl(!IO),
-                (   if      sit(!.C) = do(match(_, _, _, _, ObsTime), _),
-                            ObsT = eval_float(Map, ObsTime),
+                (   if      sit(!.C) = do(match(ObsT, _, _, _, _), _),
                             obs(ObsT, _, _, _, b, ObsX, ObsY)
                     then    print_sit_info(Map, sit(!.C), !IO), nl(!IO),
                             format("obs[%f] = (%.1f, %.1f)\n\n\n",
