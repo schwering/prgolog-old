@@ -1,4 +1,14 @@
 % vim:filetype=prolog:textwidth=80:shiftwidth=4:softtabstop=4:expandtab
+%
+% This is a prGolog interpreter written in ECLiPSe-CLP.
+% It's used to benchmark the prGolog implementation in Mercury.
+%
+% The original ECLiPSe-CLP prGolog interpreter also supports constraints.
+% These features were removed to be comparable to the Mercury version.
+% (At this point, the Mercury version had no support for constraints.)
+% See my diploma thesis or so for the original code.
+%
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 
 :- module(prgolog).
 

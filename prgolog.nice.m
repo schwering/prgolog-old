@@ -23,7 +23,7 @@
 % an elegant way to do this. This pick/3 would be a mere macro expansion
 % anyway.
 %
-% Christoph Schwering (schwering@gmail.com)
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -111,7 +111,7 @@
 
 :- implementation.
 
-:- import_module prgolog.fluents.
+:- import_module prgolog.fluent.
 
 %-----------------------------------------------------------------------------%
 

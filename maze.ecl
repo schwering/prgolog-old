@@ -9,7 +9,7 @@
 % I took the first one and stripped away the time and continuous change-specific
 % parts, so that its functionality matches the Mercury implementation.
 %
-% Christoph Schwering (schwering@gmail.com)
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 
 :- module(maze).
 

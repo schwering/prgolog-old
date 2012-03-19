@@ -1,25 +1,33 @@
 %-----------------------------------------------------------------------------%
-% vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+%vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prgolog.fluents.m.
-% Main author: schwering.
+% File: prgolog.ccfluent.m.  Main author: schwering.
 %
-% Helper functions for continuous fluents.
+% Utilities for continuous fluents including constraint solving capabilities.
 %
-% Fluents are represented by higher-order boolean formulas.
-% The situation argument is suppressed in test actions and then restored at the
-% Golog program's runtime.
+% Currently we use the COIN-OR CLP solver via the OSI interface.  The module
+% osi.m provides a Mercury (very small subset only for our purposes) binding to
+% the C++ API.
 %
-% As explained in the parent module, the fact that we use boolean formulas
-% instead of normal predicates is due to a technicality in Mercury.
+% It's generally easy to use the modules lp.m and/or lp_rational.m from the
+% Mercury compiler (not library!) instead.  However, they are either
+% numerically pretty unstable or buggy or I used them totally wrongly. 
 %
-% Christoph Schwering (schwering@gmail.com)
+% The preprocessing is pretty much aligend to OSI: coefficients are aggregated
+% so that no variable occurs twice in a constraint and trivial constraints
+% (left hand side has no positive coefficients) are handled so that only
+% variables with non-zero coefficient are given to the solver.
+%
+% The variable-to-solution-map is stored in an assoc_list.  Variables with
+% value 0.0 are omitted in the list!
+%
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prgolog.ccfluents.
+:- module prgolog.ccfluent.
 
 :- interface.
 
@@ -89,7 +97,8 @@
 :- pred solve(vargen, list(constraint)).
 :- mode solve(in, in) is semidet.
 
-:- pred solve(vargen, list(constraint), objective, assoc_list(var, number), number).
+:- pred solve(vargen, list(constraint), objective,
+              assoc_list(var, number), number).
 :- mode solve(in, in, in, out, out) is semidet.
 
 :- func variables(vargen) = list(var).
@@ -237,5 +246,5 @@ eval_float(M, T) = eval(M, T).
 (F1 and F2) = ( func(T, S) = F1(T, S) ++ F2(T, S) ).
 
 %-----------------------------------------------------------------------------%
-:- end_module prgolog.ccfluents.
+:- end_module prgolog.ccfluent.
 %-----------------------------------------------------------------------------%

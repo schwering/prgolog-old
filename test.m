@@ -11,7 +11,7 @@
 :- implementation.
 
 :- import_module prgolog.
-:- import_module prgolog.fluents.
+:- import_module prgolog.fluent.
 :- import_module int.
 :- import_module list.
 :- import_module solutions.

@@ -5,7 +5,10 @@
 % File: cars.m.
 % Main author: schwering.
 %
-% Christoph Schwering (schwering@gmail.com)
+% Basic action theory (BAT) for driving with two simple actions, set_yaw and
+% set_veloc that control the steering and speed of the vehicle.
+%
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -26,8 +29,8 @@
 :- implementation.
 
 :- import_module prgolog.
-:- import_module prgolog.ccfluents.
-:- import_module prgolog.fluents.
+:- import_module prgolog.ccfluent.
+:- import_module prgolog.fluent.
 :- import_module prgolog.nice.
 :- import_module assoc_list.
 :- import_module int.

@@ -1,3 +1,18 @@
+/*
+ * File: coin-clp.cc.
+ * Main author: schwering.
+ *
+ * Wrapper of COIN-OR CLP OSI interface.
+ *
+ * The header provides a C-interface so that we can use this from Mercury
+ * which (to my knowledge) allows interfacing only with C.
+ *
+ * The body file is written in C++. Then, the body file is compiled with a C++
+ * compiler and the object file can be linked by the Mercury compiler.
+ *
+ * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ */
+
 #include "coin-clp.h"
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +42,10 @@ SolverContext* new_solver_context(int nvars)
   return ctx;
 }
 
+/* I don't know how to force Mercury to call a predicate without using !IO.
+ * The compiler optimizes the Mercury call to finalize_solver_context() away.
+ * The temporary solution is to call finalize_solver_context() in solve()
+ * already. */
 void finalize_solver_context(SolverContext* ctx)
 {
   delete ctx->solver;

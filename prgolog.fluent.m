@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prgolog.fluents.m.
+% File: prgolog.fluent.m.
 % Main author: schwering.
 %
 % Helper functions for test actions.
@@ -14,12 +14,12 @@
 % As explained in the parent module, the fact that we use boolean formulas
 % instead of normal predicates is due to a technicality in Mercury.
 %
-% Christoph Schwering (schwering@gmail.com)
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prgolog.fluents.
+:- module prgolog.fluent.
 
 :- interface.
 
@@ -52,5 +52,5 @@ or(T1, T2, S) = bool.or(T1(S), T2(S)).
 neg(T, S) = bool.not(T(S)).
 
 %-----------------------------------------------------------------------------%
-:- end_module prgolog.fluents.
+:- end_module prgolog.fluent.
 %-----------------------------------------------------------------------------%

@@ -45,7 +45,7 @@
 %
 % [1] http://www.mercury.csse.unimelb.edu.au/
 %
-% Christoph Schwering (schwering@gmail.com)
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 
 :- module maze.
 
@@ -58,7 +58,7 @@
 :- implementation.
 
 :- import_module prgolog.
-:- import_module prgolog.fluents.
+:- import_module prgolog.fluent.
 :- import_module prgolog.nice.
 :- import_module int.
 :- import_module float.

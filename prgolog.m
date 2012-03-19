@@ -48,7 +48,7 @@
 % predicates like solutions and foldl which we need to wrap into anonymous
 % lambda expressions to get the modes right.  Some general helper predicates
 % and functions to construct fluents (and abstract from the aforementioned
-% technicality) are defined in the submodule prgolog.fluents.m.
+% technicality) are defined in the submodule prgolog.fluent.m.
 %
 % The pick operator is not implemented.  It seems to be difficult to do so:
 % Higher-order terms apparently cannot contain unbound variables, and I don't
@@ -60,7 +60,7 @@
 % complex.  For more concise programs, one may use the nice syntax layer that
 % resides in the submodule prgolog.nice.
 %
-% Christoph Schwering (schwering@gmail.com)
+% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -123,6 +123,7 @@
 
 %-----------------------------------------------------------------------------%
 
+% XXX TODO move back to implementation (just here for debugging)
 :- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
 :- mode next2(in, out, out) is nondet.
 
@@ -135,8 +136,8 @@
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
 :- mode do(in, in, out) is semidet.
 
-:- include_module ccfluents.
-:- include_module fluents.
+:- include_module ccfluent.
+:- include_module fluent.
 :- include_module nice.
 
 %-----------------------------------------------------------------------------%
