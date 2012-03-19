@@ -6,7 +6,7 @@
 
 SolverContext* new_solver_context(int nvars)
 {
-  printf("init\n");
+  //fprintf(stderr, "init\n");
   SolverContext* ctx = new SolverContext;
   ctx->matrix = new CoinPackedMatrix(false, 0, 0);
   ctx->matrix->setDimensions(0, nvars);
@@ -33,7 +33,7 @@ void finalize_solver_context(SolverContext* ctx)
   delete[] ctx->var_ub;
   delete[] ctx->objective;
   delete ctx;
-  printf("final\n");
+  //fprintf(stderr, "final\n");
 }
 
 void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
@@ -42,22 +42,22 @@ void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
   //fprintf(stderr, "n = %d (%d)\n", n, ctx->nvars);
   CoinPackedVector row;
   for (int i = 0; i < n; ++i) {
-    //fprintf(stderr, "  + %.1lf * %d", as[i], vs[i]);
+    fprintf(stderr, "  + %.1lf * v_%d", as[i], vs[i]);
     row.insert(vs[i], as[i]);
   }
   double row_lb, row_ub;
   if (cmp < 0) { // ">="
     row_lb = bnd;
     row_ub = ctx->solver->getInfinity();
-    //fprintf(stderr, " >= %.1lf\n", bnd);
+    fprintf(stderr, " >= %.1lf\n", bnd);
   } else if (cmp > 0) { // "=<"
     row_lb = -1.0 * ctx->solver->getInfinity();
     row_lb = bnd;
-    //fprintf(stderr, " =< %.1lf\n", bnd);
+    fprintf(stderr, " =< %.1lf\n", bnd);
   } else { // "="
     row_lb = bnd;
     row_ub = bnd;
-    //fprintf(stderr, " = %.1lf\n", bnd);
+    fprintf(stderr, " = %.1lf\n", bnd);
   }
   ctx->solver->addRow(row, row_lb, row_ub);
 }
@@ -65,17 +65,8 @@ void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
 bool solve(SolverContext* ctx, double* obj_val, double** var_vals, int* nvars)
 {
   ctx->solver->initialSolve();
-  /*
-  if (ctx->solver->isProvenOptimal()) {
-     std::cout << "Found optimal solution!" << std::endl;
-     std::cout << "Objective value is " << ctx->solver->getObjValue() << std::endl;
-     // We could then print the solution or examine it.
-  } else {
-     std::cout << "Didn't find optimal solution." << std::endl;
-     // Could then check other status functions.
-  }
-  */
   bool optimal = ctx->solver->isProvenOptimal();
+  //ctx->solver->writeMps("problem");
   if (optimal) {
     *obj_val = ctx->solver->getObjValue();
     // use malloc() because Mercury has only free() but no delete

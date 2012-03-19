@@ -41,7 +41,8 @@
 :- func construct_constraint(list(coeff)::in, operator::in, float::in)
     = (constraint::out) is det.
 
-:- pred is_empty(constraint::in) is semidet.
+:- pred holds_trivially(constraint::in) is semidet.
+:- pred fails_trivially(constraint::in) is semidet.
 
 :- func solve(list(constraint)::in, direction::in, objective::in, varset::in)
               = (result::out) is det.
@@ -51,51 +52,51 @@
 
 :- implementation.
 
-:- import_module float.
-
-%-----------------------------------------------------------------------------%
-
-construct_constraint(Sum, Op, Bnd) = cstr(simplify(Sum), Op, Bnd).
-
-
-:- func simplify(list(coeff)) = list(coeff).
-
-simplify(L) = aggregate_coeffs(sort(L)).
-
-
-:- func aggregate_coeffs(list(coeff)) = list(coeff) is det.
-
-aggregate_coeffs([]) = [].
-aggregate_coeffs([C @ (V - A) | Cs]) =
-    (   if      Cs = [(V - A0) | Cs0]
-        then    aggregate_coeffs([(V - (A+A0)) | Cs0])
-        else    [C | aggregate_coeffs(Cs)]
-    ).
-
-
-is_empty(cstr([], (=), 0.0)).
-is_empty(cstr([], (>=), Bnd)) :- Bnd =< 0.0.
-is_empty(cstr([], (=<), Bnd)) :- Bnd >= 0.0.
-
-%-----------------------------------------------------------------------------%
-
-:- import_module io.
 :- import_module enum.
+:- import_module float.
 :- import_module int.
 :- import_module require.
 
+%-----------------------------------------------------------------------------%
+
+construct_constraint(Sum, Op, Bnd) = cstr(Sum, Op, Bnd).
+
+
+holds_trivially(cstr([], (=), 0.0)).
+holds_trivially(cstr([], (>=), Bnd)) :- Bnd =< 0.0.
+holds_trivially(cstr([], (=<), Bnd)) :- Bnd >= 0.0.
+
+
+fails_trivially(cstr([], (=), Bnd)) :- Bnd \= 0.0.
+fails_trivially(cstr([], (>=), Bnd)) :- Bnd > 0.0.
+fails_trivially(cstr([], (=<), Bnd)) :- Bnd < 0.0.
+
+%-----------------------------------------------------------------------------%
+
 solve(Cstrs, _Dir, _Obj, _VS) = R :-
-    some [!SC] (
-        N = 100,
-        new_solver_context(N, !:SC),
-        add_constraints(Cstrs, !SC),
-        solve(Optimal, ObjValue, VarValues, !.SC, _)%,
-        %finalize_solver_context(!.SC)
-    ),
-    (   if      Optimal \= 0
-        then    VarMap = list_to_map(VarValues),
-                R = satisfiable(ObjValue, VarMap)
-        else    R = unsatisfiable
+    if      Cstrs = []
+    then    R = satisfiable(0.0, [])
+    else if one_fails_trivially(Cstrs)
+    then    R = unsatisfiable
+    else    some [!SC] (
+                N = 100,
+                new_solver_context(N, !:SC),
+                add_constraints(Cstrs, !SC),
+                solve(Optimal, ObjValue, VarValues, !.SC, _)%,
+                %finalize_solver_context(!.SC)
+            ),
+            (   if      Optimal \= 0
+                then    VarMap = list_to_map(VarValues),
+                        R = satisfiable(ObjValue, VarMap)
+                else    R = unsatisfiable
+            ).
+
+
+:- pred one_fails_trivially(list(constraint)::in) is semidet.
+
+one_fails_trivially([C | Cs]) :-
+    (   fails_trivially(C)
+    ;   \+ fails_trivially(C), one_fails_trivially(Cs)
     ).
 
 
@@ -103,7 +104,10 @@ solve(Cstrs, _Dir, _Obj, _VS) = R :-
 :- func int_id_to_var(int) = var is det.
 
 var_to_int_id(V) = var_id(V) - 1.
-int_id_to_var(I) = V :- ( if V0 = from_int(I + 1) then V = V0 else error("bla") ).
+int_id_to_var(I) = V :-
+    if      V0 = from_int(I + 1)
+    then    V = V0
+    else    error("cannot convert this int to var").
 
 
 :- func list_to_map(list(float)) = assoc_list(var, float).
@@ -114,7 +118,12 @@ list_to_map(Fs) = list_to_map_2(0, Fs).
 :- func list_to_map_2(int, list(float)) = assoc_list(var, float).
 
 list_to_map_2(_, []) = [].
-list_to_map_2(I, [F|Fs]) = [(int_id_to_var(I) - F) | list_to_map_2(I+1, Fs)].
+list_to_map_2(I, [F|Fs]) = Fs0 :-
+    Fs1 = list_to_map_2(I+1, Fs),
+    (   if      F = 0.0
+        then    Fs0 = [(int_id_to_var(I) - F) | Fs1]
+        else    Fs0 = Fs1
+    ).
 
 
 :- pred add_constraints(list(constraint)::in,

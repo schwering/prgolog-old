@@ -80,7 +80,7 @@
 :- func aterm `=` aterm = constraint.
 :- mode in `=` in = out is det.
 
-:- pred is_empty(constraint::in) is semidet.
+:- pred holds_trivially(constraint::in) is semidet.
 
 %-----------------------------------------------------------------------------%
 
@@ -162,6 +162,7 @@ T1 - T2 = T1 ++ T3 :-
         ;   Summand = const(C),   Summand1 = const(-C) )
     ), T2).
 
+
 :- pred split(aterm, list(pair(var, number)), number).
 :- mode split(in, out, out) is det.
 
@@ -169,14 +170,35 @@ split([], [], 0.0).
 split([const(C0) | Ts], Vs, C0 + C1) :- split(Ts, Vs, C1).
 split([mult(C, V) | Ts], [(V - C) | Vs], C1) :- split(Ts, Vs, C1).
 
-T1 `=<` T2 = osi.construct_constraint(Sum, osi.(=<), -Constant) :-
-    split(T1 - T2, Sum, Constant).
-T1 `=`  T2 = osi.construct_constraint(Sum, osi.(=),  -Constant) :-
-    split(T1 - T2, Sum, Constant).
-T1 `>=` T2 = osi.construct_constraint(Sum, osi.(>=), -Constant) :-
-    split(T1 - T2, Sum, Constant).
 
-is_empty(C) :- osi.is_empty(C).
+:- pred aggregate(list(pair(var, number))::in,
+                  list(pair(var, number))::out) is det.
+
+aggregate(L, aggregate_2(L)).
+
+
+:- func aggregate_2(list(pair(var, number))::in) =
+                   (list(pair(var, number))::out) is det.
+
+aggregate_2([]) = [].
+aggregate_2([C @ (V - A) | Cs]) =
+    (   if      Cs = [(V - A0) | Cs0]       % aggregate coeffs of dupe vars
+        then    aggregate_2([(V - (A+A0)) | Cs0])
+        else if A \= 0.0                    % remove vars with coeff 0
+        then    [C | aggregate_2(Cs)]
+        else    aggregate_2(Cs)
+    ).
+
+
+T1 `=<` T2 = osi.construct_constraint(Sum1, osi.(=<), -Constant) :-
+    split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
+T1 `=`  T2 = osi.construct_constraint(Sum1, osi.(=),  -Constant) :-
+    split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
+T1 `>=` T2 = osi.construct_constraint(Sum1, osi.(>=), -Constant) :-
+    split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
+
+
+holds_trivially(C) :- osi.holds_trivially(C).
 
 %-----------------------------------------------------------------------------%
 
@@ -201,7 +223,11 @@ variable_sum(vargen(VS)) = map((func(V) = mult(1.0, V)), varset.vars(VS)).
 
 eval(_, []) = 0.0.
 eval(M, [const(C) | Ts]) = C + eval(M, Ts).
-eval(M, [mult(C, V) | Ts]) = C * det_elem(V, M) + eval(M, Ts).
+eval(M, [mult(C, V) | Ts]) = C * F + eval(M, Ts) :-
+    (   if      F0 = elem(V, M)
+        then    F = F0
+        else    F = 0.0
+    ).
 
 %eval_float(M, T) = float(numer(R)) / float(denom(R)) :- R = eval(M, T).
 eval_float(M, T) = eval(M, T).

@@ -303,14 +303,14 @@ y_tol(Agent, do(A, S)) = Tol :-
 
 on_right_lane(Agent) = ( func(T, S) = [
         constant(-4.5) `=<` y(Agent, S)(T),
-                                y(Agent, S)(T) `=<` constant(-0.5)
+                            y(Agent, S)(T) `=<` constant(-0.5)
     ] ).
 
 :- func on_left_lane(agent) = ccformula(prim) is det.
 
 on_left_lane(Agent) = ( func(T, S) = [
-        constant(0.5) `=<` y(Agent, S)(T),
-                                 y(Agent, S)(T) `=<` constant(4.5)
+        constant(0.5) `=<` y(Agent, S)(T)%,
+                           %y(Agent, S)(T) `=<` constant(4.5)
     ] ).
 
 :- func behind(agent, agent) = ccformula(prim) is det.
@@ -323,7 +323,7 @@ behind(Agent0, Agent1) = ( func(T, S) = [
 
 :- func filter_empty_cstrs(list(constraint)::in) = (list(constraint)::out) is det.
 
-filter_empty_cstrs(Cs) = negated_filter(is_empty, Cs).
+filter_empty_cstrs(Cs) = negated_filter(holds_trivially, Cs).
 
 
 :- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
@@ -621,7 +621,18 @@ print_sit_info(Map, S, !IO) :-
     wrt("y(b, S) = ", E(y(b, S)(start(S))), !IO),
     wrt("x_tol(b, S) = ", x_tol(b, S), !IO),
     wrt("y_tol(b, S) = ", y_tol(b, S), !IO),
-    wrt("now(S) = ", E(now(S)(start(S))), !IO).
+    wrt("now(S) = ", E(now(S)(start(S))), !IO),
+    (   if      solve(vargen(S), filter_empty_cstrs(on_right_lane(b)(start(S), S)))
+        then    write_string("on_right_lane(b) holds", !IO)
+        else    write_string("on_right_lane(b) holds not", !IO)
+    ), nl(!IO),
+    wrt("on_right_lane = ", filter_empty_cstrs(on_right_lane(b)(start(S), S)), !IO),
+    (   if      solve(vargen(S), filter_empty_cstrs(on_left_lane(b)(start(S), S)))
+        then    write_string("on_left_lane(b) holds", !IO)
+        else    write_string("on_left_lane(b) holds not", !IO)
+    ), nl(!IO),
+    wrt("on_left_lane = ", filter_empty_cstrs(on_left_lane(b)(start(S), S)), !IO),
+    true.
 
 :- pred wrt(string::in, T::in, io::di, io::uo) is det.
 
@@ -664,20 +675,24 @@ exec(!C, !IO) :-
                 exec(!C, !IO)
         else    write(rest(!.C), !IO), nl(!IO),
                 write_string("stopped", !IO), nl(!IO),
-/*
+%/*
                 solutions((pred(X::out) is nondet :-
                     next2(rest(!.C), X, Y),
                     trace [io(!IO)] (
                         write(X, !IO), nl(!IO),
                         write(Y, !IO), nl(!IO),
-                        (   if X = stoch(B), cars.random_outcome(B, A, sit(!.C)), cars.poss(A, _, sit(!.C))
-                            then write_string("outcome ", !IO), write(A, !IO), nl(!IO)
-                            else true
+                        (   if      X = stoch(B), cars.random_outcome(B, A, sit(!.C))
+                            then    write_string("outcome ", !IO), write(A, !IO), nl(!IO),
+                                    (   if      cars.poss(A, _, sit(!.C))
+                                        then    write_string("possible!!", !IO), nl(!IO)
+                                        else    write_string("impossible!!", !IO), nl(!IO)
+                                    )
+                            else    true
                         ),
                         nl(!IO)
                     )
                 ), _),
-*/
+%*/
                 true
     ).
 
