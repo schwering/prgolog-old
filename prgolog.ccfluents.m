@@ -23,9 +23,8 @@
 
 :- interface.
 
-:- use_module lpq.
-:- import_module map.
-:- import_module rat.
+:- import_module assoc_list.
+:- use_module osi.
 :- use_module term.
 :- use_module varset.
 
@@ -46,13 +45,12 @@
 :- func new_variable(vargen, vargen) = aterm.
 :- mode new_variable(in, out) = out is det.
 
-:- func null_var = var.
-:- mode null_var = out is det.
+%:- mode null_var = out is det.
 
 %-----------------------------------------------------------------------------%
 
-:- type number == rat.
-:- type constraint == lpq.constraint.
+:- type number == float.
+:- type constraint == osi.constraint.
 :- type aterm.
 :- type tfunc(T) == ( func(aterm) = T ).
 :- type tfunc == tfunc(aterm).
@@ -82,6 +80,8 @@
 :- func aterm `=` aterm = constraint.
 :- mode in `=` in = out is det.
 
+:- pred is_empty(constraint::in) is semidet.
+
 %-----------------------------------------------------------------------------%
 
 :- type objective ---> min(aterm) ; max(aterm).
@@ -89,7 +89,7 @@
 :- pred solve(vargen, list(constraint)).
 :- mode solve(in, in) is semidet.
 
-:- pred solve(vargen, list(constraint), objective, map(var, number), number).
+:- pred solve(vargen, list(constraint), objective, assoc_list(var, number), number).
 :- mode solve(in, in, in, out, out) is semidet.
 
 :- func variables(vargen) = list(var).
@@ -98,10 +98,10 @@
 :- func variable_sum(vargen) = aterm.
 :- mode variable_sum(in) = out is det.
 
-:- func eval(map(var, number), aterm) = number.
+:- func eval(assoc_list(var, number), aterm) = number.
 :- mode eval(in, in) = out is det.
 
-:- func eval_float(map(var, number), aterm) = float.
+:- func eval_float(assoc_list(var, number), aterm) = float.
 :- mode eval_float(in, in) = out is det.
 
 %-----------------------------------------------------------------------------%
@@ -128,9 +128,9 @@
 
 varset(vargen(VS)) = VS.
 
-init_vargen = VG :- varset.init(VS), new_var(vargen(VS), VG, _).
+init_vargen = vargen(VS) :- varset.init(VS).%, new_var(vargen(VS), VG, _).
 
-null_var = V :- varset.init(VS), new_var(vargen(VS), _, V).
+%null_var = V :- varset.init(VS), new_var(vargen(VS), _, V).
 
 new_var(vargen(!.VS), vargen(!:VS), V) :- varset.new_var(V, !VS).
 
@@ -146,7 +146,7 @@ new_variable(VG0, VG1) = variable(V) :- new_var(VG0, VG1, V).
 
 constant(C) = [const(C)].
 
-variable(V) = [mult(one, V)].
+variable(V) = [mult(1.0, V)].
 
 %-----------------------------------------------------------------------------%
 
@@ -162,19 +162,21 @@ T1 - T2 = T1 ++ T3 :-
         ;   Summand = const(C),   Summand1 = const(-C) )
     ), T2).
 
-:- pred split(aterm, lpq.lp_terms, number).
+:- pred split(aterm, list(pair(var, number)), number).
 :- mode split(in, out, out) is det.
 
-split([], [], zero).
+split([], [], 0.0).
 split([const(C0) | Ts], Vs, C0 + C1) :- split(Ts, Vs, C1).
 split([mult(C, V) | Ts], [(V - C) | Vs], C1) :- split(Ts, Vs, C1).
 
-T1 `=<` T2 = lpq.construct_constraint(Sum, lpq.lp_lt_eq, -Constant) :-
+T1 `=<` T2 = osi.construct_constraint(Sum, osi.(=<), -Constant) :-
     split(T1 - T2, Sum, Constant).
-T1 `=`  T2 = lpq.construct_constraint(Sum, lpq.lp_eq,    -Constant) :-
+T1 `=`  T2 = osi.construct_constraint(Sum, osi.(=),  -Constant) :-
     split(T1 - T2, Sum, Constant).
-T1 `>=` T2 = lpq.construct_constraint(Sum, lpq.lp_gt_eq, -Constant) :-
+T1 `>=` T2 = osi.construct_constraint(Sum, osi.(>=), -Constant) :-
     split(T1 - T2, Sum, Constant).
+
+is_empty(C) :- osi.is_empty(C).
 
 %-----------------------------------------------------------------------------%
 
@@ -183,24 +185,26 @@ solve(Vargen, Constraints) :-
 
 %:- pragma memo(solve/5, [allow_reset, fast_loose]). 
 
+:- import_module io.
 solve(Vargen, Constraints, Obj, Map, Val) :-
-    (   Obj = max(ObjTerm), Dir = lpq.max
-    ;   Obj = min(ObjTerm), Dir = lpq.min
+    (   Obj = max(ObjTerm), Dir = osi.max
+    ;   Obj = min(ObjTerm), Dir = osi.min
     ),
     split(ObjTerm, ObjVars, ObjCons),
-    Res = lpq.solve(Constraints, Dir, ObjVars, varset(Vargen)),
-    Res = lpq.lp_res_satisfiable(Val0, Map),
+    Res = osi.solve(Constraints, Dir, ObjVars, varset(Vargen)),
+    Res = osi.satisfiable(Val0, Map),
     Val = Val0 + ObjCons.
 
 variables(vargen(VS)) = varset.vars(VS).
 
-variable_sum(vargen(VS)) = map((func(V) = mult(one, V)), varset.vars(VS)).
+variable_sum(vargen(VS)) = map((func(V) = mult(1.0, V)), varset.vars(VS)).
 
-eval(_, []) = zero.
+eval(_, []) = 0.0.
 eval(M, [const(C) | Ts]) = C + eval(M, Ts).
 eval(M, [mult(C, V) | Ts]) = C * det_elem(V, M) + eval(M, Ts).
 
-eval_float(M, T) = float(numer(R)) / float(denom(R)) :- R = eval(M, T).
+%eval_float(M, T) = float(numer(R)) / float(denom(R)) :- R = eval(M, T).
+eval_float(M, T) = eval(M, T).
 
 %-----------------------------------------------------------------------------%
 
