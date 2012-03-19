@@ -482,23 +482,23 @@ proc(straight_right(Agent), P) :-
 
 proc(left_lane_change(Agent), P) :-
     P = atomic(
-            %( %b(set_yaw_st(Agent, right, deg2rad(14.0))) or
-              %b(set_yaw_st(Agent, right, deg2rad(12.0))) or
-              %b(set_yaw_st(Agent, right, deg2rad(10.0))) or
-              b(set_yaw_st(Agent, right, deg2rad(8.0)))% or
-              %b(set_yaw_st(Agent, right, deg2rad(6.0))) ) `;`
-            %nil% a(eval(on_right_lane(Agent), no, [], notime))
+            ( b(set_yaw_st(Agent, right, deg2rad(14.0))) or
+              b(set_yaw_st(Agent, right, deg2rad(12.0))) or
+              b(set_yaw_st(Agent, right, deg2rad(10.0))) or
+              b(set_yaw_st(Agent, right, deg2rad(8.0))) or
+              b(set_yaw_st(Agent, right, deg2rad(6.0))) ) `;`
+            a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
         p(straight_left(Agent)).
 
 proc(right_lane_change(Agent), P) :-
     P = atomic(
             ( b(set_yaw_st(Agent, left, deg2rad(-14.0))) or
-              %b(set_yaw_st(Agent, left, deg2rad(-12.0))) or
-              %b(set_yaw_st(Agent, left, deg2rad(-10.0))) or
-              %b(set_yaw_st(Agent, left, deg2rad(-8.0))) or
+              b(set_yaw_st(Agent, left, deg2rad(-12.0))) or
+              b(set_yaw_st(Agent, left, deg2rad(-10.0))) or
+              b(set_yaw_st(Agent, left, deg2rad(-8.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-6.0))) ) `;`
-            nil% a(eval(on_right_lane(Agent), no, [], notime))
+            a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
         p(straight_right(Agent)).
 
@@ -517,7 +517,7 @@ proc(overtake(Agent, Victim), P) :-
             a(wait_for(Victim `behind` Agent, no, [], notime)) `;`
             p(right_lane_change(Agent))
         ) // (
-            b(set_veloc_st(Agent, 20.8))
+            b(set_veloc_st(Agent, 20.2))
         )) `;`
         a(eval(on_right_lane(Agent)
            and Victim `behind` Agent
@@ -545,31 +545,32 @@ initial_time(5.594000).
 initial(a, 34.776825, -2.999933).
 initial(b, 6.304431, -3.273941).
 
-:- pred obs(s::out, agent::out, m::out, m::out,
-                    agent::out, m::out, m::out) is multi.
+:- pred obs(s, agent, m, m, agent, m, m).
+:- mode obs(out, out, out, out, out, out, out) is multi.
+:- mode obs(in, out, out, out, out, out, out) is semidet.
 
-obs(5.594000,  a, 34.776825, -2.999933,  b, 6.304431, -3.273941).
-obs(6.100000,  a, 42.410252, -2.999933,  b, 16.886641, -3.226734).
-obs(6.606000,  a, 50.046276, -2.999933,  b, 27.465494, -3.191746).
-obs(7.112000,  a, 57.682270, -2.999933,  b, 38.043564, -3.213415).
-obs(7.618000,  a, 65.313354, -2.999933,  b, 48.628551, -3.218992).
-obs(8.132000,  a, 73.062225, -2.999933,  b, 59.107368, -1.065044).
-obs(8.632000,  a, 80.600098, -2.999933,  b, 69.129898, 1.880987).
-obs(9.132000,  a, 88.137970, -2.999933,  b, 79.493713, 2.901567).
-obs(9.632000,  a, 95.675766, -2.999933,  b, 89.940277, 2.991667).
-obs(10.132000, a, 103.213608, -2.999933, b, 100.390549, 3.025797).
-obs(10.632000, b, 110.836411, 3.002779,  a, 110.751450, -2.999933).
-obs(11.132000, b, 121.284592, 2.924112,  a, 118.289291, -2.999933).
-obs(11.632000, b, 131.733932, 2.790201,  a, 125.827133, -2.999933).
-obs(12.132000, b, 142.175156, 2.600296,  a, 133.364975, -2.999933).
-obs(12.632000, b, 152.542404, 1.616369,  a, 140.902817, -2.999933).
+obs(5.594000,  a, 34.776825, -2.999933,   b, 6.304431, -3.273941).
+obs(6.100000,  a, 42.410252, -2.999933,   b, 16.886641, -3.226734).
+obs(6.606000,  a, 50.046276, -2.999933,   b, 27.465494, -3.191746).
+obs(7.112000,  a, 57.682270, -2.999933,   b, 38.043564, -3.213415).
+obs(7.618000,  a, 65.313354, -2.999933,   b, 48.628551, -3.218992).
+obs(8.132000,  a, 73.062225, -2.999933,   b, 59.107368, -1.065044).
+obs(8.632000,  a, 80.600098, -2.999933,   b, 69.129898, 1.880987).
+obs(9.132000,  a, 88.137970, -2.999933,   b, 79.493713, 2.901567).
+obs(9.632000,  a, 95.675766, -2.999933,   b, 89.940277, 2.991667).
+obs(10.132000, a, 103.213608, -2.999933,  b, 100.390549, 3.025797).
+obs(10.632000,  a, 110.751450, -2.999933, b, 110.836411, 3.002779).
+obs(11.132000,  a, 118.289291, -2.999933, b, 121.284592, 2.924112).
+obs(11.632000,  a, 125.827133, -2.999933, b, 131.733932, 2.790201).
+obs(12.132000,  a, 133.364975, -2.999933, b, 142.175156, 2.600296).
+obs(12.632000,  a, 140.902817, -2.999933, b, 152.542404, 1.616369).
 /*
-obs(13.132000, b, 162.487106, -1.544439, a, 148.440659, -2.999933).
-obs(13.632000, b, 172.840927, -2.558414, a, 155.988510, -2.999933).
-obs(14.132000, b, 183.293320, -2.678141, a, 163.527390, -2.999933).
-obs(14.632000, b, 193.741440, -2.689064, a, 171.065231, -2.999933).
-obs(15.132000, b, 204.195236, -2.745777, a, 178.591293, -2.999933).
-obs(15.632000, b, 214.648361, -2.857815, a, 186.113022, -2.999933).
+obs(13.132000, a, 148.440659, -2.999933, b, 162.487106, -1.544439).
+obs(13.632000, a, 155.988510, -2.999933, b, 172.840927, -2.558414).
+obs(14.132000, a, 163.527390, -2.999933, b, 183.293320, -2.678141).
+obs(14.632000, a, 171.065231, -2.999933, b, 193.741440, -2.689064).
+obs(15.132000, a, 178.591293, -2.999933, b, 204.195236, -2.745777).
+obs(15.632000, a, 186.113022, -2.999933, b, 214.648361, -2.857815).
 */
 
 :- pred obs(prim::out) is multi.
@@ -666,18 +667,19 @@ print_sit_with_info(Map, S1 @ do(A, S), !IO) :-
 
 print_sit_info(Map, S, !IO) :-
     E = ( func(T) = eval_float(Map, T) ),
-    wrt("veloc(S) = ", veloc(S), !IO),
-    wrt("yaw(S) = ", yaw(S), !IO),
-    wrt("start(S) = ", E(start(S)), !IO),
-    wrt("x(b, S) = ", E(x(b, S)(start(S))), !IO),
-    wrt("y(b, S) = ", E(y(b, S)(start(S))), !IO),
-    wrt("x_tol(b, S) = ", x_tol(b, S), !IO),
-    wrt("y_tol(b, S) = ", y_tol(b, S), !IO),
-    wrt("now(S) = ", E(now(S)(start(S))), !IO),
+    format("veloc(S) = %.1f\n", [f(veloc(S))], !IO),
+    format("yaw(S) = %.1f\n", [f(yaw(S))], !IO),
+    format("start(S) = %.1f\n", [f(E(start(S)))], !IO),
+    format("x(b, S) = %.1f\n", [f(E(x(b, S)(start(S))))], !IO),
+    format("y(b, S) = %.1f\n", [f(E(y(b, S)(start(S))))], !IO),
+    format("x_tol(b, S) = %.1f\n", [f(x_tol(b, S))], !IO),
+    format("y_tol(b, S) = %.1f\n", [f(y_tol(b, S))], !IO),
+    format("now(S) = %.1f\n", [f(E(now(S)(start(S))))], !IO),
 
-    Time = constant(8.632000),
-    wrt("x(b, S)(T) = ", E(x(b, S)(Time)), !IO),
-    wrt("y(b, S)(T) = ", E(y(b, S)(Time)), !IO),
+    %Time = constant(13.132000),
+    %wrt("x(b, S)(T) = ", E(x(b, S)(Time)), !IO),
+    %wrt("y(b, S)(T) = ", E(y(b, S)(Time)), !IO),
+
     %(   if      solve(vargen(S), filter_empty_cstrs(on_right_lane(b)(start(S), S)))
     %    then    write_string("on_right_lane(b) holds", !IO)
     %    else    write_string("on_right_lane(b) holds not", !IO)
@@ -726,8 +728,15 @@ exec(!C, !IO) :-
                 VG = vargen(S1),
                 Cs = constraints(S1),
                 solve(VG, Cs, min(variable_sum(VG)), Map, _Val)
-        then    print_sit(Map, sit(!.C), !IO), nl(!IO),
-                print_sit_info(Map, sit(!.C), !IO), nl(!IO),
+        then    %print_sit(Map, sit(!.C), !IO), nl(!IO),
+                (   if      sit(!.C) = do(match(_, _, _, _, ObsTime), _),
+                            ObsT = eval_float(Map, ObsTime),
+                            obs(ObsT, _, _, _, b, ObsX, ObsY)
+                    then    print_sit_info(Map, sit(!.C), !IO), nl(!IO),
+                            format("obs[%f] = (%.1f, %.1f)\n\n\n",
+                                   [f(ObsT), f(ObsX), f(ObsY)], !IO)
+                    else    true
+                ),
                 %write(constraints(sit(!.C)), !IO), nl(!IO),
                 exec(!C, !IO)
         else    write(rest(!.C), !IO), nl(!IO),
