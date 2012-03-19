@@ -21,6 +21,8 @@ SolverContext* new_solver_context(int nvars)
   }
   ctx->solver->loadProblem(*ctx->matrix, ctx->var_lb, ctx->var_ub,
                            ctx->objective, 0, 0);
+  ctx->solver->setHintParam(OsiDoReducePrint);
+  ctx->solver->messageHandler()->setLogLevel(0); 
   ctx->nvars = nvars;
   return ctx;
 }
@@ -42,22 +44,22 @@ void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
   //fprintf(stderr, "n = %d (%d)\n", n, ctx->nvars);
   CoinPackedVector row;
   for (int i = 0; i < n; ++i) {
-    fprintf(stderr, "  + %.1lf * v_%d", as[i], vs[i]);
+    //fprintf(stderr, "  + %lf * v_%d", as[i], vs[i]);
     row.insert(vs[i], as[i]);
   }
   double row_lb, row_ub;
   if (cmp < 0) { // ">="
     row_lb = bnd;
     row_ub = ctx->solver->getInfinity();
-    fprintf(stderr, " >= %.1lf\n", bnd);
+    //fprintf(stderr, " >= %lf\n", bnd);
   } else if (cmp > 0) { // "=<"
     row_lb = -1.0 * ctx->solver->getInfinity();
-    row_lb = bnd;
-    fprintf(stderr, " =< %.1lf\n", bnd);
+    row_ub = bnd;
+    //fprintf(stderr, " =< %lf\n", bnd);
   } else { // "="
     row_lb = bnd;
     row_ub = bnd;
-    fprintf(stderr, " = %.1lf\n", bnd);
+    //fprintf(stderr, " = %lf\n", bnd);
   }
   ctx->solver->addRow(row, row_lb, row_ub);
 }
@@ -66,7 +68,7 @@ bool solve(SolverContext* ctx, double* obj_val, double** var_vals, int* nvars)
 {
   ctx->solver->initialSolve();
   bool optimal = ctx->solver->isProvenOptimal();
-  //ctx->solver->writeMps("problem");
+  ctx->solver->writeMps("problem");
   if (optimal) {
     *obj_val = ctx->solver->getObjValue();
     // use malloc() because Mercury has only free() but no delete

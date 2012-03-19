@@ -174,7 +174,7 @@ split([mult(C, V) | Ts], [(V - C) | Vs], C1) :- split(Ts, Vs, C1).
 :- pred aggregate(list(pair(var, number))::in,
                   list(pair(var, number))::out) is det.
 
-aggregate(L, aggregate_2(L)).
+aggregate(L, aggregate_2(sort(L))).
 
 
 :- func aggregate_2(list(pair(var, number))::in) =

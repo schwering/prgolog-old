@@ -309,8 +309,8 @@ on_right_lane(Agent) = ( func(T, S) = [
 :- func on_left_lane(agent) = ccformula(prim) is det.
 
 on_left_lane(Agent) = ( func(T, S) = [
-        constant(0.5) `=<` y(Agent, S)(T)%,
-                           %y(Agent, S)(T) `=<` constant(4.5)
+        constant(0.5) `=<` y(Agent, S)(T),
+                           y(Agent, S)(T) `=<` constant(4.5)
     ] ).
 
 :- func behind(agent, agent) = ccformula(prim) is det.
@@ -410,10 +410,10 @@ random_outcome(set_veloc_st(Agent, V),
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
 
-random_outcome(set_yaw_st(Agent, Lane, Y),
-               set_yaw(Agent, Lane, Y, Tol, yes(RS1), no, [], notime),
+random_outcome(set_yaw_st(Agent, Lane, Yaw),
+               set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime),
                S) :-
-    Tol = 0.5 + Y * 4.0,
+    Tol = 0.9 + Yaw * 4.0,
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, _, _Tol, RS0, RS1).
 
@@ -421,7 +421,7 @@ random_outcome(set_yaw_st(Agent, Lane, Y),
 
 :- func lookahead(sit(prim)) = lookahead is det.
 
-lookahead(_S) = 3.
+lookahead(_S) = 6.
 
 %-----------------------------------------------------------------------------%
 
@@ -552,7 +552,6 @@ obs(7.112000,  a, 57.682270, -2.999933,  b, 38.043564, -3.213415).
 obs(7.618000,  a, 65.313354, -2.999933,  b, 48.628551, -3.218992).
 obs(8.132000,  a, 73.062225, -2.999933,  b, 59.107368, -1.065044).
 obs(8.632000,  a, 80.600098, -2.999933,  b, 69.129898, 1.880987).
-/*
 obs(9.132000,  a, 88.137970, -2.999933,  b, 79.493713, 2.901567).
 obs(9.632000,  a, 95.675766, -2.999933,  b, 89.940277, 2.991667).
 obs(10.132000, a, 103.213608, -2.999933, b, 100.390549, 3.025797).
@@ -561,6 +560,7 @@ obs(11.132000, b, 121.284592, 2.924112,  a, 118.289291, -2.999933).
 obs(11.632000, b, 131.733932, 2.790201,  a, 125.827133, -2.999933).
 obs(12.132000, b, 142.175156, 2.600296,  a, 133.364975, -2.999933).
 obs(12.632000, b, 152.542404, 1.616369,  a, 140.902817, -2.999933).
+/*
 obs(13.132000, b, 162.487106, -1.544439, a, 148.440659, -2.999933).
 obs(13.632000, b, 172.840927, -2.558414, a, 155.988510, -2.999933).
 obs(14.132000, b, 183.293320, -2.678141, a, 163.527390, -2.999933).
@@ -590,12 +590,60 @@ obs_prog = Prog :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_sit(sit(prim)::in, io::di, io::uo) is det.
+:- func agent_to_string(agent) = string is det.
 
-print_sit(s0, !IO).
-print_sit(do(A, S), !IO) :-
-    print_sit(S, !IO),
-    write(A, !IO), nl(!IO).
+agent_to_string(a) = "a".
+agent_to_string(b) = "b".
+
+
+:- func lane_to_string(lane) = string is det.
+
+lane_to_string(left) = "left".
+lane_to_string(right) = "right".
+
+
+:- pred print_action(assoc_list(var, number)::in, prim::in,
+                     io::di, io::uo) is det.
+
+print_action(Map, set_veloc(A, Mps, Tol, _, _, _, Time), !IO) :-
+    T = eval_float(Map, Time),
+    format("set_veloc(%s, %f, %f, %f)\n",
+           [s(agent_to_string(A)), f(Mps), f(Tol), f(T)], !IO).
+print_action(Map, set_yaw(A, L, Rad, Tol, _, _, _, Time), !IO) :-
+    T = eval_float(Map, Time),
+    format("set_yaw(%s, %s, %f, %f, %f)\n",
+           [s(agent_to_string(A)), s(lane_to_string(L)),
+            f(Rad), f(Tol), f(T)], !IO).
+print_action(Map, wait_for(_, _, _, Time), !IO) :-
+    T = eval_float(Map, Time),
+    format("wait_for(..., %f)\n",
+           [f(T)], !IO).
+print_action(Map, match(OTime, _, _, _, Time), !IO) :-
+    T = eval_float(Map, Time),
+    format("match(%f, ..., %f)\n",
+           [f(OTime), f(T)], !IO).
+print_action(Map, eval(_, _, _, Time), !IO) :-
+    T = eval_float(Map, Time),
+    format("eval(..., %f)\n",
+           [f(T)], !IO).
+
+
+:- pred print_sit(assoc_list(var, float)::in, sit(prim)::in,
+                  io::di, io::uo) is det.
+
+print_sit(Map, S, !IO) :- print_sit_2(Map, S, 1, _, !IO).
+
+
+:- pred print_sit_2(assoc_list(var, float)::in, sit(prim)::in,
+                    int::in, int::out, io::di, io::uo) is det.
+
+print_sit_2(_, s0, !N, !IO).
+print_sit_2(Map, do(A, S), !.N, !:N, !IO) :-
+    print_sit_2(Map, S, !N, !IO),
+    write_string(" ", !IO), write(!.N, !IO), write_string(": ", !IO),
+    !:N = !.N + 1,
+    print_action(Map, A, !IO).
+
 
 :- pred print_sit_with_info(assoc_list(var, number)::in, sit(prim)::in, io::di, io::uo) is det.
 
@@ -605,9 +653,10 @@ print_sit_with_info(Map, s0, !IO) :-
     nl(!IO).
 print_sit_with_info(Map, S1 @ do(A, S), !IO) :-
     print_sit_with_info(Map, S, !IO),
-    write(A, !IO), nl(!IO),
+    print_action(Map, A, !IO),
     print_sit_info(Map, S1, !IO),
     nl(!IO).
+
 
 :- pred print_sit_info(assoc_list(var, number)::in, sit(prim)::in,
                        io::di, io::uo) is det.
@@ -622,16 +671,20 @@ print_sit_info(Map, S, !IO) :-
     wrt("x_tol(b, S) = ", x_tol(b, S), !IO),
     wrt("y_tol(b, S) = ", y_tol(b, S), !IO),
     wrt("now(S) = ", E(now(S)(start(S))), !IO),
-    (   if      solve(vargen(S), filter_empty_cstrs(on_right_lane(b)(start(S), S)))
-        then    write_string("on_right_lane(b) holds", !IO)
-        else    write_string("on_right_lane(b) holds not", !IO)
-    ), nl(!IO),
-    wrt("on_right_lane = ", filter_empty_cstrs(on_right_lane(b)(start(S), S)), !IO),
-    (   if      solve(vargen(S), filter_empty_cstrs(on_left_lane(b)(start(S), S)))
-        then    write_string("on_left_lane(b) holds", !IO)
-        else    write_string("on_left_lane(b) holds not", !IO)
-    ), nl(!IO),
-    wrt("on_left_lane = ", filter_empty_cstrs(on_left_lane(b)(start(S), S)), !IO),
+
+    Time = constant(8.632000),
+    wrt("x(b, S)(T) = ", E(x(b, S)(Time)), !IO),
+    wrt("y(b, S)(T) = ", E(y(b, S)(Time)), !IO),
+    %(   if      solve(vargen(S), filter_empty_cstrs(on_right_lane(b)(start(S), S)))
+    %    then    write_string("on_right_lane(b) holds", !IO)
+    %    else    write_string("on_right_lane(b) holds not", !IO)
+    %), nl(!IO),
+    %wrt("on_right_lane = ", filter_empty_cstrs(on_right_lane(b)(start(S), S)), !IO),
+    %(   if      solve(vargen(S), filter_empty_cstrs(on_left_lane(b)(start(S), S)))
+    %    then    write_string("on_left_lane(b) holds", !IO)
+    %    else    write_string("on_left_lane(b) holds not", !IO)
+    %), nl(!IO),
+    %wrt("on_left_lane = ", filter_empty_cstrs(on_left_lane(b)(start(S), S)), !IO),
     true.
 
 :- pred wrt(string::in, T::in, io::di, io::uo) is det.
@@ -643,6 +696,7 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 :- pred exec(io::di, io::uo) is det.
 
 exec(!IO) :-
+    %P = p(cruise(a)) // p(overtake(b, a)),
     P = obs_prog // p(cruise(a)) // p(overtake(b, a)),
     C = init(P),
     write_string("initial situation", !IO), nl(!IO),
@@ -669,7 +723,7 @@ exec(!C, !IO) :-
                 VG = vargen(S1),
                 Cs = constraints(S1),
                 solve(VG, Cs, min(variable_sum(VG)), Map, _Val)
-        then    print_sit(sit(!.C), !IO), nl(!IO),
+        then    print_sit(Map, sit(!.C), !IO), nl(!IO),
                 print_sit_info(Map, sit(!.C), !IO), nl(!IO),
                 %write(constraints(sit(!.C)), !IO), nl(!IO),
                 exec(!C, !IO)

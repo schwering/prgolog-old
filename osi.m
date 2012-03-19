@@ -73,13 +73,13 @@ fails_trivially(cstr([], (=<), Bnd)) :- Bnd < 0.0.
 
 %-----------------------------------------------------------------------------%
 
-solve(Cstrs, _Dir, _Obj, _VS) = R :-
+solve(Cstrs, _Dir, _Obj, VS) = R :-
     if      Cstrs = []
     then    R = satisfiable(0.0, [])
     else if one_fails_trivially(Cstrs)
     then    R = unsatisfiable
     else    some [!SC] (
-                N = 100,
+                N = var_id(max_var(VS)),
                 new_solver_context(N, !:SC),
                 add_constraints(Cstrs, !SC),
                 solve(Optimal, ObjValue, VarValues, !.SC, _)%,
@@ -120,7 +120,7 @@ list_to_map(Fs) = list_to_map_2(0, Fs).
 list_to_map_2(_, []) = [].
 list_to_map_2(I, [F|Fs]) = Fs0 :-
     Fs1 = list_to_map_2(I+1, Fs),
-    (   if      F = 0.0
+    (   if      F \= 0.0
         then    Fs0 = [(int_id_to_var(I) - F) | Fs1]
         else    Fs0 = Fs1
     ).
