@@ -26,7 +26,7 @@
 :- func systime(tms::in, tms::in) = (float::out) is det.
 :- pred systime(tms::in, tms::in, float::out) is det.
 
-:- pred sleep(int::in) is det.
+:- pred sleep(int::in, io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -83,10 +83,11 @@ systime(Tms1, Tms2) = Diff :- systime(Tms1, Tms2, Diff).
 
 
 :- pragma foreign_proc("C",
-    sleep(Secs::in),
+    sleep(Secs::in, IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure],
 "
     sleep(Secs);
+    IO1 = IO0;
 ").
 
 %-----------------------------------------------------------------------------%
