@@ -38,6 +38,7 @@
 :- import_module float.
 :- import_module list.
 :- import_module math.
+:- import_module map.
 :- import_module maybe.
 :- use_module random.
 :- import_module string.
@@ -45,6 +46,7 @@
 :- import_module times.
 :- import_module thread.
 :- import_module thread.channel.
+:- import_module thread.mvar.
 :- import_module table_statistics.
 
 %-----------------------------------------------------------------------------%
@@ -540,6 +542,8 @@ proc(overtake(Agent, Victim), P) :-
 
 %-----------------------------------------------------------------------------%
 
+:- type obs == {s, agent, m, m, agent, m, m}.
+
 :- pred initial_time(s::out) is det.
 
 initial_time(5.594000).
@@ -579,10 +583,20 @@ obs(15.632000, a, 186.113022, -2.999933, b, 214.648361, -2.857815).
 /*
 */
 
-:- pred obs(prim::out) is multi.
 
-obs(match(OT, OF, no, [], notime)) :-
-    obs(OT, A0, X0, Y0, A1, X1, Y1),
+:- pred obs(obs::out) is multi.
+
+obs({T, A0, X0, Y0, A1, X1, Y1}) :- obs(T, A0, X0, Y0, A1, X1, Y1).
+
+
+:- pred match_action(prim::out) is multi.
+
+match_action(obs2match(Obs)) :- obs(Obs).
+
+
+:- func obs2match(obs::in) = (prim::out) is det.
+
+obs2match({OT, A0, X0, Y0, A1, X1, Y1}) = match(OT, OF, no, [], notime) :-
     C = ( func(F) = constant(F) ),
     OF = ( func(T, S) = [
         C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T),
@@ -596,37 +610,89 @@ obs(match(OT, OF, no, [], notime)) :-
     ] ).
 
 
-:- func append_obs(prog(prim, stoch, procedure), prim) =
+:- func append_match(prog(prim, stoch, procedure), prim) =
     prog(prim, stoch, procedure) is det.
 
-append_obs(P, O) =
-    (   if      append_obs_2(P, O, Q)
+append_match(P, O) =
+    (   if      append_match_2(P, O, Q)
         then    Q
         else    conc(P, pseudo_atom(atom(prim(O))))
     ).
 
 
-:- pred append_obs_2(prog(prim, stoch, procedure)::in, prim::in,
+:- pred append_match_2(prog(prim, stoch, procedure)::in, prim::in,
     prog(prim, stoch, procedure)::out) is semidet.
 
-append_obs_2(seq(P1, P2), O, seq(Q1, Q2)) :-
-    if      append_obs_2(P2, O, Q3)
+append_match_2(seq(P1, P2), O, seq(Q1, Q2)) :-
+    if      append_match_2(P2, O, Q3)
     then    Q1 = P1, Q2 = Q3
-    else    Q2 = P2, append_obs_2(P1, O, Q1).
-append_obs_2(conc(P1, P2), O, conc(Q1, Q2)) :-
-    if      append_obs_2(P2, O, Q3)
+    else    Q2 = P2, append_match_2(P1, O, Q1).
+append_match_2(conc(P1, P2), O, conc(Q1, Q2)) :-
+    if      append_match_2(P2, O, Q3)
     then    Q1 = P1, Q2 = Q3
-    else    Q2 = P2, append_obs_2(P1, O, Q1).
-append_obs_2(P @ pseudo_atom(atom(prim(match(_, _, _, _, _)))), O, seq(Q1, Q2)) :-
+    else    Q2 = P2, append_match_2(P1, O, Q1).
+append_match_2(P @ pseudo_atom(atom(prim(match(_, _, _, _, _)))),
+               O, seq(Q1, Q2)) :-
     Q1 = P, Q2 = seq(P, pseudo_atom(atom(prim(O)))).
 
 
-:- func obs_prog = prog(prim, stoch, procedure) is det.
+:- func remove_match_sequence(prog(prim, stoch, procedure)) =
+    prog(prim, stoch, procedure) is semidet.
 
-obs_prog = Prog :-
-    solutions(obs, Actions),
+remove_match_sequence(conc(P1, P2)) = Q :-
+    if          only_match_actions(P2)
+    then        Q = P1
+    else if     only_match_actions(P1)
+    then        Q = P2
+    else        false.
+
+
+:- pred only_match_actions(prog(prim, stoch, procedure)::in) is semidet.
+
+only_match_actions(seq(P1, P2)) :-
+    only_match_actions(P1),
+    only_match_actions(P2).
+only_match_actions(non_det(P1, P2)) :-
+    only_match_actions(P1),
+    only_match_actions(P2).
+only_match_actions(conc(P1, P2)) :-
+    only_match_actions(P1),
+    only_match_actions(P2).
+only_match_actions(star(P)) :-
+    only_match_actions(P).
+only_match_actions(pseudo_atom(atom(prim(match(_, _, _, _, _))))).
+only_match_actions(nil).
+
+
+:- func append_obs(prog(prim, stoch, procedure), obs) =
+    prog(prim, stoch, procedure) is det.
+
+append_obs(P, O) = append_match(P, obs2match(O)).
+
+
+:- func match_prog = prog(prim, stoch, procedure) is det.
+
+match_prog = Prog :-
+    solutions(match_action, Actions),
     Progs = list.map(( func(A) = pseudo_atom(atom(prim(A))) ), Actions),
     Prog = list.foldr(( func(P1, P2) = seq(P1, P2) ), Progs, nil).
+
+
+:- pred simple_obs_generator(obs_generator::out(obs_generator), io::di, io::uo).
+
+simple_obs_generator(P, !IO) :-
+    solutions(obs, Obss),
+    channel.init(Var, !IO),
+    put(Var, Obss, !IO),
+    P = (pred(MaybeObs::out, IO0::di, IO2::uo) is det :-
+        try_take(Var, MaybeObss, IO0, IO1),
+        (   if      MaybeObss = yes([Obs | RestObs])
+            then    MaybeObs = yes(Obs),
+                    put(Var, RestObs, IO1, IO2)
+            else    MaybeObs = no,
+                    IO2 = IO1
+        )
+    ).
 
 %-----------------------------------------------------------------------------%
 
@@ -782,7 +848,6 @@ loop2(G, !XY, !IO) :-
 det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 
 
-:- type obs == {s, agent, m, m, agent, m, m}.
 :- type obs_generator == (pred(maybe(obs), io, io)).
 :- inst obs_generator == (pred(out, di, uo) is det).
 
@@ -798,72 +863,92 @@ pipe_obs(GenObs, ObsChannel, Cont, !IO) :-
     ).
 
 
-:- pred merge_and_trans(int::in, channel(obs)::in,
+:- type sampler_id == int.
+:- type sampler_result ---> running ; finished ; failed.
+
+:- pred set_state(sampler_id::in,
+                  sampler_result::in,
+                  mvar(map(sampler_id, sampler_result))::in,
+                  io::di, io::uo) is det.
+
+set_state(Key, Val, Var, !IO) :-
+    take(Var, Map, !IO),
+    (   if      contains(Map, Key)
+        then    Map1 = det_update(Map, Key, Val)
+        else    Map1 = det_insert(Map, Key, Val)
+    ),
+    put(Var, Map1, !IO).
+
+
+:- func state(sampler_id::in,
+              mvar(map(sampler_id, sampler_result))::in,
+              io::di, io::uo) =
+             (sampler_result::out) is det.
+
+state(Key, Var, !IO) = Val :-
+    read(Var, Map, !IO),
+    (   if      Val0 = search(Map, Key)
+        then    Val = Val0
+        else    Val = running
+    ).
+
+
+:- pred merge_and_trans(sampler_id::in,
+                        channel(obs)::in,
+                        mvar(map(sampler_id, sampler_result))::in,
                         conf(prim, stoch, procedure)::in,
                         conf(prim, stoch, procedure)::out,
                         bool::out,
                         io::di, io::uo) is det.
 
-merge_and_trans(_Id, _Channel, !Conf, Continue, !IO) :-
-    Continue = yes,
-    true.
+merge_and_trans(Id, ObsChannel, ResultMapVar, !Conf, Continue, !IO) :-
+    try_take(ObsChannel, MaybeObs, !IO),
+    (   if      MaybeObs = yes(Obs)
+        then    !:Conf = conf(append_obs(rest(!.Conf), Obs), sit(!.Conf))
+        else    !:Conf = !.Conf
+    ),
+    (   if
+            final(remove_match_sequence(rest(!.Conf)), sit(!.Conf))
+        then
+            Continue = no,
+            set_state(Id, finished, ResultMapVar, !IO)
+        else if
+            trans(!.Conf, TmpConf)
+        then
+            Continue = yes,
+            !:Conf = TmpConf
+        else
+            Continue = no,
+            set_state(Id, failed, ResultMapVar, !IO)
+    ).
 
 
-:- pred planrecog(obs_generator::in(obs_generator), prog(prim, stoch, procedure)::in, io::di, io::uo) is cc_multi.
+:- pred planrecog(obs_generator::in(obs_generator),
+                  prog(prim, stoch, procedure)::in,
+                  mvar(map(sampler_id, sampler_result))::out,
+                  io::di, io::uo) is cc_multi.
 
-planrecog(GenObs, Prog, !IO) :-
+planrecog(GenObs, Prog, ResultMap, !IO) :-
     init(ObsChannel, !IO),
+    init(ResultMap, !IO),
     spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsChannel))), !IO),
     N = 10,
     repeat((pred(I::in, IO0::di, IO1::uo) is cc_multi :-
-        Trans = merge_and_trans(I, ObsChannel),
-        ThreadBody = loop2(Trans, init(Prog), _),
-        spawn(det2cc_multi(ThreadBody), IO0, IO1)
+        some [!InnerIO] (
+            IO0 = !:InnerIO,
+            LoopBody = merge_and_trans(I, ObsChannel, ResultMap),
+            ThreadBody = loop2(LoopBody, init(Prog), _),
+            spawn(det2cc_multi(ThreadBody), !InnerIO),
+            IO1 = !.InnerIO
+        )
     ), N, !IO).
-
-
-/*
-planrecog(GenObs, !IO) :-
-    init(Channel, !IO),
-    spawn((pred(IO0::di, IO1::uo) is cc_multi :-
-        some [!IO] (
-            !:IO = IO0,
-            do_while(
-                obs,
-                (pred(Action::in, Cont::out, IO00::di, IO01::uo) is det :-
-                    put(Channel, Action, IO00, IO01),
-                    Cont = yes
-                ),
-                !IO
-            ),
-            !.IO = IO1
-        )
-    ), !IO),
-    spawn((pred(IO2::di, IO3::uo) is cc_multi :-
-        some [!IO] (
-            !:IO = IO2,
-            loop(
-                (pred(Cont::out, IO20::di, IO22::uo) is det :-
-                    try_take(Channel, MaybeAction, IO20, IO21),
-                    (   if      MaybeAction = yes(Action)
-                        then    Cont = yes, print_action([], Action, IO21, IO22)
-                        else    Cont = yes, IO22 = IO21% no, write_string("nix\n", IO21, IO22)
-                    )
-                ),
-                !IO
-            ),
-            !.IO = IO3
-        )
-    ), !IO),
-    true.
-*/
 
 %-----------------------------------------------------------------------------%
 
 :- pred exec(io::di, io::uo) is det.
 
 exec(!IO) :-
-    P = obs_prog // p(cruise(a)) // p(overtake(b, a)),
+    P = match_prog // p(cruise(a)) // p(overtake(b, a)),
     C = init(P),
     write_string("initial situation", !IO), nl(!IO),
     (   if      S1 = sit(C),
@@ -945,17 +1030,19 @@ main(!IO) :-
         ], no, [], notime)),
 */
 /*
-*/
     times(Tms0, !IO),
     exec(!IO),
     times(Tms1, !IO),
     format("usertime = %f\n", [f(usertime(Tms0, Tms1))], !IO),
     format("systime = %f\n", [f(systime(Tms0, Tms1))], !IO),
     true.
-/*
 */
+    Prog = p(cruise(a)) // p(overtake(b, a)),
+    simple_obs_generator(ObsGen, !IO),
+    planrecog(ObsGen, Prog, ResultMap, !IO),
+    write(ResultMap, !IO), nl(!IO),
 /*
-    P = obs_prog // p(cruise(a)),% // p(overtake(b, a)),
+    P = match_prog // p(cruise(a)),% // p(overtake(b, a)),
     (   if      do(P, s0, S1),
                 VG = vargen(S1),
                 Cs = constraints(S1),
@@ -971,6 +1058,7 @@ main(!IO) :-
     ).
 /*
 */
+    true.
 
 %-----------------------------------------------------------------------------%
 :- end_module cars.

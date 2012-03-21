@@ -26,6 +26,8 @@
 :- func systime(tms::in, tms::in) = (float::out) is det.
 :- pred systime(tms::in, tms::in, float::out) is det.
 
+:- pred sleep(int::in) is det.
+
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -77,6 +79,14 @@ systime(Tms1, Tms2) = Diff :- systime(Tms1, Tms2, Diff).
     } else {
         Diff = ((MR_Float) (c2 - c1)) / sysconf(_SC_CLK_TCK);
     }
+").
+
+
+:- pragma foreign_proc("C",
+    sleep(Secs::in),
+    [will_not_call_mercury, promise_pure],
+"
+    sleep(Secs);
 ").
 
 %-----------------------------------------------------------------------------%
