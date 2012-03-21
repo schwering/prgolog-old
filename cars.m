@@ -21,7 +21,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred main(io::di, io::uo) is det.
+:- pred main(io::di, io::uo) is cc_multi.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -33,6 +33,7 @@
 :- import_module prgolog.fluent.
 :- import_module prgolog.nice.
 :- import_module assoc_list.
+:- import_module bool.
 :- import_module int.
 :- import_module float.
 :- import_module list.
@@ -41,6 +42,9 @@
 :- use_module random.
 :- import_module string.
 :- import_module solutions.
+:- import_module times.
+:- import_module thread.
+:- import_module thread.channel.
 :- import_module table_statistics.
 
 %-----------------------------------------------------------------------------%
@@ -424,7 +428,7 @@ random_outcome(set_yaw_st(Agent, Lane, Yaw),
 
 :- func lookahead(sit(prim)) = lookahead is det.
 
-lookahead(_S) = 6.
+lookahead(_S) = 3.
 
 %-----------------------------------------------------------------------------%
 
@@ -540,10 +544,12 @@ proc(overtake(Agent, Victim), P) :-
 
 initial_time(5.594000).
 
+
 :- pred initial(agent::in, m::out, m::out) is det.
 
 initial(a, 34.776825, -2.999933).
 initial(b, 6.304431, -3.273941).
+
 
 :- pred obs(s, agent, m, m, agent, m, m).
 :- mode obs(out, out, out, out, out, out, out) is multi.
@@ -588,6 +594,32 @@ obs(match(OT, OF, no, [], notime)) :-
         C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T),
                                   y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
     ] ).
+
+
+:- func append_obs(prog(prim, stoch, procedure), prim) =
+    prog(prim, stoch, procedure) is det.
+
+append_obs(P, O) =
+    (   if      append_obs_2(P, O, Q)
+        then    Q
+        else    conc(P, pseudo_atom(atom(prim(O))))
+    ).
+
+
+:- pred append_obs_2(prog(prim, stoch, procedure)::in, prim::in,
+    prog(prim, stoch, procedure)::out) is semidet.
+
+append_obs_2(seq(P1, P2), O, seq(Q1, Q2)) :-
+    if      append_obs_2(P2, O, Q3)
+    then    Q1 = P1, Q2 = Q3
+    else    Q2 = P2, append_obs_2(P1, O, Q1).
+append_obs_2(conc(P1, P2), O, conc(Q1, Q2)) :-
+    if      append_obs_2(P2, O, Q3)
+    then    Q1 = P1, Q2 = Q3
+    else    Q2 = P2, append_obs_2(P1, O, Q1).
+append_obs_2(P @ pseudo_atom(atom(prim(match(_, _, _, _, _)))), O, seq(Q1, Q2)) :-
+    Q1 = P, Q2 = seq(P, pseudo_atom(atom(prim(O)))).
+
 
 :- func obs_prog = prog(prim, stoch, procedure) is det.
 
@@ -702,6 +734,132 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 
 %-----------------------------------------------------------------------------%
 
+:- type ioable == (pred(io, io)).
+:- inst ioable == (pred(di, uo) is det).
+:- inst ioable_cc_multi == (pred(di, uo) is cc_multi).
+
+:- type repeatable == (pred(int, io, io)).
+:- inst repeatable == (pred(in, di, uo) is det).
+:- inst repeatable_cc_multi == (pred(in, di, uo) is cc_multi).
+
+:- type loopable == (pred(bool, io, io)).
+:- inst loopable == (pred(out, di, uo) is det).
+
+:- type loopable2(T) == (pred(T, T, bool, io, io)).
+:- inst loopable2 == (pred(in, out, out, di, uo) is det).
+
+
+:- pred repeat(repeatable, int, io, io).
+:- mode repeat(in(repeatable), in, di, uo) is det.
+:- mode repeat(in(repeatable_cc_multi), in, di, uo) is cc_multi.
+
+repeat(G, N, !IO) :-
+    if      N > 0
+    then    G(N, !IO),
+            repeat(G, N-1, !IO)
+    else    true.
+
+
+:- pred loop(loopable::in(loopable), io::di, io::uo) is det.
+
+loop(G, !IO) :-
+    G(B, !IO),
+    yield(!IO),
+    ( if B = yes then loop(G, !IO) else true ).
+
+
+:- pred loop2(loopable2(T)::in(loopable2), T::in, T::out, io::di, io::uo) is det.
+
+loop2(G, !XY, !IO) :-
+    G(!XY, B, !IO),
+    yield(!IO),
+    ( if B = yes then loop2(G, !XY, !IO) else true ).
+
+
+:- func det2cc_multi(ioable) = ioable.
+:- mode det2cc_multi(in(ioable)) = out(ioable_cc_multi) is det.
+
+det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
+
+
+:- type obs == {s, agent, m, m, agent, m, m}.
+:- type obs_generator == (pred(maybe(obs), io, io)).
+:- inst obs_generator == (pred(out, di, uo) is det).
+
+
+:- pred pipe_obs(obs_generator::in(obs_generator),
+                 channel(obs)::in, bool::out, io::di, io::uo) is det.
+
+pipe_obs(GenObs, ObsChannel, Cont, !IO) :-
+    GenObs(MaybeObs, !IO),
+    (   if      MaybeObs = yes(Obs)
+        then    put(ObsChannel, Obs, !IO), Cont = yes
+        else    Cont = no
+    ).
+
+
+:- pred merge_and_trans(int::in, channel(obs)::in,
+                        conf(prim, stoch, procedure)::in,
+                        conf(prim, stoch, procedure)::out,
+                        bool::out,
+                        io::di, io::uo) is det.
+
+merge_and_trans(_Id, _Channel, !Conf, Continue, !IO) :-
+    Continue = yes,
+    true.
+
+
+:- pred planrecog(obs_generator::in(obs_generator), prog(prim, stoch, procedure)::in, io::di, io::uo) is cc_multi.
+
+planrecog(GenObs, Prog, !IO) :-
+    init(ObsChannel, !IO),
+    spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsChannel))), !IO),
+    N = 10,
+    repeat((pred(I::in, IO0::di, IO1::uo) is cc_multi :-
+        Trans = merge_and_trans(I, ObsChannel),
+        ThreadBody = loop2(Trans, init(Prog), _),
+        spawn(det2cc_multi(ThreadBody), IO0, IO1)
+    ), N, !IO).
+
+
+/*
+planrecog(GenObs, !IO) :-
+    init(Channel, !IO),
+    spawn((pred(IO0::di, IO1::uo) is cc_multi :-
+        some [!IO] (
+            !:IO = IO0,
+            do_while(
+                obs,
+                (pred(Action::in, Cont::out, IO00::di, IO01::uo) is det :-
+                    put(Channel, Action, IO00, IO01),
+                    Cont = yes
+                ),
+                !IO
+            ),
+            !.IO = IO1
+        )
+    ), !IO),
+    spawn((pred(IO2::di, IO3::uo) is cc_multi :-
+        some [!IO] (
+            !:IO = IO2,
+            loop(
+                (pred(Cont::out, IO20::di, IO22::uo) is det :-
+                    try_take(Channel, MaybeAction, IO20, IO21),
+                    (   if      MaybeAction = yes(Action)
+                        then    Cont = yes, print_action([], Action, IO21, IO22)
+                        else    Cont = yes, IO22 = IO21% no, write_string("nix\n", IO21, IO22)
+                    )
+                ),
+                !IO
+            ),
+            !.IO = IO3
+        )
+    ), !IO),
+    true.
+*/
+
+%-----------------------------------------------------------------------------%
+
 :- pred exec(io::di, io::uo) is det.
 
 exec(!IO) :-
@@ -788,7 +946,12 @@ main(!IO) :-
 */
 /*
 */
-    exec(!IO).
+    times(Tms0, !IO),
+    exec(!IO),
+    times(Tms1, !IO),
+    format("usertime = %f\n", [f(usertime(Tms0, Tms1))], !IO),
+    format("systime = %f\n", [f(systime(Tms0, Tms1))], !IO),
+    true.
 /*
 */
 /*

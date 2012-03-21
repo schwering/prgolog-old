@@ -147,9 +147,11 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 :- pragma foreign_decl("C", "#include ""coin-clp.h""").
 
 :- type solver_context.
+
 :- pragma foreign_type("C", solver_context, "SolverContext*").
 
 :- pred new_solver_context(int::in, solver_context::uo) is det.
+
 :- pragma foreign_proc("C",
     new_solver_context(N::in, Ctx::uo),
     [will_not_call_mercury, promise_pure],
@@ -157,7 +159,9 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     Ctx = new_solver_context(N);
 ").
 
+
 :- pred finalize_solver_context(solver_context::di) is det.
+
 :- pragma foreign_proc("C",
     finalize_solver_context(Ctx::di),
     [will_not_call_mercury, promise_pure],
@@ -165,8 +169,11 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     finalize_solver_context(Ctx);
 ").
 
+
 :- pred add_constraint(int::in, list(float)::in, list(int)::in, int::in,
-                       float::in, solver_context::di, solver_context::uo) is det.
+                       float::in, solver_context::di, solver_context::uo)
+                       is det.
+
 :- pragma foreign_proc("C",
     add_constraint(N::in, As::in, Vs::in, Cmp::in, Bnd::in, Ctx0::di, Ctx1::uo),
     [will_not_call_mercury, promise_pure],
@@ -190,8 +197,10 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     Ctx1 = Ctx0;
 ").
 
+
 :- pred solve(int::out, float::out, list(float)::out,
               solver_context::di, solver_context::uo) is det.
+
 :- pragma foreign_proc("C",
     solve(Optimal::out, ObjValue::out, VarValues::out,
           Ctx0::di, Ctx1::uo),
@@ -219,7 +228,6 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     }
     Ctx1 = Ctx0;
 ").
-
 
 %-----------------------------------------------------------------------------%
 :- end_module osi.
