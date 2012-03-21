@@ -685,12 +685,15 @@ simple_obs_generator(P, !IO) :-
     channel.init(Var, !IO),
     put(Var, Obss, !IO),
     P = (pred(MaybeObs::out, IO0::di, IO2::uo) is det :-
-        try_take(Var, MaybeObss, IO0, IO1),
-        (   if      MaybeObss = yes([Obs | RestObs])
-            then    MaybeObs = yes(Obs),
-                    put(Var, RestObs, IO1, IO2)
-            else    MaybeObs = no,
-                    IO2 = IO1
+        some [!IO] (
+            IO0 = !.SubIO,
+            try_take(Var, MaybeObss, !SubIO),
+            (   if      MaybeObss = yes([Obs | RestObs])
+                then    MaybeObs = yes(Obs),
+                        put(Var, RestObs, !SubIO)
+                else    MaybeObs = no,
+            ),
+            IO1 = !:SubIO
         )
     ).
 
