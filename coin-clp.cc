@@ -49,10 +49,10 @@ SolverContext* new_solver_context(int nvars)
 void finalize_solver_context(SolverContext* ctx)
 {
   delete ctx->solver;
-  delete ctx->matrix;
-  delete[] ctx->var_lb;
-  delete[] ctx->var_ub;
   delete[] ctx->objective;
+  delete[] ctx->var_ub;
+  delete[] ctx->var_lb;
+  delete ctx->matrix;
   delete ctx;
   //fprintf(stderr, "final\n");
 }

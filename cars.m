@@ -45,7 +45,7 @@
 :- import_module solutions.
 :- import_module times.
 :- import_module thread.
-:- import_module thread.channel.
+:- import_module pipe.
 :- import_module thread.mvar.
 :- import_module thread.semaphore.
 :- import_module table_statistics.
@@ -560,6 +560,11 @@ proc(overtake(Agent, Victim), P) :-
 initial_time(5.594000).
 
 
+:- func max_time = s.
+
+max_time = 15.632000.
+
+
 :- pred initial(agent::in, m::out, m::out) is det.
 
 initial(a, 34.776825, -2.999933).
@@ -909,15 +914,15 @@ det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 
 
 :- pred pipe_obs(obs_generator::in(obs_generator),
-                 list(channel(obs))::in, bool::out,
+                 list(pipe(obs))::in, bool::out,
                  io::di, io::uo) is det.
 
-pipe_obs(GenObs, ObsChannels, Cont, !IO) :-
+pipe_obs(GenObs, ObsPipes, Cont, !IO) :-
     GenObs(MaybeObs, !IO),
     (   if      MaybeObs = yes(Obs)
-        then    map0_io((pred(ObsChannel::in, IO0::di, IO1::uo) is det :-
-                    put(ObsChannel, Obs, IO0, IO1)
-                ), ObsChannels, !IO),
+        then    map0_io((pred(ObsPipe::in, IO0::di, IO1::uo) is det :-
+                    put(ObsPipe, Obs, IO0, IO1)
+                ), ObsPipes, !IO),
                 Cont = yes
         else    Cont = no
     ).
@@ -927,10 +932,8 @@ pipe_obs(GenObs, ObsChannels, Cont, !IO) :-
                                     sit(prim)::in) is semidet.
 
 more_observations_will_come(P, S) :-
-    solutions(pred(T::out) is nondet :- obs(T, _, _, _, _, _, _), Ts),
-    TMax = foldl(max, Ts, min),
-    ( trace [io(!IO)] ( format("tmax = %f\n", [f(TMax)], !IO) ) ),
-    not ( match_in_prog(P, M @ match(TMax, _, _, _, _)) ),
+    TMax = max_time,
+    not ( match_in_prog(P, match(TMax, _, _, _, _)) ),
     not ( match_in_sit(S, match(TMax, _, _, _, _)) ).
 
 
@@ -964,18 +967,18 @@ match_in_sit(do(A, S), M) :-
 :- type s_state ---> running ; finished ; failed.
 :- type s_result == {conf(prim, stoch, procedure), s_state}.
 
-:- pred merge_and_trans(int::in, channel(obs)::in,
+:- pred merge_and_trans(int::in, pipe(obs)::in,
                         s_result::in, s_result::out,
                         bool::out,
                         io::di, io::uo) is det.
 
-merge_and_trans(I, ObsChannel,
+merge_and_trans(I, ObsPipe,
                 {conf(P, S), _}, {conf(P2, S2), Result},
                 Continue, !IO) :-
-    try_take(ObsChannel, MaybeObs, !IO),
-    ( if MaybeObs = yes(X) then
-        write_int(I, !IO), write_string(":  ", !IO), write(X, !IO), nl(!IO)
-      else true ),
+    try_take(ObsPipe, MaybeObs, !IO),
+%   ( if MaybeObs = yes(X) then
+%       write_int(I, !IO), write_string(":  ", !IO), write(X, !IO), nl(!IO)
+%     else true ),
     P0 = ( if MaybeObs = yes(Obs) then append_obs(P, Obs) else P ),
     S0 = S,
     (   if
@@ -984,9 +987,6 @@ merge_and_trans(I, ObsChannel,
             % into the program or executed
             more_observations_will_come(P, S)
         then
-            write_string("running\n", !IO),
-            write(P, !IO), nl(!IO),
-            print_sit([], S, !IO), nl(!IO),
             Continue = yes,
             P2 = P0,
             S2 = S0,
@@ -1014,14 +1014,14 @@ merge_and_trans(I, ObsChannel,
     ).
 
 
-:- pred init_obs_channels(int::in, list(channel(obs))::out,
+:- pred init_obs_pipes(int::in, list(pipe(obs))::out,
                           io::di, io::uo) is det.
 
-init_obs_channels(N, Cs, !IO) :-
+init_obs_pipes(N, Cs, !IO) :-
     if      N > 0
     then    Cs = [C | Cs0],
             init(C, !IO),
-            init_obs_channels(N - 1, Cs0, !IO)
+            init_obs_pipes(N - 1, Cs0, !IO)
     else    Cs = [].
 
 
@@ -1043,13 +1043,13 @@ init_result_vars(N, Vs, !IO) :-
           io::di, io::uo) is cc_multi.
 
 planrecog(GenObs, Prog, WaitForFinish, !IO) :-
-    N = 5,
-    init_obs_channels(N, ObsChannels, !IO),
+    N = 50,
+    init_obs_pipes(N, ObsPipes, !IO),
     init_result_vars(N, ResultVars, !IO),
     init(FinishedSem, !IO),
 
-    % 1. 1 thread that sends observations to all ObsChannels.
-    spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsChannels))), !IO),
+    % 1. 1 thread that sends observations to all ObsPipes.
+    spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsPipes))), !IO),
 
     % 2. N threads that read observations, incrementally execute Prog and
     % eventually write the result to the I-th ResultVar.
@@ -1057,8 +1057,8 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
         ThreadBody = (pred(IOB0::di, IOB1::uo) is det :-
             some [!SubIO] (
                 !:SubIO = IOB0,
-                ObsChannel = det_index1(ObsChannels, I),
-                LoopBody = merge_and_trans(I, ObsChannel),
+                ObsPipe = det_index1(ObsPipes, I),
+                LoopBody = merge_and_trans(I, ObsPipe),
                 Conf = conf(Prog, do(seed(I), s0)),
                 loop2(LoopBody, {Conf, running}, Result, !SubIO),
                 Var = det_index1(ResultVars, I),
@@ -1086,6 +1086,23 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
             IOC1 = !.SubIO
         )
     ).
+/*
+    WaitForFinish = (pred(Results::out, IOC0::di, IOC1::uo) is det :-
+        some [!SubIO] (
+            IOC0 = !:SubIO,
+            % Each of the N sampling processes signals the semaphore once.
+            repeat((pred(_::in, IOD0::di, IOD1::uo) is det :-
+                wait(FinishedSem, IOD0, IOD1)
+            ), N, !SubIO),
+            % Extract the sample_result value from each process's mvar.
+            Results = [],
+            %map1_io((pred(V::in, {S, R}::out, IO0::di, IO1::uo) is det :-
+            %    take(V, {S, R}, IO0, IO1)
+            %), ResultVars, Results, !SubIO),
+            IOC1 = !.SubIO
+        )
+    ).
+*/
 
 %-----------------------------------------------------------------------------%
 
@@ -1185,12 +1202,12 @@ main(!IO) :-
 /*
 */
 
-    times(Tms0, !IO),
+    times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     simple_obs_generator(ObsGen, !IO),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
     WaitForFinish(Results, !IO),
-    times(Tms1, !IO),
+    times(Tms3, !IO),
     map0_io((pred({conf(P, S), R}::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
@@ -1212,8 +1229,9 @@ main(!IO) :-
     ), Results, {0, 0}, {Finished, Total}),
     format("percentage = %d / %d = %.2f\n",
            [i(Finished), i(Total), f(float(Finished) / float(Total))], !IO),
-    format("usertime = %f\n", [f(usertime(Tms0, Tms1))], !IO),
-    format("systime = %f\n", [f(systime(Tms0, Tms1))], !IO),
+    format("usertime = %f\n", [f(usertime(Tms2, Tms3))], !IO),
+    format("systime = %f\n", [f(systime(Tms2, Tms3))], !IO),
+    read_line_as_string(_, !IO),
 
 /*
 */

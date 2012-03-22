@@ -28,6 +28,8 @@
 
 :- pred sleep(int::in, io::di, io::uo) is det.
 
+:- pred thread_id(int::out, io::di, io::uo) is det.
+
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -88,6 +90,19 @@ systime(Tms1, Tms2) = Diff :- systime(Tms1, Tms2, Diff).
 "
     sleep(Secs);
     IO1 = IO0;
+").
+
+
+:- pragma foreign_proc(c, thread_id(Id::out, IO0::di, IO::uo),
+                [will_not_call_mercury, thread_safe, promise_pure, tabled_for_io], "
+#ifdef MR_THREAD_SAFE
+    pthread_t thread;
+    thread = pthread_self();
+    Id = (int) thread;
+#else
+    Id = getpid();
+#endif
+    IO = IO0;
 ").
 
 %-----------------------------------------------------------------------------%

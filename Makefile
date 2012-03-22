@@ -13,4 +13,5 @@ clean:
 	rm -rf Mercury
 	rm -f *.mh
 	rm -f *.err
+	rm -f cars maze
 

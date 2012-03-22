@@ -220,12 +220,12 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
                 var_values_list);
         }
         VarValues = var_values_list;
-        free(var_values_arr);
     } else {
         Optimal = (MR_Integer) 0;
         ObjValue = (MR_Float) 0;
         VarValues = MR_list_empty();
     }
+    free(var_values_arr);
     Ctx1 = Ctx0;
 ").
 
