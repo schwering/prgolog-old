@@ -46,6 +46,7 @@
 :- import_module times.
 :- import_module thread.
 :- import_module pipe.
+:- import_module require.
 :- import_module thread.mvar.
 :- import_module thread.semaphore.
 :- import_module table_statistics.
@@ -713,6 +714,59 @@ match_prog = Prog :-
     Prog = list.foldr(( func(P1, P2) = seq(P1, P2) ), Progs, nil).
 
 
+:- pred read_w(input_stream::in, maybe(string)::out, io::di, io::uo) is det.
+
+read_w(Stream, Word, !IO) :-
+    read_word(Stream, RWord, !IO),
+    (   RWord = ok(List), Word = yes(from_char_list(List))
+    ;   RWord = eof, Word = no
+    ;   RWord = error(_), error("IO error")
+    ).
+
+
+:- pred read_agent(input_stream::in, maybe(agent)::out, io::di, io::uo) is det.
+
+read_agent(Stream, Agent, !IO) :-
+    read_w(Stream, MaybeWord, !IO),
+    (   MaybeWord = yes(Word), Agent = yes(string_to_agent(Word))
+    ;   MaybeWord = no, Agent = no
+    ).
+
+
+:- pred read_float(input_stream::in, maybe(float)::out, io::di, io::uo) is det.
+
+read_float(Stream, Float, !IO) :-
+    read_w(Stream, MaybeWord, !IO),
+    (   MaybeWord = yes(Word), Float = yes(det_to_float(Word))
+    ;   MaybeWord = no, Float = no
+    ).
+
+
+:- pred input_obs_generator(input_stream::in, maybe(obs)::out, io::di, io::uo)
+    is det.
+
+input_obs_generator(Stream, Obs, !IO) :-
+    read_float(Stream, MaybeTime, !IO),
+    read_agent(Stream, MaybeAgent0, !IO),
+    read_float(Stream, MaybeX0, !IO),
+    read_float(Stream, MaybeY0, !IO),
+    read_agent(Stream, MaybeAgent1, !IO),
+    read_float(Stream, MaybeX1, !IO),
+    read_float(Stream, MaybeY1, !IO),
+    (   if  MaybeTime = yes(Time),
+            MaybeAgent0 = yes(Agent0),
+            MaybeX0 = yes(X0),
+            MaybeY0 = yes(Y0),
+            MaybeAgent1 = yes(Agent1),
+            MaybeX1 = yes(X1),
+            MaybeY1 = yes(Y1)
+        then
+            Obs = yes({Time, Agent0, X0, Y0, Agent1, X1, Y1})
+        else
+            Obs = no
+    ).
+
+
 :- pred simple_obs_generator(obs_generator::out(obs_generator), io::di, io::uo).
 
 simple_obs_generator(P, !IO) :-
@@ -741,6 +795,16 @@ simple_obs_generator(P, !IO) :-
 
 agent_to_string(a) = "a".
 agent_to_string(b) = "b".
+
+
+:- func string_to_agent(string) = agent is det.
+
+string_to_agent(S) = A :-
+    if      S = agent_to_string(a)
+    then    A = a
+    else if S = agent_to_string(b)
+    then    A = b
+    else    error("string_to_agent/1: conversion failed").
 
 
 :- func lane_to_string(lane) = string is det.
@@ -967,12 +1031,12 @@ match_in_sit(do(A, S), M) :-
 :- type s_state ---> running ; finished ; failed.
 :- type s_result == {conf(prim, stoch, procedure), s_state}.
 
-:- pred merge_and_trans(int::in, pipe(obs)::in,
+:- pred merge_and_trans(pipe(obs)::in,
                         s_result::in, s_result::out,
                         bool::out,
                         io::di, io::uo) is det.
 
-merge_and_trans(I, ObsPipe,
+merge_and_trans(ObsPipe,
                 {conf(P, S), _}, {conf(P2, S2), Result},
                 Continue, !IO) :-
     try_take(ObsPipe, MaybeObs, !IO),
@@ -1043,7 +1107,7 @@ init_result_vars(N, Vs, !IO) :-
           io::di, io::uo) is cc_multi.
 
 planrecog(GenObs, Prog, WaitForFinish, !IO) :-
-    N = 50,
+    N = 5,
     init_obs_pipes(N, ObsPipes, !IO),
     init_result_vars(N, ResultVars, !IO),
     init(FinishedSem, !IO),
@@ -1058,7 +1122,7 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
             some [!SubIO] (
                 !:SubIO = IOB0,
                 ObsPipe = det_index1(ObsPipes, I),
-                LoopBody = merge_and_trans(I, ObsPipe),
+                LoopBody = merge_and_trans(ObsPipe),
                 Conf = conf(Prog, do(seed(I), s0)),
                 loop2(LoopBody, {Conf, running}, Result, !SubIO),
                 Var = det_index1(ResultVars, I),
@@ -1204,7 +1268,8 @@ main(!IO) :-
 
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
-    simple_obs_generator(ObsGen, !IO),
+    %simple_obs_generator(ObsGen, !IO),
+    ObsGen = input_obs_generator(stdin_stream),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
     WaitForFinish(Results, !IO),
     times(Tms3, !IO),
@@ -1231,7 +1296,6 @@ main(!IO) :-
            [i(Finished), i(Total), f(float(Finished) / float(Total))], !IO),
     format("usertime = %f\n", [f(usertime(Tms2, Tms3))], !IO),
     format("systime = %f\n", [f(systime(Tms2, Tms3))], !IO),
-    read_line_as_string(_, !IO),
 
 /*
 */
