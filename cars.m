@@ -69,7 +69,8 @@
                 list(constraint), time)
     ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
     ;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
-    ;   eval(ccformula(prim), maybe(vargen), list(constraint), time).
+    ;   eval(ccformula(prim), maybe(vargen), list(constraint), time)
+    ;   seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
                 ;   set_yaw_st(agent, lane, rad).
 :- type procedure --->  straight_left(agent)
@@ -182,12 +183,13 @@ sitlen(do(_, S)) = 1 + sitlen(S).
 
 %start(s0) = constant(zero).
 start(s0) = constant(T) :- initial_time(T).
-start(do(A, _)) = T :-
+start(do(A, S)) = T :-
     (   A = set_veloc(_, _, _, _, _, _, T)
     ;   A = set_yaw(_, _, _, _, _, _, _, T)
     ;   A = wait_for(_, _, _, T)
     ;   A = match(_, _, _, _, T)
     ;   A = eval(_, _, _, T)
+    ;   A = seed(_), T = start(S)
     ).
 
 %-----------------------------------------------------------------------------%
@@ -201,10 +203,11 @@ now(_) = ( func(T) = T ).
 :- func random_supply(sit(prim)::in) = (random.supply::out) is det.
 
 random_supply(s0) = RS :-
-    random.init(3, RS).
+    random.init(0, RS).
 random_supply(do(A, S)) = RS :-
     if      (   A = set_veloc(_, _, _, yes(RS0), _, _, _)
-            ;   A = set_yaw(_, _, _, _, yes(RS0), _, _, _) )
+            ;   A = set_yaw(_, _, _, _, yes(RS0), _, _, _)
+            ;   A = seed(Seed), random.init(Seed, RS0) )
     then    RS = RS0
     else    RS = random_supply(S).
 
@@ -234,6 +237,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
     ;   A = wait_for(_, _, Cs, _)
     ;   A = match(_, _, _, Cs, _)
     ;   A = eval(_, _, Cs, _)
+    ;   A = seed(_), Cs = []
     ).
 
 %-----------------------------------------------------------------------------%
@@ -423,9 +427,15 @@ random_outcome(set_veloc_st(Agent, V),
 random_outcome(set_yaw_st(Agent, Lane, Yaw),
                set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime),
                S) :-
-    Tol = 0.5 + abs(Yaw) * 4.0,
+    (   if      Yaw = 0.0
+        then    Mu = -0.7, Sigma = 0.7
+        else    Mu = -0.2, Sigma = 1.0
+    ),
+    %Tol = min(0.5 + abs(Yaw) * 4.0, 2.5),
     RS0 = random_supply(S),
-    random_lognormal(1.0, 1.0, _, _Tol, RS0, RS1).
+    random_lognormal(Mu, Sigma, _, Tol0, RS0, RS1),
+    TolMax = 2.5,
+    Tol = min(Tol0, TolMax).
 
 %-----------------------------------------------------------------------------%
 
@@ -686,8 +696,11 @@ match_prog = Prog :-
 :- pred simple_obs_generator(obs_generator::out(obs_generator), io::di, io::uo).
 
 simple_obs_generator(P, !IO) :-
+    % Now that's a hack: to iterate over all solutions via I/O,
+    % we first store the list of solutions an mvar and read them
+    % from there.
     solutions(obs, Obss),
-    channel.init(Var, !IO),
+    mvar.init(Var, !IO),
     put(Var, Obss, !IO),
     P = (pred(MaybeObs::out, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
@@ -698,7 +711,6 @@ simple_obs_generator(P, !IO) :-
                         put(Var, RestObs, !SubIO)
                 else    MaybeObs = no
             ),
-            write(MaybeObs, !SubIO), nl(!SubIO),
             IO1 = !.SubIO
         )
     ).
@@ -741,6 +753,9 @@ print_action(Map, eval(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
     format("eval(..., %f)\n",
            [f(T)], !IO).
+print_action(_, seed(Seed), !IO) :-
+    format("seed(%d)\n",
+           [i(Seed)], !IO).
 
 
 :- pred print_sit(assoc_list(var, float)::in, sit(prim)::in,
@@ -760,7 +775,8 @@ print_sit_2(Map, do(A, S), !.N, !:N, !IO) :-
     print_action(Map, A, !IO).
 
 
-:- pred print_sit_with_info(assoc_list(var, number)::in, sit(prim)::in, io::di, io::uo) is det.
+:- pred print_sit_with_info(assoc_list(var, number)::in, sit(prim)::in,
+                            io::di, io::uo) is det.
 
 print_sit_with_info(Map, s0, !IO) :-
     write_string("initial situation", !IO), nl(!IO),
@@ -852,6 +868,21 @@ loop2(G, !XY, !IO) :-
     ( if B = yes then loop2(G, !XY, !IO) else true ).
 
 
+:- pred map1_io((pred(T1, T2, io, io)::in(pred(in, out, di, uo) is det)),
+                list(T1)::in, list(T2)::out,
+                io::di, io::uo) is det.
+
+map1_io(_, [], [], !IO).
+map1_io(P, [X | Xs], [Y | Ys], !IO) :- P(X, Y, !IO), map1_io(P, Xs, Ys, !IO).
+
+
+:- pred map0_io((pred(T1, io, io)::in(pred(in, di, uo) is det)),
+               list(T1)::in, io::di, io::uo) is det.
+
+map0_io(_, [], !IO).
+map0_io(P, [X | Xs], !IO) :- P(X, !IO), map0_io(P, Xs, !IO).
+
+
 :- func det2cc_multi(ioable) = ioable.
 :- mode det2cc_multi(in(ioable)) = out(ioable_cc_multi) is det.
 
@@ -863,12 +894,16 @@ det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 
 
 :- pred pipe_obs(obs_generator::in(obs_generator),
-                 channel(obs)::in, bool::out, io::di, io::uo) is det.
+                 list(channel(obs))::in, bool::out,
+                 io::di, io::uo) is det.
 
-pipe_obs(GenObs, ObsChannel, Cont, !IO) :-
+pipe_obs(GenObs, ObsChannels, Cont, !IO) :-
     GenObs(MaybeObs, !IO),
     (   if      MaybeObs = yes(Obs)
-        then    put(ObsChannel, Obs, !IO), Cont = yes
+        then    map0_io((pred(ObsChannel::in, IO0::di, IO1::uo) is det :-
+                    put(ObsChannel, Obs, IO0, IO1)
+                ), ObsChannels, !IO),
+                Cont = yes
         else    Cont = no
     ).
 
@@ -911,11 +946,11 @@ more_observations_will_come_2(do(A, S)) :-
     else    more_observations_will_come_2(S).
 
 
-:- type sampler_result ---> running ; finished ; failed.
+:- type s_state ---> running ; finished ; failed.
+:- type s_result == {conf(prim, stoch, procedure), s_state}.
 
 :- pred merge_and_trans(channel(obs)::in,
-                        {conf(prim, stoch, procedure), sampler_result}::in,
-                        {conf(prim, stoch, procedure), sampler_result}::out,
+                        s_result::in, s_result::out,
                         bool::out,
                         io::di, io::uo) is det.
 
@@ -957,54 +992,75 @@ merge_and_trans(ObsChannel,
     ).
 
 
-:- pred init_result_vars(int::in, assoc_list(int, mvar(sampler_result))::out,
+:- pred init_obs_channels(int::in, list(channel(obs))::out,
                          io::di, io::uo) is det.
 
-init_result_vars(N, Ps, !IO) :-
+init_obs_channels(N, Cs, !IO) :-
     if      N > 0
-    then    Ps = [(N - V) | Ps0],
+    then    Cs = [C | Cs0],
+            init(C, !IO),
+            init_obs_channels(N - 1, Cs0, !IO)
+    else    Cs = [].
+
+
+:- pred init_result_vars(int::in, list(mvar(s_result))::out,
+                         io::di, io::uo) is det.
+
+init_result_vars(N, Vs, !IO) :-
+    if      N > 0
+    then    Vs = [V | Vs0],
             init(V, !IO),
-            init_result_vars(N - 1, Ps0, !IO)
-    else    Ps = [].
+            init_result_vars(N - 1, Vs0, !IO)
+    else    Vs = [].
 
 
 :- pred planrecog(obs_generator::in(obs_generator),
           prog(prim, stoch, procedure)::in,
-          (pred(list(sampler_result), io, io)::out(pred(out, di, uo) is det)),
+          (pred(list(s_result), io, io)::out(
+           pred(out, di, uo) is det)),
           io::di, io::uo) is cc_multi.
 
 planrecog(GenObs, Prog, WaitForFinish, !IO) :-
-    N = 1,
-    init(ObsChannel, !IO),
-    init(FinishedSem, !IO),
+    N = 5,
+    init_obs_channels(N, ObsChannels, !IO),
     init_result_vars(N, ResultVars, !IO),
-    spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsChannel))), !IO),
+    init(FinishedSem, !IO),
+
+    % 1. 1 thread that sends observations to all ObsChannels.
+    spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsChannels))), !IO),
+
+    % 2. N threads that read observations, incrementally execute Prog and
+    % eventually write the result to the I-th ResultVar.
     repeat((pred(I::in, IOA0::di, IOA1::uo) is cc_multi :-
         ThreadBody = (pred(IOB0::di, IOB1::uo) is det :-
             some [!SubIO] (
-                IOB0 = !:SubIO,
+                !:SubIO = IOB0,
+                ObsChannel = det_index1(ObsChannels, I),
                 LoopBody = merge_and_trans(ObsChannel),
-                loop2(LoopBody, {init(Prog), running}, Result, !SubIO),
-                (   if      Result = {_, ResultState},
-                            search(ResultVars, I, Var)
-                    then    put(Var, ResultState, !SubIO)
-                    else    true
-                ),
+                Conf = conf(Prog, do(seed(I), s0)),
+                loop2(LoopBody, {Conf, running}, Result, !SubIO),
+                Var = det_index1(ResultVars, I),
+                put(Var, Result, !SubIO),
                 signal(FinishedSem, !SubIO),
-                IOB1 = !.SubIO
+                !.SubIO = IOB1
             )
         ),
         spawn(det2cc_multi(ThreadBody), IOA0, IOA1)
     ), N, !IO),
+
+    % 3. Predicate that blocks until the above threads are finished and
+    % extracts the results from ResultVars.
     WaitForFinish = (pred(Results::out, IOC0::di, IOC1::uo) is det :-
         some [!SubIO] (
             IOC0 = !:SubIO,
+            % Each of the N sampling processes signals the semaphore once.
             repeat((pred(_::in, IOD0::di, IOD1::uo) is det :-
                 wait(FinishedSem, IOD0, IOD1)
             ), N, !SubIO),
-            foldl2((pred(V::in, Rs::in, [R|Rs]::out, IOE0::di, IOE1::uo) is det :-
-                take(V, R, IOE0, IOE1)
-            ), assoc_list.values(ResultVars), [], Results, !SubIO),
+            % Extract the sample_result value from each process's mvar.
+            map1_io((pred(V::in, {S, R}::out, IO0::di, IO1::uo) is det :-
+                take(V, {S, R}, IO0, IO1)
+            ), ResultVars, Results, !SubIO),
             IOC1 = !.SubIO
         )
     ).
@@ -1108,11 +1164,27 @@ main(!IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     simple_obs_generator(ObsGen, !IO),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
-    write_string("waiting for finish\n", !IO),
     WaitForFinish(Results, !IO),
-    write(Results, !IO), nl(!IO),
-    write_string("done waiting for finish\n", !IO),
-    %sleep(5, !IO),
+    map0_io((pred({conf(_P, S), R}::in, IO0::di, IO1::uo) is det :-
+        some [!SubIO] (
+            IO0 = !:SubIO,
+            write(R, !SubIO), nl(!SubIO),
+            (   if      solve(vargen(S), constraints(S), Map, _Val)
+                then    print_sit(Map, S, !SubIO),
+                        print_sit_info(Map, S, !SubIO)
+                else    write_string("solving failed\n", !SubIO)
+            ),
+            nl(!SubIO),
+            IO1 = !.SubIO
+        )
+    ), Results, !IO),
+    foldl((pred({_, R}::in, {N, M}::in, {N1, M1}::out) is det :-
+        if      R = finished
+        then    N1 = N + 1, M1 = M + 1
+        else    N1 = N,     M1 = M + 1
+    ), Results, {0, 0}, {Finished, Total}),
+    format("Result: %d / %d = %.2f\n",
+           [i(Finished), i(Total), f(float(Finished) / float(Total))], !IO),
 /*
 */
 /*

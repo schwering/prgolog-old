@@ -97,6 +97,9 @@
 :- pred solve(vargen, list(constraint)).
 :- mode solve(in, in) is semidet.
 
+:- pred solve(vargen, list(constraint), assoc_list(var, number), number).
+:- mode solve(in, in, out, out) is semidet.
+
 :- pred solve(vargen, list(constraint), objective,
               assoc_list(var, number), number).
 :- mode solve(in, in, in, out, out) is semidet.
@@ -212,7 +215,10 @@ holds_trivially(C) :- osi.holds_trivially(C).
 %-----------------------------------------------------------------------------%
 
 solve(Vargen, Constraints) :-
-    solve(Vargen, Constraints, max([]), _, _).
+    solve(Vargen, Constraints, min([]), _, _).
+
+solve(Vargen, Constraints, Map, Val) :-
+    solve(Vargen, Constraints, min([]), Map, Val).
 
 %:- pragma memo(solve/5, [allow_reset, fast_loose]). 
 
