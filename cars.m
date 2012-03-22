@@ -625,30 +625,31 @@ obs2match({OT, A0, X0, Y0, A1, X1, Y1}) = match(OT, OF, no, [], notime) :-
     prog(prim, stoch, procedure) is det.
 
 append_match(P, O) =
-    (   if      P = conc(P1, P2), only_match_actions(P2)
-        then    conc(P1, seq(P2, pseudo_atom(atom(prim(O)))))
-        else if P = conc(P1, P2), only_match_actions(P1)
-        then    conc(seq(P1, pseudo_atom(atom(prim(O)))), P2)
+    (   if      P1 = append_match_to_most_right(P, O)
+        then    P1
         else    conc(P, pseudo_atom(atom(prim(O))))
     ).
 
 
-/*
-:- pred append_match_2(prog(prim, stoch, procedure)::in, prim::in,
-    prog(prim, stoch, procedure)::out) is semidet.
+:- func append_match_to_most_right(prog(prim, stoch, procedure), prim) =
+                                   prog(prim, stoch, procedure) is semidet.
 
-append_match_2(seq(P1, P2), O, seq(Q1, Q2)) :-
-    if      append_match_2(P2, O, Q3)
-    then    Q1 = P1, Q2 = Q3
-    else    Q2 = P2, append_match_2(P1, O, Q1).
-append_match_2(conc(P1, P2), O, conc(Q1, Q2)) :-
-    if      append_match_2(P2, O, Q3)
-    then    Q1 = P1, Q2 = Q3
-    else    Q2 = P2, append_match_2(P1, O, Q1).
-append_match_2(P @ pseudo_atom(atom(prim(match(_, _, _, _, _)))),
-               O, seq(Q1, Q2)) :-
-    Q1 = P, Q2 = seq(P, pseudo_atom(atom(prim(O)))).
-*/
+append_match_to_most_right(seq(P1, P2), M) =
+    (   if      Q2 = append_match_to_most_right(P2, M)
+        then    seq(P1, Q2)
+        else    append_match_to_most_right(P1, M) ).
+append_match_to_most_right(non_det(P1, P2), M) =
+    (   if      Q2 = append_match_to_most_right(P2, M)
+        then    non_det(P1, Q2)
+        else    append_match_to_most_right(P1, M) ).
+append_match_to_most_right(conc(P1, P2), M) =
+    (   if      Q2 = append_match_to_most_right(P2, M)
+        then    conc(P1, Q2)
+        else    append_match_to_most_right(P1, M) ).
+append_match_to_most_right(star(P), M) =
+    append_match_to_most_right(P, M).
+append_match_to_most_right(M0, M) = seq(M0, pseudo_atom(atom(prim(M)))) :-
+    M0 = pseudo_atom(atom(prim(match(_, _, _, _, _)))).
 
 
 :- func remove_match_sequence(prog(prim, stoch, procedure)) =
@@ -677,6 +678,20 @@ only_match_actions(star(P)) :-
     only_match_actions(P).
 only_match_actions(pseudo_atom(atom(prim(match(_, _, _, _, _))))).
 only_match_actions(nil).
+
+
+:- func last_match(sit(prim)) = prim is semidet.
+
+last_match(do(A, S)) =
+    ( if A = match(_, _, _, _, _) then A else last_match(S) ).
+
+
+:- pred last_action_covered_by_match(sit(prim)::in) is semidet.
+
+last_action_covered_by_match(S) :-
+    match(T0, _, _, _, _) = last_match(S),
+    C = (start(S) `=` constant(T0)),
+    solve(vargen(S), [C] ++ constraints(S)).
 
 
 :- func append_obs(prog(prim, stoch, procedure), obs) =
@@ -912,52 +927,55 @@ pipe_obs(GenObs, ObsChannels, Cont, !IO) :-
                                     sit(prim)::in) is semidet.
 
 more_observations_will_come(P, S) :-
-    more_observations_will_come_1(P),
-    more_observations_will_come_2(S).
+    solutions(pred(T::out) is nondet :- obs(T, _, _, _, _, _, _), Ts),
+    TMax = foldl(max, Ts, min),
+    ( trace [io(!IO)] ( format("tmax = %f\n", [f(TMax)], !IO) ) ),
+    not ( match_in_prog(P, M @ match(TMax, _, _, _, _)) ),
+    not ( match_in_sit(S, match(TMax, _, _, _, _)) ).
 
-:- pred more_observations_will_come_1(prog(prim, stoch, procedure)::in)
-    is semidet.
 
-more_observations_will_come_1(seq(P1, P2)) :-
-    more_observations_will_come_1(P1),
-    more_observations_will_come_1(P2).
-more_observations_will_come_1(non_det(P1, P2)) :-
-    more_observations_will_come_1(P1),
-    more_observations_will_come_1(P2).
-more_observations_will_come_1(conc(P1, P2)) :-
-    more_observations_will_come_1(P1),
-    more_observations_will_come_1(P2).
-more_observations_will_come_1(star(P)) :-
-    more_observations_will_come_1(P).
-more_observations_will_come_1(proc(_)).
-more_observations_will_come_1(pseudo_atom(complex(P))) :-
-    more_observations_will_come_1(P).
-more_observations_will_come_1(pseudo_atom(atom(Atom))) :-
-    if      Atom = prim(match(T, _, _, _, _))
-    then    obs(T1, _, _, _, _, _, _), T < T1
-    else    true.
-more_observations_will_come_1(nil).
+:- pred match_in_prog(prog(prim, stoch, procedure)::in, prim::out) is nondet.
 
-:- pred more_observations_will_come_2(sit(prim)::in) is semidet.
+match_in_prog(seq(P1, P2), M) :-
+    match_in_prog(P1, M) ;
+    match_in_prog(P2, M).
+match_in_prog(non_det(P1, P2), M) :-
+    match_in_prog(P1, M) ;
+    match_in_prog(P2, M).
+match_in_prog(conc(P1, P2), M) :-
+    match_in_prog(P1, M) ;
+    match_in_prog(P2, M).
+match_in_prog(star(P), M) :-
+    match_in_prog(P, M).
+match_in_prog(pseudo_atom(complex(P)), M) :-
+    match_in_prog(P, M).
+match_in_prog(pseudo_atom(atom(prim(A))), M) :-
+    A = match(_, _, _, _, _),
+    A = M.
 
-more_observations_will_come_2(do(A, S)) :-
-    if      A = match(T, _, _, _, _)
-    then    obs(T1, _, _, _, _, _, _), T < T1
-    else    more_observations_will_come_2(S).
+
+:- pred match_in_sit(sit(prim)::in, prim::out) is nondet.
+
+match_in_sit(do(A, S), M) :-
+    (   A = match(_, _, _, _, _), A = M
+    ;   match_in_sit(S, M) ).
 
 
 :- type s_state ---> running ; finished ; failed.
 :- type s_result == {conf(prim, stoch, procedure), s_state}.
 
-:- pred merge_and_trans(channel(obs)::in,
+:- pred merge_and_trans(int::in, channel(obs)::in,
                         s_result::in, s_result::out,
                         bool::out,
                         io::di, io::uo) is det.
 
-merge_and_trans(ObsChannel,
+merge_and_trans(I, ObsChannel,
                 {conf(P, S), _}, {conf(P2, S2), Result},
                 Continue, !IO) :-
     try_take(ObsChannel, MaybeObs, !IO),
+    ( if MaybeObs = yes(X) then
+        write_int(I, !IO), write_string(":  ", !IO), write(X, !IO), nl(!IO)
+      else true ),
     P0 = ( if MaybeObs = yes(Obs) then append_obs(P, Obs) else P ),
     S0 = S,
     (   if
@@ -966,12 +984,16 @@ merge_and_trans(ObsChannel,
             % into the program or executed
             more_observations_will_come(P, S)
         then
+            write_string("running\n", !IO),
+            write(P, !IO), nl(!IO),
+            print_sit([], S, !IO), nl(!IO),
             Continue = yes,
             P2 = P0,
             S2 = S0,
             Result = running
         else if
-            final(remove_match_sequence(P), S)
+            final(remove_match_sequence(P), S),
+            last_action_covered_by_match(S)
         then
             Continue = no,
             P2 = P0,
@@ -993,7 +1015,7 @@ merge_and_trans(ObsChannel,
 
 
 :- pred init_obs_channels(int::in, list(channel(obs))::out,
-                         io::di, io::uo) is det.
+                          io::di, io::uo) is det.
 
 init_obs_channels(N, Cs, !IO) :-
     if      N > 0
@@ -1036,7 +1058,7 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
             some [!SubIO] (
                 !:SubIO = IOB0,
                 ObsChannel = det_index1(ObsChannels, I),
-                LoopBody = merge_and_trans(ObsChannel),
+                LoopBody = merge_and_trans(I, ObsChannel),
                 Conf = conf(Prog, do(seed(I), s0)),
                 loop2(LoopBody, {Conf, running}, Result, !SubIO),
                 Var = det_index1(ResultVars, I),
@@ -1152,6 +1174,7 @@ main(!IO) :-
             x(a, S)(T) `>=` constant(rat(900))
         ], no, [], notime)),
 */
+
 /*
     times(Tms0, !IO),
     exec(!IO),
@@ -1161,11 +1184,14 @@ main(!IO) :-
 */
 /*
 */
+
+    times(Tms0, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     simple_obs_generator(ObsGen, !IO),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
     WaitForFinish(Results, !IO),
-    map0_io((pred({conf(_P, S), R}::in, IO0::di, IO1::uo) is det :-
+    times(Tms1, !IO),
+    map0_io((pred({conf(P, S), R}::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
             write(R, !SubIO), nl(!SubIO),
@@ -1174,6 +1200,7 @@ main(!IO) :-
                         print_sit_info(Map, S, !SubIO)
                 else    write_string("solving failed\n", !SubIO)
             ),
+            write(P, !SubIO), nl(!SubIO),
             nl(!SubIO),
             IO1 = !.SubIO
         )
@@ -1183,8 +1210,11 @@ main(!IO) :-
         then    N1 = N + 1, M1 = M + 1
         else    N1 = N,     M1 = M + 1
     ), Results, {0, 0}, {Finished, Total}),
-    format("Result: %d / %d = %.2f\n",
+    format("percentage = %d / %d = %.2f\n",
            [i(Finished), i(Total), f(float(Finished) / float(Total))], !IO),
+    format("usertime = %f\n", [f(usertime(Tms0, Tms1))], !IO),
+    format("systime = %f\n", [f(systime(Tms0, Tms1))], !IO),
+
 /*
 */
 /*
