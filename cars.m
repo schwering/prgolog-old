@@ -72,7 +72,7 @@
     ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
     ;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
     ;   eval(ccformula(prim), maybe(vargen), list(constraint), time)
-    ;   init_env(assoc_list(agent, agent_info), s)
+    ;   init_env(s, assoc_list(agent, agent_info))
     ;   seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
                 ;   set_yaw_st(agent, lane, rad).
@@ -192,7 +192,7 @@ start(do(A, S)) = T :-
     ;   A = wait_for(_, _, _, T)
     ;   A = match(_, _, _, _, T)
     ;   A = eval(_, _, _, T)
-    ;   A = init_env(_, T0), T = constant(T0)
+    ;   A = init_env(T0, _), T = constant(T0)
     ;   A = seed(_), T = start(S)
     ).
 
@@ -251,7 +251,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 
 veloc(_, s0) = 0.0.
 veloc(Agent, do(A, S)) = Veloc :-
-    if      A = init_env(Map, _)
+    if      A = init_env(_, Map)
     then    {Veloc, _, _, _} = Map^det_elem(Agent)
     else if A = set_veloc(Agent, V0, _, _, _, _, _)
     then    Veloc = V0
@@ -263,7 +263,7 @@ veloc(Agent, do(A, S)) = Veloc :-
 
 yaw(_, s0) = 0.0.
 yaw(Agent, do(A, S)) = Rad :-
-    if      A = init_env(Map, _)
+    if      A = init_env(_, Map)
     then    {_, Rad, _, _} = Map^det_elem(Agent)
     else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
@@ -277,7 +277,7 @@ yaw(Agent, do(A, S)) = Rad :-
 x(Agent, s0) = ( func(_) = constant(X) ) :-
     initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
-    if      A = init_env(Map, _)
+    if      A = init_env(_, Map)
     then    {_, _, X0, _} = Map^det_elem(Agent),
             X = ( func(_) = constant(X0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
@@ -295,7 +295,7 @@ x(Agent, do(A, S)) = X :-
 y(Agent, s0) = ( func(_) = constant(Y) ) :-
     initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
-    if      A = init_env(Map, _)
+    if      A = init_env(_, Map)
     then    {_, _, _, Y0} = Map^det_elem(Agent),
             Y = ( func(_) = constant(Y0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
@@ -1065,7 +1065,7 @@ merge_and_trans(I, ObsPipe,
 %   ,write(State, !IO), nl(!IO)
 %   else true ),
     P0 = ( if MaybeObsMsg = yes(obs_msg(Obs)) then append_obs(P, Obs) else P ),
-    S0 = ( if MaybeObsMsg = yes(init_msg(Map, T)) then do(init_env(Map, T), S) else S ),
+    S0 = ( if MaybeObsMsg = yes(init_msg(Map, T)) then do(init_env(T, Map), S) else S ),
     (   if
             State \= finishing,
             match_count(P) < cars.lookahead(S)
