@@ -569,7 +569,7 @@ proc(overtake(Agent, Victim), P) :-
 %-----------------------------------------------------------------------------%
 
 :- type obs == {s, agent, m, m, agent, m, m}.
-:- type obs_msg ---> obs_msg(obs) ; end_of_obs.
+:- type obs_msg ---> init_msg(assoc_list(agent, {mps, rad, m, m}), s) ; obs_msg(obs) ; end_of_obs.
 
 :- pred initial_time(s::out) is det.
 
@@ -761,22 +761,60 @@ read_float(Stream, Float, !IO) :-
                             io::di, io::uo) is det.
 
 input_obs_generator(Stream, Obs, !IO) :-
-    read_float(Stream, MaybeTime, !IO),
-    read_agent(Stream, MaybeAgent0, !IO),
-    read_float(Stream, MaybeX0, !IO),
-    read_float(Stream, MaybeY0, !IO),
-    read_agent(Stream, MaybeAgent1, !IO),
-    read_float(Stream, MaybeX1, !IO),
-    read_float(Stream, MaybeY1, !IO),
-    (   if  MaybeTime = yes(Time),
-            MaybeAgent0 = yes(Agent0),
-            MaybeX0 = yes(X0),
-            MaybeY0 = yes(Y0),
-            MaybeAgent1 = yes(Agent1),
-            MaybeX1 = yes(X1),
-            MaybeY1 = yes(Y1)
+    read_w(Stream, MaybeKind, !IO),
+    (   if  MaybeKind = yes("I")
         then
-            Obs = yes(obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1}))
+            read_float(Stream, MaybeTime, !IO),
+            read_agent(Stream, MaybeAgent0, !IO),
+            read_float(Stream, MaybeVeloc0, !IO),
+            read_float(Stream, MaybeYaw0, !IO),
+            read_float(Stream, MaybeX0, !IO),
+            read_float(Stream, MaybeY0, !IO),
+            read_agent(Stream, MaybeAgent1, !IO),
+            read_float(Stream, MaybeVeloc1, !IO),
+            read_float(Stream, MaybeYaw1, !IO),
+            read_float(Stream, MaybeX1, !IO),
+            read_float(Stream, MaybeY1, !IO),
+            (   if      MaybeTime = yes(Time),
+                        MaybeAgent0 = yes(Agent0),
+                        MaybeVeloc0 = yes(Veloc0),
+                        MaybeYaw0 = yes(Yaw0),
+                        MaybeX0 = yes(X0),
+                        MaybeY0 = yes(Y0),
+                        MaybeAgent1 = yes(Agent1),
+                        MaybeVeloc1 = yes(Veloc1),
+                        MaybeYaw1 = yes(Yaw1),
+                        MaybeX1 = yes(X1),
+                        MaybeY1 = yes(Y1)
+                then    Map = [(Agent0 - {Veloc0, Yaw0, X0, Y0}),
+                               (Agent1 - {Veloc1, Yaw1, X1, Y1})],
+                        Obs = yes(init_msg(Map, Time))
+                else    error("read invalid observation")
+            )
+       else if
+            MaybeKind = yes("O")
+       then
+            read_float(Stream, MaybeTime, !IO),
+            read_agent(Stream, MaybeAgent0, !IO),
+            read_float(Stream, MaybeX0, !IO),
+            read_float(Stream, MaybeY0, !IO),
+            read_agent(Stream, MaybeAgent1, !IO),
+            read_float(Stream, MaybeX1, !IO),
+            read_float(Stream, MaybeY1, !IO),
+            (   if      MaybeTime = yes(Time),
+                        MaybeAgent0 = yes(Agent0),
+                        MaybeX0 = yes(X0),
+                        MaybeY0 = yes(Y0),
+                        MaybeAgent1 = yes(Agent1),
+                        MaybeX1 = yes(X1),
+                        MaybeY1 = yes(Y1)
+                then    Obs = yes(obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1}))
+                else    error("read invalid observation")
+            )
+        else if
+            MaybeKind = yes(Kind)
+        then
+            error("read invalid observation kind: "++ Kind)
         else
             Obs = yes(end_of_obs)
     ).
@@ -1063,7 +1101,7 @@ merge_and_trans(I, ObsPipe,
 %   ,write(State, !IO), nl(!IO)
 %   else true ),
     P0 = ( if MaybeObsMsg = yes(obs_msg(Obs)) then append_obs(P, Obs) else P ),
-    S0 = S,
+    S0 = ( if MaybeObsMsg = yes(init_msg(Map, T)) then do(init_env(Map, T), S) else S ),
     (   if
             State \= finishing,
             match_count(P) < cars.lookahead(S)
@@ -1269,8 +1307,8 @@ main(!IO) :-
 
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
-    %simple_obs_generator(ObsGen, !IO),
-    ObsGen = input_obs_generator(stdin_stream),
+    simple_obs_generator(ObsGen, !IO),
+    %ObsGen = input_obs_generator(stdin_stream),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
     WaitForFinish(Results, !IO),
     times(Tms3, !IO),
