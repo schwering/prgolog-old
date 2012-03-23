@@ -63,6 +63,7 @@
 
 :- type agent ---> a ; b.
 :- type lane ---> left ; right.
+:- type agent_info == {mps, rad, m, m}.
 :- type prim --->
         set_veloc(agent, mps, mps, maybe(random.supply),
                   maybe(vargen), list(constraint), time)
@@ -71,6 +72,7 @@
     ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
     ;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
     ;   eval(ccformula(prim), maybe(vargen), list(constraint), time)
+    ;   init_env(assoc_list(agent, agent_info), s)
     ;   seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
                 ;   set_yaw_st(agent, lane, rad).
@@ -190,6 +192,7 @@ start(do(A, S)) = T :-
     ;   A = wait_for(_, _, _, T)
     ;   A = match(_, _, _, _, T)
     ;   A = eval(_, _, _, T)
+    ;   A = init_env(_, T0), T = constant(T0)
     ;   A = seed(_), T = start(S)
     ).
 
@@ -238,28 +241,33 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
     ;   A = wait_for(_, _, Cs, _)
     ;   A = match(_, _, _, Cs, _)
     ;   A = eval(_, _, Cs, _)
+    ;   A = init_env(_, _), Cs = []
     ;   A = seed(_), Cs = []
     ).
 
 %-----------------------------------------------------------------------------%
 
-:- func veloc(sit(prim)::in) = (mps::out) is det.
+:- func veloc(agent::in, sit(prim)::in) = (mps::out) is det.
 
-veloc(s0) = 0.0.
-veloc(do(A, S)) = V :-
-    if      A = set_veloc(_, V0, _, _, _, _, _)
-    then    V = V0
-    else    V = veloc(S).
+veloc(_, s0) = 0.0.
+veloc(Agent, do(A, S)) = Veloc :-
+    if      A = init_env(Map, _)
+    then    {Veloc, _, _, _} = Map^det_elem(Agent)
+    else if A = set_veloc(Agent, V0, _, _, _, _, _)
+    then    Veloc = V0
+    else    Veloc = veloc(Agent, S).
 
 %-----------------------------------------------------------------------------%
 
-:- func yaw(sit(prim)::in) = (mps::out) is det.
+:- func yaw(agent::in, sit(prim)::in) = (mps::out) is det.
 
-yaw(s0) = 0.0.
-yaw(do(A, S)) = Rad :-
-    if      A = set_yaw(_, _, Rad0, _, _, _, _, _)
+yaw(_, s0) = 0.0.
+yaw(Agent, do(A, S)) = Rad :-
+    if      A = init_env(Map, _)
+    then    {_, Rad, _, _} = Map^det_elem(Agent)
+    else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
-    else    Rad = yaw(S).
+    else    Rad = yaw(Agent, S).
 
 %-----------------------------------------------------------------------------%
 
@@ -269,8 +277,11 @@ yaw(do(A, S)) = Rad :-
 x(Agent, s0) = ( func(_) = constant(X) ) :-
     initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
-    if      (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(S)
-            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(S)
+    if      A = init_env(Map, _)
+    then    {_, _, X0, _} = Map^det_elem(Agent),
+            X = ( func(_) = constant(X0) )
+    else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
+            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(Agent, S)
             )
     then    X = ( func(T) = cos(Rad) * Veloc * (T - T0) +
                             x(Agent, S)(T0) )
@@ -284,8 +295,11 @@ x(Agent, do(A, S)) = X :-
 y(Agent, s0) = ( func(_) = constant(Y) ) :-
     initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
-    if      (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(S)
-            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(S)
+    if      A = init_env(Map, _)
+    then    {_, _, _, Y0} = Map^det_elem(Agent),
+            Y = ( func(_) = constant(Y0) )
+    else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
+            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(Agent, S)
             )
     then    Y = ( func(T) = sin(Rad) * Veloc * (T - T0) +
                             y(Agent, S)(T0) )
@@ -555,6 +569,7 @@ proc(overtake(Agent, Victim), P) :-
 %-----------------------------------------------------------------------------%
 
 :- type obs == {s, agent, m, m, agent, m, m}.
+:- type obs_msg ---> obs_msg(obs) ; end_of_obs.
 
 :- pred initial_time(s::out) is det.
 
@@ -742,8 +757,8 @@ read_float(Stream, Float, !IO) :-
     ).
 
 
-:- pred input_obs_generator(input_stream::in, maybe(obs)::out, io::di, io::uo)
-    is det.
+:- pred input_obs_generator(input_stream::in, maybe(obs_msg)::out,
+                            io::di, io::uo) is det.
 
 input_obs_generator(Stream, Obs, !IO) :-
     read_float(Stream, MaybeTime, !IO),
@@ -761,9 +776,9 @@ input_obs_generator(Stream, Obs, !IO) :-
             MaybeX1 = yes(X1),
             MaybeY1 = yes(Y1)
         then
-            Obs = yes({Time, Agent0, X0, Y0, Agent1, X1, Y1})
+            Obs = yes(obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1}))
         else
-            Obs = no
+            Obs = yes(end_of_obs)
     ).
 
 
@@ -776,15 +791,16 @@ simple_obs_generator(P, !IO) :-
     solutions(obs, Obss),
     mvar.init(Var, !IO),
     put(Var, Obss, !IO),
-    P = (pred(MaybeObs::out, IO0::di, IO1::uo) is det :-
+    P = (pred(MaybeObsMsg::out, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
             try_take(Var, MaybeObss, !SubIO),
             (   if      MaybeObss = yes([Obs | RestObs])
-                then    MaybeObs = yes(Obs),
+                then    MaybeObsMsg = yes(obs_msg(Obs)),
                         put(Var, RestObs, !SubIO)
-                else    MaybeObs = no
+                else    MaybeObsMsg = yes(end_of_obs)
             ),
+            write(MaybeObsMsg, !SubIO), nl(!SubIO),
             IO1 = !.SubIO
         )
     ).
@@ -837,6 +853,8 @@ print_action(Map, eval(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
     format("eval(..., %f)\n",
            [f(T)], !IO).
+print_action(_, A @ init_env(_, _), !IO) :-
+    write(A, !IO), nl(!IO).
 print_action(_, seed(Seed), !IO) :-
     format("seed(%d)\n",
            [i(Seed)], !IO).
@@ -878,8 +896,8 @@ print_sit_with_info(Map, S1 @ do(A, S), !IO) :-
 
 print_sit_info(Map, S, !IO) :-
     E = ( func(T) = eval_float(Map, T) ),
-    format("veloc(S) = %.1f\n", [f(veloc(S))], !IO),
-    format("yaw(S) = %.1f\n", [f(yaw(S))], !IO),
+    format("veloc(b, S) = %.1f\n", [f(veloc(b, S))], !IO),
+    format("yaw(b, S) = %.1f\n", [f(yaw(b, S))], !IO),
     format("start(S) = %.1f\n", [f(E(start(S)))], !IO),
     format("x(b, S) = %.1f\n", [f(E(x(b, S)(start(S))))], !IO),
     format("y(b, S) = %.1f\n", [f(E(y(b, S)(start(S))))], !IO),
@@ -973,21 +991,21 @@ map0_io(P, [X | Xs], !IO) :- P(X, !IO), map0_io(P, Xs, !IO).
 det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 
 
-:- type obs_generator == (pred(maybe(obs), io, io)).
+:- type obs_generator == (pred(maybe(obs_msg), io, io)).
 :- inst obs_generator == (pred(out, di, uo) is det).
 
 
 :- pred pipe_obs(obs_generator::in(obs_generator),
-                 list(pipe(obs))::in, bool::out,
+                 list(pipe(obs_msg))::in, bool::out,
                  io::di, io::uo) is det.
 
 pipe_obs(GenObs, ObsPipes, Cont, !IO) :-
-    GenObs(MaybeObs, !IO),
-    (   if      MaybeObs = yes(Obs)
+    GenObs(MaybeObsMsg, !IO),
+    (   if      MaybeObsMsg = yes(ObsMsg)
         then    map0_io((pred(ObsPipe::in, IO0::di, IO1::uo) is det :-
-                    put(ObsPipe, Obs, IO0, IO1)
+                    put(ObsPipe, ObsMsg, IO0, IO1)
                 ), ObsPipes, !IO),
-                Cont = yes
+                Cont = ( if ObsMsg = end_of_obs then no else yes )
         else    Cont = no
     ).
 
@@ -1028,33 +1046,33 @@ match_in_sit(do(A, S), M) :-
     ;   match_in_sit(S, M) ).
 
 
-:- type s_state ---> running ; finished ; failed.
+:- type s_state ---> running ; finishing ; finished ; failed.
 :- type s_result == {conf(prim, stoch, procedure), s_state}.
 
-:- pred merge_and_trans(pipe(obs)::in,
+:- pred merge_and_trans(int::in, pipe(obs_msg)::in,
                         s_result::in, s_result::out,
                         bool::out,
                         io::di, io::uo) is det.
 
-merge_and_trans(ObsPipe,
-                {conf(P, S), _}, {conf(P2, S2), Result},
+merge_and_trans(I, ObsPipe,
+                {conf(P, S), State}, {conf(P2, S2), Result},
                 Continue, !IO) :-
-    try_take(ObsPipe, MaybeObs, !IO),
-%   ( if MaybeObs = yes(X) then
-%       write_int(I, !IO), write_string(":  ", !IO), write(X, !IO), nl(!IO)
-%     else true ),
-    P0 = ( if MaybeObs = yes(Obs) then append_obs(P, Obs) else P ),
+    try_take(ObsPipe, MaybeObsMsg, !IO),
+% ( if MaybeObsMsg = yes(X) then
+%    write_int(I, !IO), write_string(":  ", !IO), write(X, !IO), nl(!IO)
+%   ,write(State, !IO), nl(!IO)
+%   else true ),
+    P0 = ( if MaybeObsMsg = yes(obs_msg(Obs)) then append_obs(P, Obs) else P ),
     S0 = S,
     (   if
-            match_count(P) < cars.lookahead(S),
-            % the loop should stop when all observations haven been merged
-            % into the program or executed
-            more_observations_will_come(P, S)
+            State \= finishing,
+            match_count(P) < cars.lookahead(S)
         then
             Continue = yes,
             P2 = P0,
             S2 = S0,
-            Result = running
+            Result = ( if (State = finishing ; MaybeObsMsg = yes(end_of_obs))
+                       then finishing else running )
         else if
             final(remove_match_sequence(P), S),
             last_action_covered_by_match(S)
@@ -1069,7 +1087,8 @@ merge_and_trans(ObsPipe,
             Continue = yes,
             P2 = P1,
             S2 = S1,
-            Result = running
+            Result = ( if (State = finishing ; MaybeObsMsg = yes(end_of_obs))
+                       then finishing else running )
         else
             Continue = no,
             P2 = P0,
@@ -1078,7 +1097,7 @@ merge_and_trans(ObsPipe,
     ).
 
 
-:- pred init_obs_pipes(int::in, list(pipe(obs))::out,
+:- pred init_obs_pipes(int::in, list(pipe(obs_msg))::out,
                           io::di, io::uo) is det.
 
 init_obs_pipes(N, Cs, !IO) :-
@@ -1101,10 +1120,9 @@ init_result_vars(N, Vs, !IO) :-
 
 
 :- pred planrecog(obs_generator::in(obs_generator),
-          prog(prim, stoch, procedure)::in,
-          (pred(list(s_result), io, io)::out(
-           pred(out, di, uo) is det)),
-          io::di, io::uo) is cc_multi.
+                  prog(prim, stoch, procedure)::in,
+                  (pred(list(s_result), io, io)::out(pred(out, di, uo) is det)),
+                  io::di, io::uo) is cc_multi.
 
 planrecog(GenObs, Prog, WaitForFinish, !IO) :-
     N = 5,
@@ -1122,7 +1140,7 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
             some [!SubIO] (
                 !:SubIO = IOB0,
                 ObsPipe = det_index1(ObsPipes, I),
-                LoopBody = merge_and_trans(ObsPipe),
+                LoopBody = merge_and_trans(I, ObsPipe),
                 Conf = conf(Prog, do(seed(I), s0)),
                 loop2(LoopBody, {Conf, running}, Result, !SubIO),
                 Var = det_index1(ResultVars, I),
@@ -1150,23 +1168,6 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
             IOC1 = !.SubIO
         )
     ).
-/*
-    WaitForFinish = (pred(Results::out, IOC0::di, IOC1::uo) is det :-
-        some [!SubIO] (
-            IOC0 = !:SubIO,
-            % Each of the N sampling processes signals the semaphore once.
-            repeat((pred(_::in, IOD0::di, IOD1::uo) is det :-
-                wait(FinishedSem, IOD0, IOD1)
-            ), N, !SubIO),
-            % Extract the sample_result value from each process's mvar.
-            Results = [],
-            %map1_io((pred(V::in, {S, R}::out, IO0::di, IO1::uo) is det :-
-            %    take(V, {S, R}, IO0, IO1)
-            %), ResultVars, Results, !SubIO),
-            IOC1 = !.SubIO
-        )
-    ).
-*/
 
 %-----------------------------------------------------------------------------%
 
