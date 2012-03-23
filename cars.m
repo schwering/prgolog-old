@@ -184,7 +184,7 @@ sitlen(do(_, S)) = 1 + sitlen(S).
 
 :- func start(sit(prim)::in) = (time::out) is det.
 
-%start(s0) = constant(zero).
+%start(s0) = constant(0.0).
 start(s0) = constant(T) :- initial_time(T).
 start(do(A, S)) = T :-
     (   A = set_veloc(_, _, _, _, _, _, T)
@@ -273,7 +273,7 @@ yaw(Agent, do(A, S)) = Rad :-
 
 :- func x(agent::in, sit(prim)::in) = (tfunc::out) is det.
 
-%x(_, s0) = ( func(_) = constant(zero) ).
+%x(_, s0) = ( func(_) = constant(0.0) ).
 x(Agent, s0) = ( func(_) = constant(X) ) :-
     initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
@@ -291,7 +291,7 @@ x(Agent, do(A, S)) = X :-
 
 :- func y(agent::in, sit(prim)::in) = (tfunc::out) is det.
 
-%y(_, s0) = ( func(_) = constant(zero) ).
+%y(_, s0) = ( func(_) = constant(0.0) ).
 y(Agent, s0) = ( func(_) = constant(Y) ) :-
     initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
@@ -576,11 +576,6 @@ proc(overtake(Agent, Victim), P) :-
 initial_time(5.594000).
 
 
-:- func max_time = s.
-
-max_time = 15.632000.
-
-
 :- pred initial(agent::in, m::out, m::out) is det.
 
 initial(a, 34.776825, -2.999933).
@@ -757,66 +752,47 @@ read_float(Stream, Float, !IO) :-
     ).
 
 
-:- pred input_obs_generator(input_stream::in, maybe(obs_msg)::out,
+:- pred input_obs_generator(input_stream::in, obs_msg::out,
                             io::di, io::uo) is det.
 
 input_obs_generator(Stream, Obs, !IO) :-
     read_w(Stream, MaybeKind, !IO),
-    (   if  MaybeKind = yes("I")
-        then
-            read_float(Stream, MaybeTime, !IO),
-            read_agent(Stream, MaybeAgent0, !IO),
-            read_float(Stream, MaybeVeloc0, !IO),
-            read_float(Stream, MaybeYaw0, !IO),
-            read_float(Stream, MaybeX0, !IO),
-            read_float(Stream, MaybeY0, !IO),
-            read_agent(Stream, MaybeAgent1, !IO),
-            read_float(Stream, MaybeVeloc1, !IO),
-            read_float(Stream, MaybeYaw1, !IO),
-            read_float(Stream, MaybeX1, !IO),
-            read_float(Stream, MaybeY1, !IO),
-            (   if      MaybeTime = yes(Time),
-                        MaybeAgent0 = yes(Agent0),
-                        MaybeVeloc0 = yes(Veloc0),
-                        MaybeYaw0 = yes(Yaw0),
-                        MaybeX0 = yes(X0),
-                        MaybeY0 = yes(Y0),
-                        MaybeAgent1 = yes(Agent1),
-                        MaybeVeloc1 = yes(Veloc1),
-                        MaybeYaw1 = yes(Yaw1),
-                        MaybeX1 = yes(X1),
-                        MaybeY1 = yes(Y1)
-                then    Map = [(Agent0 - {Veloc0, Yaw0, X0, Y0}),
-                               (Agent1 - {Veloc1, Yaw1, X1, Y1})],
-                        Obs = yes(init_msg(Map, Time))
-                else    error("read invalid observation")
-            )
-       else if
-            MaybeKind = yes("O")
-       then
-            read_float(Stream, MaybeTime, !IO),
-            read_agent(Stream, MaybeAgent0, !IO),
-            read_float(Stream, MaybeX0, !IO),
-            read_float(Stream, MaybeY0, !IO),
-            read_agent(Stream, MaybeAgent1, !IO),
-            read_float(Stream, MaybeX1, !IO),
-            read_float(Stream, MaybeY1, !IO),
-            (   if      MaybeTime = yes(Time),
-                        MaybeAgent0 = yes(Agent0),
-                        MaybeX0 = yes(X0),
-                        MaybeY0 = yes(Y0),
-                        MaybeAgent1 = yes(Agent1),
-                        MaybeX1 = yes(X1),
-                        MaybeY1 = yes(Y1)
-                then    Obs = yes(obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1}))
-                else    error("read invalid observation")
-            )
-        else if
-            MaybeKind = yes(Kind)
-        then
-            error("read invalid observation kind: "++ Kind)
-        else
-            Obs = yes(end_of_obs)
+    read_float(Stream, MaybeTime, !IO),
+    read_agent(Stream, MaybeAgent0, !IO),
+    read_float(Stream, MaybeVeloc0, !IO),
+    read_float(Stream, MaybeYaw0, !IO),
+    read_float(Stream, MaybeX0, !IO),
+    read_float(Stream, MaybeY0, !IO),
+    read_agent(Stream, MaybeAgent1, !IO),
+    read_float(Stream, MaybeVeloc1, !IO),
+    read_float(Stream, MaybeYaw1, !IO),
+    read_float(Stream, MaybeX1, !IO),
+    read_float(Stream, MaybeY1, !IO),
+    (   if      MaybeKind = yes("I"),
+                MaybeTime = yes(Time),
+                MaybeAgent0 = yes(Agent0),
+                MaybeVeloc0 = yes(Veloc0),
+                MaybeYaw0 = yes(Yaw0),
+                MaybeX0 = yes(X0),
+                MaybeY0 = yes(Y0),
+                MaybeAgent1 = yes(Agent1),
+                MaybeVeloc1 = yes(Veloc1),
+                MaybeYaw1 = yes(Yaw1),
+                MaybeX1 = yes(X1),
+                MaybeY1 = yes(Y1)
+        then    Map = [(Agent0 - {Veloc0, Yaw0, X0, Y0}),
+                       (Agent1 - {Veloc1, Yaw1, X1, Y1})],
+                Obs = init_msg(Map, Time)
+       else if  MaybeKind = yes("O"),
+                MaybeTime = yes(Time),
+                MaybeAgent0 = yes(Agent0),
+                MaybeX0 = yes(X0),
+                MaybeY0 = yes(Y0),
+                MaybeAgent1 = yes(Agent1),
+                MaybeX1 = yes(X1),
+                MaybeY1 = yes(Y1)
+        then    Obs = obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1})
+        else    Obs = end_of_obs
     ).
 
 
@@ -829,16 +805,16 @@ simple_obs_generator(P, !IO) :-
     solutions(obs, Obss),
     mvar.init(Var, !IO),
     put(Var, Obss, !IO),
-    P = (pred(MaybeObsMsg::out, IO0::di, IO1::uo) is det :-
+    P = (pred(ObsMsg::out, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
             try_take(Var, MaybeObss, !SubIO),
             (   if      MaybeObss = yes([Obs | RestObs])
-                then    MaybeObsMsg = yes(obs_msg(Obs)),
+                then    ObsMsg = obs_msg(Obs),
                         put(Var, RestObs, !SubIO)
-                else    MaybeObsMsg = yes(end_of_obs)
+                else    ObsMsg = end_of_obs
             ),
-            write(MaybeObsMsg, !SubIO), nl(!SubIO),
+            write(ObsMsg, !SubIO), nl(!SubIO),
             IO1 = !.SubIO
         )
     ).
@@ -1029,7 +1005,7 @@ map0_io(P, [X | Xs], !IO) :- P(X, !IO), map0_io(P, Xs, !IO).
 det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 
 
-:- type obs_generator == (pred(maybe(obs_msg), io, io)).
+:- type obs_generator == (pred(obs_msg, io, io)).
 :- inst obs_generator == (pred(out, di, uo) is det).
 
 
@@ -1038,23 +1014,11 @@ det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
                  io::di, io::uo) is det.
 
 pipe_obs(GenObs, ObsPipes, Cont, !IO) :-
-    GenObs(MaybeObsMsg, !IO),
-    (   if      MaybeObsMsg = yes(ObsMsg)
-        then    map0_io((pred(ObsPipe::in, IO0::di, IO1::uo) is det :-
-                    put(ObsPipe, ObsMsg, IO0, IO1)
-                ), ObsPipes, !IO),
-                Cont = ( if ObsMsg = end_of_obs then no else yes )
-        else    Cont = no
-    ).
-
-
-:- pred more_observations_will_come(prog(prim, stoch, procedure)::in,
-                                    sit(prim)::in) is semidet.
-
-more_observations_will_come(P, S) :-
-    TMax = max_time,
-    not ( match_in_prog(P, match(TMax, _, _, _, _)) ),
-    not ( match_in_sit(S, match(TMax, _, _, _, _)) ).
+    GenObs(ObsMsg, !IO),
+    map0_io((pred(ObsPipe::in, IO0::di, IO1::uo) is det :-
+        put(ObsPipe, ObsMsg, IO0, IO1)
+    ), ObsPipes, !IO),
+    Cont = ( if ObsMsg = end_of_obs then no else yes ).
 
 
 :- pred match_in_prog(prog(prim, stoch, procedure)::in, prim::out) is nondet.
@@ -1307,8 +1271,8 @@ main(!IO) :-
 
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
-    simple_obs_generator(ObsGen, !IO),
-    %ObsGen = input_obs_generator(stdin_stream),
+    %simple_obs_generator(ObsGen, !IO),
+    ObsGen = input_obs_generator(stdin_stream),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
     WaitForFinish(Results, !IO),
     times(Tms3, !IO),
