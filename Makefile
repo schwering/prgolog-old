@@ -14,6 +14,7 @@ replay: replay.c
 
 clean:
 	rm -rf Mercury
+	rm -f *.o
 	rm -f *.mh
 	rm -f *.err
 	rm -f cars maze

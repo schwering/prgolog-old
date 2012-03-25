@@ -1124,7 +1124,7 @@ init_result_vars(N, Vs, !IO) :-
                   io::di, io::uo) is cc_multi.
 
 planrecog(GenObs, Prog, WaitForFinish, !IO) :-
-    N = 20,
+    N = 10,
     init_obs_channels(N, ObsChannels, !IO),
     init_result_vars(N, ResultVars, !IO),
     init(FinishedSem, !IO),
@@ -1282,18 +1282,23 @@ main(!IO) :-
                         print_sit_info(Map, S, !SubIO)
                 else    write_string("solving failed\n", !SubIO)
             ),
+            write_string("Remaining program: ", !SubIO),
             write(P, !SubIO), nl(!SubIO),
             nl(!SubIO),
             IO1 = !.SubIO
         )
     ), Results, !IO),
-    foldl((pred({_, R}::in, {N, M}::in, {N1, M1}::out) is det :-
-        if      R = finished
-        then    N1 = N + 1, M1 = M + 1
-        else    N1 = N,     M1 = M + 1
-    ), Results, {0, 0}, {Finished, Total}),
-    format("percentage = %d / %d = %.2f\n",
-           [i(Finished), i(Total), f(float(Finished) / float(Total))], !IO),
+    (   if      Results \= []
+        then    foldl((pred({_, R}::in, {N, M}::in, {N1, M1}::out) is det :-
+                    if      R = finished
+                    then    N1 = N + 1, M1 = M + 1
+                    else    N1 = N,     M1 = M + 1
+                ), Results, {0, 0}, {Finished, Total}),
+                format("percentage = %d / %d = %.2f\n",
+                       [i(Finished), i(Total),
+                        f(float(Finished) / float(Total))], !IO)
+        else    format("percentage = nan\n", [], !IO)
+    ),
     format("usertime = %f\n", [f(usertime(Tms2, Tms3))], !IO),
     format("systime = %f\n", [f(systime(Tms2, Tms3))], !IO),
 

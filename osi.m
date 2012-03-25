@@ -154,7 +154,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
 :- pragma foreign_proc("C",
     new_solver_context(N::in, Ctx::uo),
-    [will_not_call_mercury, promise_pure],
+    [will_not_call_mercury, promise_pure, thread_safe],
 "
     Ctx = new_solver_context(N);
 ").
@@ -164,7 +164,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
 :- pragma foreign_proc("C",
     finalize_solver_context(Ctx::di),
-    [will_not_call_mercury, promise_pure],
+    [will_not_call_mercury, promise_pure, thread_safe],
 "
     finalize_solver_context(Ctx);
 ").
@@ -176,7 +176,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
 :- pragma foreign_proc("C",
     add_constraint(N::in, As::in, Vs::in, Cmp::in, Bnd::in, Ctx0::di, Ctx1::uo),
-    [will_not_call_mercury, promise_pure],
+    [will_not_call_mercury, promise_pure, thread_safe],
 "
     double* as_arr = malloc(N * sizeof(double));
     int* vs_arr = malloc(N * sizeof(int));
@@ -204,7 +204,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 :- pragma foreign_proc("C",
     solve(Optimal::out, ObjValue::out, VarValues::out,
           Ctx0::di, Ctx1::uo),
-    [will_not_call_mercury, promise_pure],
+    [will_not_call_mercury, promise_pure, thread_safe],
 "
     double obj_val;
     double* var_values_arr;
