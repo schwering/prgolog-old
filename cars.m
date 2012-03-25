@@ -36,6 +36,7 @@
 :- import_module bool.
 :- import_module int.
 :- import_module float.
+:- import_module gc.
 :- import_module list.
 :- import_module math.
 :- import_module map.
@@ -45,7 +46,7 @@
 :- import_module solutions.
 :- import_module times.
 :- import_module thread.
-:- import_module pipe.
+:- import_module thread.channel.
 :- import_module require.
 :- import_module thread.mvar.
 :- import_module thread.semaphore.
@@ -814,7 +815,7 @@ simple_obs_generator(P, !IO) :-
                         put(Var, RestObs, !SubIO)
                 else    ObsMsg = end_of_obs
             ),
-            write(ObsMsg, !SubIO), nl(!SubIO),
+            %write(ObsMsg, !SubIO), nl(!SubIO),
             IO1 = !.SubIO
         )
     ).
@@ -971,7 +972,6 @@ repeat(G, N, !IO) :-
 
 loop(G, !IO) :-
     G(B, !IO),
-    yield(!IO),
     ( if B = yes then loop(G, !IO) else true ).
 
 
@@ -980,7 +980,6 @@ loop(G, !IO) :-
 
 loop2(G, !XY, !IO) :-
     G(!XY, B, !IO),
-    yield(!IO),
     ( if B = yes then loop2(G, !XY, !IO) else true ).
 
 
@@ -1009,15 +1008,15 @@ det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 :- inst obs_generator == (pred(out, di, uo) is det).
 
 
-:- pred pipe_obs(obs_generator::in(obs_generator),
-                 list(pipe(obs_msg))::in, bool::out,
-                 io::di, io::uo) is det.
+:- pred channel_obs(obs_generator::in(obs_generator),
+                    list(channel(obs_msg))::in, bool::out,
+                    io::di, io::uo) is det.
 
-pipe_obs(GenObs, ObsPipes, Cont, !IO) :-
+channel_obs(GenObs, ObsChannels, Cont, !IO) :-
     GenObs(ObsMsg, !IO),
-    map0_io((pred(ObsPipe::in, IO0::di, IO1::uo) is det :-
-        put(ObsPipe, ObsMsg, IO0, IO1)
-    ), ObsPipes, !IO),
+    map0_io((pred(ObsChannel::in, IO0::di, IO1::uo) is det :-
+        put(ObsChannel, ObsMsg, IO0, IO1)
+    ), ObsChannels, !IO),
     Cont = ( if ObsMsg = end_of_obs then no else yes ).
 
 
@@ -1051,30 +1050,29 @@ match_in_sit(do(A, S), M) :-
 :- type s_state ---> running ; finishing ; finished ; failed.
 :- type s_result == {conf(prim, stoch, procedure), s_state}.
 
-:- pred merge_and_trans(int::in, pipe(obs_msg)::in,
+:- pred merge_and_trans(channel(obs_msg)::in,
                         s_result::in, s_result::out,
                         bool::out,
                         io::di, io::uo) is det.
 
-merge_and_trans(I, ObsPipe,
+merge_and_trans(ObsChannel,
                 {conf(P, S), State}, {conf(P2, S2), Result},
                 Continue, !IO) :-
-    try_take(ObsPipe, MaybeObsMsg, !IO),
-% ( if MaybeObsMsg = yes(X) then
-%    write_int(I, !IO), write_string(":  ", !IO), write(X, !IO), nl(!IO)
-%   ,write(State, !IO), nl(!IO)
-%   else true ),
-    P0 = ( if MaybeObsMsg = yes(obs_msg(Obs)) then append_obs(P, Obs) else P ),
-    S0 = ( if MaybeObsMsg = yes(init_msg(Map, T)) then do(init_env(T, Map), S) else S ),
+    (   if      State \= finishing,
+                match_count(P) < cars.lookahead(S)
+        then    take(ObsChannel, ObsMsg, !IO)
+        else    ObsMsg = end_of_obs
+    ),
+    P0 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
+    S0 = ( if ObsMsg = init_msg(Map, T) then do(init_env(T, Map), S) else S ),
     (   if
             State \= finishing,
-            match_count(P) < cars.lookahead(S)
+            match_count(P0) < cars.lookahead(S)
         then
             Continue = yes,
             P2 = P0,
             S2 = S0,
-            Result = ( if (State = finishing ; MaybeObsMsg = yes(end_of_obs))
-                       then finishing else running )
+            Result = ( if ObsMsg = end_of_obs then finishing else running )
         else if
             final(remove_match_sequence(P), S),
             last_action_covered_by_match(S)
@@ -1089,8 +1087,7 @@ merge_and_trans(I, ObsPipe,
             Continue = yes,
             P2 = P1,
             S2 = S1,
-            Result = ( if (State = finishing ; MaybeObsMsg = yes(end_of_obs))
-                       then finishing else running )
+            Result = State
         else
             Continue = no,
             P2 = P0,
@@ -1099,14 +1096,14 @@ merge_and_trans(I, ObsPipe,
     ).
 
 
-:- pred init_obs_pipes(int::in, list(pipe(obs_msg))::out,
+:- pred init_obs_channels(int::in, list(channel(obs_msg))::out,
                           io::di, io::uo) is det.
 
-init_obs_pipes(N, Cs, !IO) :-
+init_obs_channels(N, Cs, !IO) :-
     if      N > 0
     then    Cs = [C | Cs0],
             init(C, !IO),
-            init_obs_pipes(N - 1, Cs0, !IO)
+            init_obs_channels(N - 1, Cs0, !IO)
     else    Cs = [].
 
 
@@ -1127,13 +1124,13 @@ init_result_vars(N, Vs, !IO) :-
                   io::di, io::uo) is cc_multi.
 
 planrecog(GenObs, Prog, WaitForFinish, !IO) :-
-    N = 5,
-    init_obs_pipes(N, ObsPipes, !IO),
+    N = 20,
+    init_obs_channels(N, ObsChannels, !IO),
     init_result_vars(N, ResultVars, !IO),
     init(FinishedSem, !IO),
 
-    % 1. 1 thread that sends observations to all ObsPipes.
-    spawn(det2cc_multi(loop(pipe_obs(GenObs, ObsPipes))), !IO),
+    % 1. 1 thread that sends observations to all ObsChannels.
+    spawn(det2cc_multi(loop(channel_obs(GenObs, ObsChannels))), !IO),
 
     % 2. N threads that read observations, incrementally execute Prog and
     % eventually write the result to the I-th ResultVar.
@@ -1141,8 +1138,8 @@ planrecog(GenObs, Prog, WaitForFinish, !IO) :-
         ThreadBody = (pred(IOB0::di, IOB1::uo) is det :-
             some [!SubIO] (
                 !:SubIO = IOB0,
-                ObsPipe = det_index1(ObsPipes, I),
-                LoopBody = merge_and_trans(I, ObsPipe),
+                ObsChannel = det_index1(ObsChannels, I),
+                LoopBody = merge_and_trans(ObsChannel),
                 Conf = conf(Prog, do(seed(I), s0)),
                 loop2(LoopBody, {Conf, running}, Result, !SubIO),
                 Var = det_index1(ResultVars, I),
@@ -1238,7 +1235,6 @@ exec(!C, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- use_module lpq.
 :- import_module pair.
 
 % Solve the maze using a program:
@@ -1275,6 +1271,7 @@ main(!IO) :-
     ObsGen = input_obs_generator(stdin_stream),
     planrecog(ObsGen, Prog, WaitForFinish, !IO),
     WaitForFinish(Results, !IO),
+    %garbage_collect(!IO),
     times(Tms3, !IO),
     map0_io((pred({conf(P, S), R}::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
