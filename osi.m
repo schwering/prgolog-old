@@ -207,8 +207,9 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     double obj_val;
-    double* var_values_arr;
+    double* var_values_arr = NULL;
     int nvars;
+
     if (solve(Ctx0, &obj_val, &var_values_arr, &nvars)) {
         MR_Word var_values_list = MR_list_empty();
         int i;
@@ -225,6 +226,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
         ObjValue = (MR_Float) 0;
         VarValues = MR_list_empty();
     }
+
     free(var_values_arr);
     Ctx1 = Ctx0;
 ").
