@@ -21,7 +21,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred main(io::di, io::uo) is det.
+:- pred main(io::di, io::uo) is cc_multi.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -797,14 +797,17 @@ input_obs_generator(Stream, Obs, !IO) :-
     ).
 
 
-:- pred simple_init_obs(list(obs_msg)::out) is det.
+:- pred simple_init_obs(list(obs_msg)::uo) is det.
 
-simple_init_obs(ObsMsgs) :-
-    solutions(obs, Obss),
-    ObsMsgs = map((func(Obs) = obs_msg(Obs)), Obss).
+simple_init_obs(ObsMsgs1) :-
+    solutions((pred(ObsMsg::out) is nondet :-
+        obs(Obs),
+        ObsMsg = obs_msg(Obs)
+    ), ObsMsgs0),
+    copy(ObsMsgs0, ObsMsgs1).
 
 
-:- pred simple_next_obs(obs_msg::out, list(obs_msg)::in, list(obs_msg)::out) is det.
+:- pred simple_next_obs(obs_msg::out, list(obs_msg)::di, list(obs_msg)::uo) is det.
 
 simple_next_obs(P, [P|Ps], Ps).
 simple_next_obs(end_of_obs, [], []).
@@ -968,8 +971,8 @@ wrt(S, T, !IO) :- write_string(S, !IO), write(T, !IO), nl(!IO).
 :- type loopable == (pred(bool, io, io)).
 :- inst loopable == (pred(out, di, uo) is det).
 
-:- type loopable2(T) == (pred(T, T, bool)).
-:- inst loopable2 == (pred(in, out, out) is det).
+:- type loopable2(T1, T2) == (pred(T1, T1, T2, T2, bool)).
+:- inst loopable2 == (pred(in, out, di, uo, out) is det).
 
 
 :- pred repeat(repeatable, int, io, io).
@@ -990,11 +993,12 @@ loop(G, !IO) :-
     ( if B = yes then loop(G, !IO) else true ).
 
 
-:- pred loop2(loopable2(T)::in(loopable2), T::in, T::out) is det.
+:- pred loop2(loopable2(T1, T2)::in(loopable2),
+              T1::in, T1::out, T2::di, T2::uo) is det.
 
-loop2(G, !XY) :-
-    G(!XY, B),
-    ( if B = yes then loop2(G, !XY) else true ).
+loop2(G, !X, !Y) :-
+    G(!X, !Y, B),
+    ( if B = yes then loop2(G, !X, !Y) else true ).
 
 
 :- pred map1_io((pred(T1, T2, io, io)::in(pred(in, out, di, uo) is det)),
@@ -1021,9 +1025,9 @@ det2cc_multi(G) = (pred(IO0::di, IO1::uo) is cc_multi :- G(IO0, IO1)).
 %:- type init_obs(T) == ((func) = T).
 %:- inst init_obs == (((func) = out) is det).
 :- type init_obs(T) == (pred(T)).
-:- inst init_obs == (pred(out) is det).
+:- inst init_obs == (pred(uo) is det).
 :- type next_obs(T) == (pred(obs_msg, T, T)).
-:- inst next_obs == (pred(out, in, out) is det).
+:- inst next_obs == (pred(out, di, uo) is det).
 
 
 /*
@@ -1067,35 +1071,37 @@ match_in_sit(do(A, S), M) :-
     ;   match_in_sit(S, M) ).
 
 
-:- type s_state ---> running ; finishing ; finished ; failed.
-:- type s_result(T) ---> result(conf(prim, stoch, procedure), s_state, T).
-:- inst s_result ---> result(ground, ground, ground).
+:- type s_phase ---> running ; finishing ; finished ; failed.
+:- type s_state ---> s_state(conf(prim, stoch, procedure), s_phase).
 
 
 :- pred merge_and_trans(next_obs(T)::in(next_obs),
-                        s_result(T)::in(s_result),
-                        s_result(T)::out(s_result),
+                        s_state::in,
+                        s_state::out,
+                        T::di,
+                        T::uo,
                         bool::out) is det.
 
 merge_and_trans(NextObs,
-                result(conf(P, S), State, !.ObsState),
-                result(conf(P2, S2), Result, !:ObsState),
+                s_state(conf(P, S), !.Phase),
+                s_state(conf(P2, S2), !:Phase),
+                !ObsGenState,
                 Continue) :-
-    (   if      State \= finishing,
+    (   if      !.Phase \= finishing,
                 match_count(P) < cars.lookahead(S)
-        then    NextObs(ObsMsg, !ObsState)
+        then    NextObs(ObsMsg, !ObsGenState)
         else    ObsMsg = end_of_obs
     ),
     P0 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
     S0 = ( if ObsMsg = init_msg(Map, T) then do(init_env(T, Map), S) else S ),
     (   if
-            State \= finishing,
+            !.Phase \= finishing,
             match_count(P0) < cars.lookahead(S)
         then
             Continue = yes,
             P2 = P0,
             S2 = S0,
-            Result = ( if ObsMsg = end_of_obs then finishing else running )
+            !:Phase = ( if ObsMsg = end_of_obs then finishing else running )
         else if
             final(remove_match_sequence(P), S),
             last_action_covered_by_match(S)
@@ -1103,19 +1109,19 @@ merge_and_trans(NextObs,
             Continue = no,
             P2 = P0,
             S2 = S0,
-            Result = finished
+            !:Phase = finished
         else if
             trans(P0, S0, P1, S1)
         then
             Continue = yes,
             P2 = P1,
             S2 = S1,
-            Result = State
+            !:Phase = !.Phase
         else
             Continue = no,
             P2 = P0,
             S2 = S0,
-            Result = failed
+            !:Phase = failed
     ).
 
 
@@ -1129,34 +1135,78 @@ init_obs_channels(N, Cs, !IO) :-
             init(C, !IO),
             init_obs_channels(N - 1, Cs0, !IO)
     else    Cs = [].
+*/
+
+%-----------------------------------------------------------------------------%
+
+:- pred run_concurrently_par_conj(int::in,
+                                  pred(int, s_state)::in(pred(in, out) is det),
+                                  list(s_state)::out) is det.
+
+run_concurrently_par_conj(I, P, Rs) :-
+    (   if      I > 0
+        then    ( P(I, R) & run_concurrently_par_conj(I - 1, P, Rs0) ),
+                Rs = [R | Rs0]
+        else    Rs = []
+    ).
 
 
-:- pred init_result_vars(int::in, list(mvar(s_result))::out,
-                         io::di, io::uo) is det.
+:- pred init_vars(int::in, list(mvar(T))::out, io::di, io::uo) is det.
 
-init_result_vars(N, Vs, !IO) :-
+init_vars(N, Vs, !IO) :-
     if      N > 0
     then    Vs = [V | Vs0],
             init(V, !IO),
-            init_result_vars(N - 1, Vs0, !IO)
+            init_vars(N - 1, Vs0, !IO)
     else    Vs = [].
-*/
 
+
+:- pred take_vars(list(mvar(T))::in, list(T)::out, io::di, io::uo) is det.
+
+take_vars([], [], !IO).
+take_vars([V | Vs], [R | Rs], !IO) :-
+    take(V, R, !IO),
+    take_vars(Vs, Rs, !IO).
+
+
+:- pred run_concurrently_thread(int::in,
+                                list(mvar(s_state))::in,
+                                pred(int, s_state)::in(pred(in, out) is det),
+                                io::di,
+                                io::uo) is cc_multi.
+
+run_concurrently_thread(_, [], _, !IO).
+run_concurrently_thread(I, [V | Vs], P, !IO) :-
+    spawn((pred(IO0::di, IO1::uo) is cc_multi :-
+        P(I, R),
+        put(V, R, IO0, IO1)
+    ), !IO),
+    run_concurrently_thread(I - 1, Vs, P, !IO).
+
+
+:- pred run_concurrently(int::in,
+                         pred(int, s_state)::in(pred(in, out) is det),
+                         list(s_state)::out,
+                         io::di, io::uo) is cc_multi.
+
+%run_concurrently(N, P, Rs, !IO) :- run_concurrently_par_conj(N, P, Rs).
+run_concurrently(N, P, Rs, !IO) :- init_vars(N, Vs, !IO), run_concurrently_thread(N, Vs, P, !IO), take_vars(Vs, Rs, !IO).
+
+%-----------------------------------------------------------------------------%
 
 :- pred planrecog(init_obs(T)::in(init_obs),
                   next_obs(T)::in(next_obs),
                   prog(prim, stoch, procedure)::in,
-                  list(s_result(T))::out(list(s_result))) is det.
+                  list(s_state)::out,
+                  io::di, io::uo) is cc_multi.
 
-planrecog(InitObs, NextObs, Prog, Results) :-
+planrecog(InitObs, NextObs, Prog, Results, !IO) :-
     LoopBody = merge_and_trans(NextObs),
     Thread = (pred(I::in, R::out) is det :-
         InitObs(Init),
-        loop2(LoopBody, result(conf(Prog, do(seed(I), s0)), running, Init), R)
+        loop2(LoopBody, s_state(conf(Prog, do(seed(I), s0)), running), R, Init, _)
     ),
-    (   Thread(0, R0)
-    ),
-    Results = [R0].
+    run_concurrently(5, Thread, Results, !IO).
 
 
 /*
@@ -1306,12 +1356,12 @@ main(!IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %simple_obs_generator(ObsGen, !IO),
     %ObsGen = input_obs_generator(stdin_stream),
-    planrecog(simple_init_obs, simple_next_obs, Prog, Results),
+    planrecog(simple_init_obs, simple_next_obs, Prog, Results, !IO),
     %planrecog(ObsGen, Prog, WaitForFinish, !IO),
     %WaitForFinish(Results, !IO),
     %garbage_collect(!IO),
     times(Tms3, !IO),
-    map0_io((pred(result(conf(P, S), R, _)::in, IO0::di, IO1::uo) is det :-
+    map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
             write(R, !SubIO), nl(!SubIO),
@@ -1327,7 +1377,7 @@ main(!IO) :-
         )
     ), Results, !IO),
     (   if      Results \= []
-        then    foldl((pred(result(_, R, _)::in, {N, M}::in, {N1, M1}::out) is det :-
+        then    foldl((pred(s_state(_, R)::in, {N, M}::in, {N1, M1}::out) is det :-
                     if      R = finished
                     then    N1 = N + 1, M1 = M + 1
                     else    N1 = N,     M1 = M + 1
