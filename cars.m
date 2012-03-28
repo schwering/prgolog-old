@@ -937,6 +937,7 @@ print_sit_info(Map, S, !IO) :-
     format("x_tol(b, S) = %.1f\n", [f(x_tol(b, S))], !IO),
     format("y_tol(b, S) = %.1f\n", [f(y_tol(b, S))], !IO),
     format("now(S) = %.1f\n", [f(E(now(S)(start(S))))], !IO),
+    nl(!IO), write(constraints(S), !IO), nl(!IO),
 
     %Time = constant(13.132000),
     %wrt("x(b, S)(T) = ", E(x(b, S)(Time)), !IO),
@@ -1163,6 +1164,18 @@ run_concurrently_par_conj(I, P, Rs) :-
     ).
 
 
+:- pred run_sequentially(int::in,
+                         pred(int, s_state)::in(pred(in, out) is det),
+                         list(s_state)::out) is det.
+
+run_sequentially(I, P, Rs) :-
+    (   if      I > 0
+        then    P(I, R), run_sequentially(I - 1, P, Rs0),
+                Rs = [R | Rs0]
+        else    Rs = []
+    ).
+
+
 :- pred init_vars(int::in, list(mvar(T))::out, io::di, io::uo) is det.
 
 init_vars(N, Vs, !IO) :-
@@ -1201,11 +1214,14 @@ run_concurrently_thread(I, [V | Vs], P, !IO) :-
                          list(s_state)::out,
                          io::di, io::uo) is cc_multi.
 
-%run_concurrently(N, P, Rs, !IO) :- run_concurrently_par_conj(N, P, Rs).
+%run_concurrently(N, P, Rs, !IO) :-
+%    run_concurrently_par_conj(N, P, Rs).
 run_concurrently(N, P, Rs, !IO) :-
-    init_vars(N, Vs, !IO),
-    run_concurrently_thread(N, Vs, P, !IO),
-    take_vars(Vs, Rs, !IO).
+    run_sequentially(N, P, Rs).
+%run_concurrently(N, P, Rs, !IO) :-
+%    init_vars(N, Vs, !IO),
+%    run_concurrently_thread(N, Vs, P, !IO),
+%    take_vars(Vs, Rs, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -1221,7 +1237,7 @@ planrecog(InitObs, NextObs, Prog, Results, !IO) :-
         InitObs(InitialObsGenState),
         merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
     ),
-    run_concurrently(1, Thread, Results, !IO).
+    run_concurrently(5, Thread, Results, !IO).
 
 
 /*

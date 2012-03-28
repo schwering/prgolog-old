@@ -34,7 +34,7 @@ SolverContext::SolverContext(int nvars)
   }
   solver.loadProblem(matrix, var_lb, var_ub, objective, NULL, NULL);
   solver.setHintParam(OsiDoReducePrint);
-  solver.messageHandler()->setLogLevel(0); 
+  //solver.messageHandler()->setLogLevel(0); 
 }
 
 SolverContext::~SolverContext()

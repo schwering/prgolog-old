@@ -1,0 +1,11 @@
+for f in $(find . -name \*.h -or -name \*.cc); do cp $f $f.tmp; echo '#include "gc_pthread_redirects.h"' >$f; cat $f.tmp >>$f; rm $f.tmp; done
+for f in $(find . -name \*.h -or -name \*.cc); do cp $f $f.tmp; echo '#include "gc.h"' >$f; cat $f.tmp >>$f; rm $f.tmp; done
+find . -name \*.tmp | xargs rm
+export CPPFLAGS="-I/usr/local/mercury-11.07/lib/mercury/inc/"
+export LDFLAGS="-L/usr/local/mercury-11.07/lib/mercury/lib/"
+export CXXDEFS="GC_PTHREADS LINUX_THREADS"
+export CDEFS="GC_PTHREADS LINUX_THREADS"
+export COIN_SKIP_PROJECTS="DyLP Vol"
+./configure
+find . -name Makefile | xargs sed --in-place -e 's/ADDLIBS =/ADDLIBS = -lgc/g'
+
