@@ -97,7 +97,7 @@ solve(Cstrs, _Dir, _Obj, VS) = R :-
 
 one_fails_trivially([C | Cs]) :-
     (   fails_trivially(C)
-    ;   \+ fails_trivially(C), one_fails_trivially(Cs)
+    ;   not fails_trivially(C), one_fails_trivially(Cs)
     ).
 
 
@@ -157,6 +157,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     Ctx = new_solver_context(N);
+    //Ctx = NULL;
 ").
 
 
@@ -194,6 +195,8 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     add_constraint(Ctx0, N, as_arr, vs_arr, Cmp, Bnd);
     free(vs_arr);
     free(as_arr);
+/*
+*/
     Ctx1 = Ctx0;
 ").
 
@@ -228,6 +231,18 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     }
 
     free(var_values_arr);
+
+/*
+    int i, j;
+    for (i = 1; i < 10000; ++i) {
+        for (j = 1; i < 10000; ++i) {
+            Optimal *= (MR_Integer) (Optimal*i+j*j);
+            ObjValue = log(sqrt(i*i+j*j)) * sqrt((Optimal+i+ObjValue+j)*(i+j)) / (i*i*i*i + j*j*j*j);
+        }
+    }
+
+    VarValues = MR_list_empty();
+*/
     Ctx1 = Ctx0;
 ").
 

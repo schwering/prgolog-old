@@ -1190,7 +1190,10 @@ run_concurrently_thread(I, [V | Vs], P, !IO) :-
                          io::di, io::uo) is cc_multi.
 
 %run_concurrently(N, P, Rs, !IO) :- run_concurrently_par_conj(N, P, Rs).
-run_concurrently(N, P, Rs, !IO) :- init_vars(N, Vs, !IO), run_concurrently_thread(N, Vs, P, !IO), take_vars(Vs, Rs, !IO).
+run_concurrently(N, P, Rs, !IO) :-
+    init_vars(N, Vs, !IO),
+    run_concurrently_thread(N, Vs, P, !IO),
+    take_vars(Vs, Rs, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -1206,7 +1209,7 @@ planrecog(InitObs, NextObs, Prog, Results, !IO) :-
         InitObs(Init),
         loop2(LoopBody, s_state(conf(Prog, do(seed(I), s0)), running), R, Init, _)
     ),
-    run_concurrently(5, Thread, Results, !IO).
+    run_concurrently(50, Thread, Results, !IO).
 
 
 /*
