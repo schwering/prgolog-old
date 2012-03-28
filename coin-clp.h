@@ -9,20 +9,34 @@
  * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
-#ifndef _OSI_C_H_
-#define _OSI_C_H_
+#ifndef _COIN_CLP_H_
+#define _COIN_CLP_H_
 
 #ifdef __cplusplus
 
   #include <OsiClpSolverInterface.hpp>
-  typedef struct {
-    OsiClpSolverInterface* solver;
-    CoinPackedMatrix* matrix;
+
+  class SolverContext {
+   public:
+    explicit SolverContext(int nvars);
+    virtual ~SolverContext();
+
+    void add_constraint(int n, const double* as, const int* vs,
+                        int cmp, double bnd);
+    int varcnt() const;
+    bool solve(double* obj_val, double* var_vals);
+
+   private:
+    SolverContext(const SolverContext&);
+    SolverContext& operator=(const SolverContext&);
+
     int nvars;
+    OsiClpSolverInterface solver;
+    CoinPackedMatrix matrix;
     double* var_lb;
     double* var_ub;
     double* objective;
-  } SolverContext;
+  };
 
 #else
 
@@ -37,11 +51,11 @@ extern "C" {
 #endif
 
 SolverContext* new_solver_context(int nvars);
-void finalize_solver_context(SolverContext* ctx);
-void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
+void finalize_solver_context(SolverContext** ctx);
+void add_constraint(SolverContext* ctx, int n, const double* as, const int* vs,
                     int cmp, double bnd);
-bool solve(SolverContext* ctx, double* obj_val, double** var_vals,
-           int* nvars);
+int varcnt(SolverContext* ctx);
+bool solve(SolverContext* ctx, double* obj_val, double* var_vals);
 
 #ifdef __cplusplus
 }

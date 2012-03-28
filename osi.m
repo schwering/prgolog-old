@@ -46,7 +46,7 @@
 :- pred fails_trivially(constraint::in) is semidet.
 
 :- func solve(list(constraint)::in, direction::in, objective::in, varset::in)
-              = (result::out) is det.
+           = (result::out) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -56,6 +56,7 @@
 :- import_module enum.
 :- import_module float.
 :- import_module int.
+:- import_module io.
 :- import_module require.
 
 %-----------------------------------------------------------------------------%
@@ -83,8 +84,7 @@ solve(Cstrs, _Dir, _Obj, VS) = R :-
                 N = var_id(max_var(VS)),
                 new_solver_context(N, !:SC),
                 add_constraints(Cstrs, !SC),
-                solve(Optimal, ObjValue, VarValues, !.SC, _)%,
-                %finalize_solver_context(!.SC)
+                solve(Optimal, ObjValue, VarValues, !.SC, _)
             ),
             (   if      Optimal \= 0
                 then    VarMap = list_to_map(VarValues),
@@ -128,7 +128,7 @@ list_to_map_2(I, [F|Fs]) = Fs0 :-
 
 
 :- pred add_constraints(list(constraint)::in,
-                        solver_context::di, solver_context::uo).
+                        solver_context::di, solver_context::uo) is det.
 
 add_constraints([], SC, SC).
 add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
@@ -150,6 +150,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
 :- pragma foreign_type("C", solver_context, "SolverContext*").
 
+
 :- pred new_solver_context(int::in, solver_context::uo) is det.
 
 :- pragma foreign_proc("C",
@@ -157,7 +158,6 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     Ctx = new_solver_context(N);
-    //Ctx = NULL;
 ").
 
 
@@ -195,8 +195,6 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     add_constraint(Ctx0, N, as_arr, vs_arr, Cmp, Bnd);
     free(vs_arr);
     free(as_arr);
-/*
-*/
     Ctx1 = Ctx0;
 ").
 
@@ -205,44 +203,31 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
               solver_context::di, solver_context::uo) is det.
 
 :- pragma foreign_proc("C",
-    solve(Optimal::out, ObjValue::out, VarValues::out,
-          Ctx0::di, Ctx1::uo),
+    solve(Optimal::out, ObjValue::out, VarValues::out, Ctx0::di, Ctx1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     double obj_val;
-    double* var_values_arr = NULL;
-    int nvars;
+    double* var_values_arr = malloc(varcnt(Ctx0) * sizeof(double));
 
-    if (solve(Ctx0, &obj_val, &var_values_arr, &nvars)) {
+    if (solve(Ctx0, &obj_val, var_values_arr)) {
         MR_Word var_values_list = MR_list_empty();
         int i;
         Optimal = (MR_Integer) 1;
         ObjValue = (MR_Float) obj_val;
-        for (i = nvars - 1; i >= 0; --i) {
+        for (i = varcnt(Ctx0) - 1; i >= 0; --i) {
             var_values_list = MR_list_cons(
                 MR_float_to_word((MR_Float) var_values_arr[i]),
                 var_values_list);
         }
         VarValues = var_values_list;
+        free(var_values_arr);
     } else {
         Optimal = (MR_Integer) 0;
         ObjValue = (MR_Float) 0;
         VarValues = MR_list_empty();
     }
+    finalize_solver_context(&Ctx0);
 
-    free(var_values_arr);
-
-/*
-    int i, j;
-    for (i = 1; i < 10000; ++i) {
-        for (j = 1; i < 10000; ++i) {
-            Optimal *= (MR_Integer) (Optimal*i+j*j);
-            ObjValue = log(sqrt(i*i+j*j)) * sqrt((Optimal+i+ObjValue+j)*(i+j)) / (i*i*i*i + j*j*j*j);
-        }
-    }
-
-    VarValues = MR_list_empty();
-*/
     Ctx1 = Ctx0;
 ").
 

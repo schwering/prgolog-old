@@ -1075,11 +1075,23 @@ match_in_sit(do(A, S), M) :-
 :- type s_state ---> s_state(conf(prim, stoch, procedure), s_phase).
 
 
+:- pred merge_and_trans_loop(next_obs(T)::in(next_obs),
+                             s_state::in,
+                             s_state::out,
+                             T::di, T::uo) is det.
+
+merge_and_trans_loop(NextObs, !State, !ObsGenState) :-
+    merge_and_trans(NextObs, !State, !ObsGenState, Cont),
+    (   if      Cont = yes
+        then    merge_and_trans_loop(NextObs, !State, !ObsGenState)
+        else    true
+    ).
+
+
 :- pred merge_and_trans(next_obs(T)::in(next_obs),
                         s_state::in,
                         s_state::out,
-                        T::di,
-                        T::uo,
+                        T::di, T::uo,
                         bool::out) is det.
 
 merge_and_trans(NextObs,
@@ -1204,12 +1216,12 @@ run_concurrently(N, P, Rs, !IO) :-
                   io::di, io::uo) is cc_multi.
 
 planrecog(InitObs, NextObs, Prog, Results, !IO) :-
-    LoopBody = merge_and_trans(NextObs),
     Thread = (pred(I::in, R::out) is det :-
-        InitObs(Init),
-        loop2(LoopBody, s_state(conf(Prog, do(seed(I), s0)), running), R, Init, _)
+        InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
+        InitObs(InitialObsGenState),
+        merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
     ),
-    run_concurrently(50, Thread, Results, !IO).
+    run_concurrently(1, Thread, Results, !IO).
 
 
 /*
@@ -1306,18 +1318,18 @@ exec(!C, !IO) :-
 %/*
                 solutions((pred(X::out) is nondet :-
                     next2(rest(!.C), X, Y),
-                    trace [io(!IO)] (
-                        write(X, !IO), nl(!IO),
-                        write(Y, !IO), nl(!IO),
+                    trace [io(!SubIO)] (
+                        write(X, !SubIO), nl(!SubIO),
+                        write(Y, !SubIO), nl(!SubIO),
                         (   if      X = stoch(B), cars.random_outcome(B, A, sit(!.C))
-                            then    write_string("outcome ", !IO), write(A, !IO), nl(!IO),
+                            then    write_string("outcome ", !SubIO), write(A, !SubIO), nl(!SubIO),
                                     (   if      cars.poss(A, _, sit(!.C))
-                                        then    write_string("possible!!", !IO), nl(!IO)
-                                        else    write_string("impossible!!", !IO), nl(!IO)
+                                        then    write_string("possible!!", !SubIO), nl(!SubIO)
+                                        else    write_string("impossible!!", !SubIO), nl(!SubIO)
                                     )
                             else    true
                         ),
-                        nl(!IO)
+                        nl(!SubIO)
                     )
                 ), _),
 %*/

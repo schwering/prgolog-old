@@ -19,48 +19,35 @@
 #include <CoinPackedMatrix.hpp>
 #include <CoinPackedVector.hpp>
 
-SolverContext* new_solver_context(int nvars)
+SolverContext::SolverContext(int nvars)
+  : nvars(nvars),
+    matrix(CoinPackedMatrix(false, 0.0, 0.0)),
+    var_lb(new double[nvars]),
+    var_ub(new double[nvars]),
+    objective(new double[nvars])
 {
-  //fprintf(stderr, "init\n");
-  SolverContext* ctx = new SolverContext;
-  ctx->matrix = new CoinPackedMatrix(false, 0, 0);
-  ctx->matrix->setDimensions(0, nvars);
-  ctx->var_lb = new double[nvars];
-  ctx->var_ub = new double[nvars];
-  ctx->objective = new double[nvars];
-  ctx->solver = new OsiClpSolverInterface;
+  matrix.setDimensions(0, nvars);
   for (int i = 0; i < nvars; ++i) {
-    ctx->var_lb[i] = 0.0;
-    ctx->var_ub[i] = ctx->solver->getInfinity();
-    ctx->objective[i] = 1.0;
+    var_lb[i] = 0.0;
+    var_ub[i] = solver.getInfinity();
+    objective[i] = 1.0;
   }
-  ctx->solver->loadProblem(*ctx->matrix, ctx->var_lb, ctx->var_ub,
-                           ctx->objective, 0, 0);
-  ctx->solver->setHintParam(OsiDoReducePrint);
-  ctx->solver->messageHandler()->setLogLevel(0); 
-  ctx->nvars = nvars;
-  return ctx;
+  solver.loadProblem(matrix, var_lb, var_ub, objective, NULL, NULL);
+  solver.setHintParam(OsiDoReducePrint);
+  solver.messageHandler()->setLogLevel(0); 
 }
 
-/* I don't know how to force Mercury to call a predicate without using !IO.
- * The compiler optimizes the Mercury call to finalize_solver_context() away.
- * The temporary solution is to call finalize_solver_context() in solve()
- * already. */
-void finalize_solver_context(SolverContext* ctx)
+SolverContext::~SolverContext()
 {
-  delete ctx->solver;
-  delete[] ctx->objective;
-  delete[] ctx->var_ub;
-  delete[] ctx->var_lb;
-  delete ctx->matrix;
-  delete ctx;
-  //fprintf(stderr, "final\n");
+  delete[] objective;
+  delete[] var_ub;
+  delete[] var_lb;
 }
 
-void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
-                    int cmp, double bnd)
+void SolverContext::add_constraint(int n, const double* as, const int* vs,
+                                   int cmp, double bnd)
 {
-  //fprintf(stderr, "n = %d (%d)\n", n, ctx->nvars);
+  //fprintf(stderr, "n = %d (%d)\n", n, nvars);
   CoinPackedVector row;
   for (int i = 0; i < n; ++i) {
     //fprintf(stderr, "  + %lf * v_%d", as[i], vs[i]);
@@ -69,10 +56,10 @@ void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
   double row_lb, row_ub;
   if (cmp < 0) { // ">="
     row_lb = bnd;
-    row_ub = ctx->solver->getInfinity();
+    row_ub = solver.getInfinity();
     //fprintf(stderr, " >= %lf\n", bnd);
   } else if (cmp > 0) { // "=<"
-    row_lb = -1.0 * ctx->solver->getInfinity();
+    row_lb = -1.0 * solver.getInfinity();
     row_ub = bnd;
     //fprintf(stderr, " =< %lf\n", bnd);
   } else { // "="
@@ -80,27 +67,55 @@ void add_constraint(SolverContext* ctx, int n, const double* as, const int *vs,
     row_ub = bnd;
     //fprintf(stderr, " = %lf\n", bnd);
   }
-  ctx->solver->addRow(row, row_lb, row_ub);
+  solver.addRow(row, row_lb, row_ub);
 }
 
-bool solve(SolverContext* ctx, double* obj_val, double** var_vals, int* nvars)
+int SolverContext::varcnt() const
 {
-  ctx->solver->initialSolve();
-  bool optimal = ctx->solver->isProvenOptimal();
-  //ctx->solver->writeMps("problem");
+  return nvars;
+}
+
+bool SolverContext::solve(double* obj_val, double* var_vals)
+{
+  solver.initialSolve();
+  bool optimal = solver.isProvenOptimal();
+  //solver.writeMps("problem");
   if (optimal) {
-    *obj_val = ctx->solver->getObjValue();
+    *obj_val = solver.getObjValue();
     // use malloc() because Mercury has only free() but no delete
-    *var_vals = (double*) malloc(ctx->nvars * sizeof(double));
-    memcpy(*var_vals, ctx->solver->getColSolution(),
-           ctx->nvars * sizeof(double));
-    *nvars = ctx->nvars;
+    //*var_vals = (double*) malloc(this->nvars * sizeof(double));
+    memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
   } else {
     *obj_val = 0.0;
-    *var_vals = NULL;
-    *nvars = 0;
   }
-  finalize_solver_context(ctx);
   return optimal;
+}
+
+SolverContext* new_solver_context(int nvars)
+{
+  return new SolverContext(nvars);
+}
+
+void finalize_solver_context(SolverContext** ctx)
+{
+  if (*ctx) {
+    delete *ctx;
+  }
+}
+
+void add_constraint(SolverContext* ctx, int n, const double* as, const int* vs,
+                    int cmp, double bnd)
+{
+  ctx->add_constraint(n, as, vs, cmp, bnd);
+}
+
+int varcnt(SolverContext* ctx)
+{
+  return ctx->varcnt();
+}
+
+bool solve(SolverContext* ctx, double* obj_val, double* var_vals)
+{
+  return ctx->solve(obj_val, var_vals);
 }
 
