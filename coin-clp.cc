@@ -33,8 +33,8 @@ SolverContext::SolverContext(int nvars)
     objective[i] = 1.0;
   }
   solver.loadProblem(matrix, var_lb, var_ub, objective, NULL, NULL);
-  solver.setHintParam(OsiDoReducePrint);
-  //solver.messageHandler()->setLogLevel(0); 
+  //solver.setHintParam(OsiDoReducePrint);
+  solver.messageHandler()->setLogLevel(0); 
 }
 
 SolverContext::~SolverContext()
@@ -47,27 +47,35 @@ SolverContext::~SolverContext()
 void SolverContext::add_constraint(int n, const double* as, const int* vs,
                                    int cmp, double bnd)
 {
-  //fprintf(stderr, "n = %d (%d)\n", n, nvars);
-  CoinPackedVector row;
-  for (int i = 0; i < n; ++i) {
-    //fprintf(stderr, "  + %lf * v_%d", as[i], vs[i]);
-    row.insert(vs[i], as[i]);
+  try {
+    //fprintf(stderr, "n = %d (%d)\n", n, nvars);
+    CoinPackedVector row;
+    for (int i = 0; i < n; ++i) {
+      //fprintf(stderr, "  + %lf * v_%d", as[i], vs[i]);
+      row.insert(vs[i], as[i]);
+    }
+    double row_lb, row_ub;
+    if (cmp < 0) { // ">="
+      row_lb = bnd;
+      row_ub = solver.getInfinity();
+      //fprintf(stderr, " >= %lf\n", bnd);
+    } else if (cmp > 0) { // "=<"
+      row_lb = -1.0 * solver.getInfinity();
+      row_ub = bnd;
+      //fprintf(stderr, " =< %lf\n", bnd);
+    } else { // "="
+      row_lb = bnd;
+      row_ub = bnd;
+      //fprintf(stderr, " = %lf\n", bnd);
+    }
+    solver.addRow(row, row_lb, row_ub);
+  } catch (const CoinError& e) {
+    fprintf(stderr, "CoinError: %s\n", e.message().c_str());
+    for (int i = 0; i < n; ++i) {
+      fprintf(stderr, " %d", vs[i]);
+    }
+    fprintf(stderr, "\n");
   }
-  double row_lb, row_ub;
-  if (cmp < 0) { // ">="
-    row_lb = bnd;
-    row_ub = solver.getInfinity();
-    //fprintf(stderr, " >= %lf\n", bnd);
-  } else if (cmp > 0) { // "=<"
-    row_lb = -1.0 * solver.getInfinity();
-    row_ub = bnd;
-    //fprintf(stderr, " =< %lf\n", bnd);
-  } else { // "="
-    row_lb = bnd;
-    row_ub = bnd;
-    //fprintf(stderr, " = %lf\n", bnd);
-  }
-  solver.addRow(row, row_lb, row_ub);
 }
 
 int SolverContext::varcnt() const
@@ -77,18 +85,24 @@ int SolverContext::varcnt() const
 
 bool SolverContext::solve(double* obj_val, double* var_vals)
 {
-  solver.initialSolve();
-  bool optimal = solver.isProvenOptimal();
-  //solver.writeMps("problem");
-  if (optimal) {
-    *obj_val = solver.getObjValue();
-    // use malloc() because Mercury has only free() but no delete
-    //*var_vals = (double*) malloc(this->nvars * sizeof(double));
-    memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
-  } else {
-    *obj_val = 0.0;
+  try {
+      solver.initialSolve();
+      bool optimal = solver.isProvenOptimal();
+      //solver.writeMps("problem");
+      if (optimal) {
+        *obj_val = solver.getObjValue();
+        // use malloc() because Mercury has only free() but no delete
+        //*var_vals = (double*) malloc(this->nvars * sizeof(double));
+        memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
+      } else {
+        *obj_val = 0.0;
+      }
+      return optimal;
+  } catch (const CoinError& e) {
+      fprintf(stderr, "CoinError: %s\n", e.message().c_str());
+      *obj_val = 0.0;
+      return false;
   }
-  return optimal;
 }
 
 SolverContext* new_solver_context(int nvars)

@@ -23,17 +23,17 @@
 :- import_module varset.
 
 main(!IO) :-
-    P = (pred(Cont::out, IO0::di, IO1::uo) is det :-
+    P = (pred(/*Cont::out,*/ IO0::di, IO1::uo) is cc_multi :-
         some [!TIO] (
             IO0 = !:TIO,
             solve(!TIO),
             %thread_id(TID, !TIO),
             %format("solved %d\n", [i(TID)], !TIO),
-            Cont = no,
+            %Cont = no,
             IO1 = !.TIO
         )
     ),
-    repeat(1, spawn(loop(P)), !IO).
+    repeat(1, spawn(repeat(1, P)), !IO).
 
 
 :- pred solve(io::di, io::uo) is det.
@@ -43,8 +43,8 @@ solve(!IO) :-
     R = solve(Cs, min, [], VS),
     thread_id(TID, !IO),
     (   if      R = satisfiable(ObjVal, _)
-        then    format("TID(%d) --> %f\n", [i(TID), f(ObjVal)], !IO)
-        else    format("TID(%d) --> unsat\n", [i(TID)], !IO)
+        then    true% format("TID(%d) --> %f\n", [i(TID), f(ObjVal)], !IO)
+        else    true% format("TID(%d) --> unsat\n", [i(TID)], !IO)
     ).
 
 
