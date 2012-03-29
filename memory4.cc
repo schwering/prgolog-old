@@ -5,6 +5,7 @@
 #include <pthread.h>
 extern "C" {
 #define GC_THREADS
+#define GC_DEBUG
 #include <gc.h>
 }
 #include "coin-clp.h"
@@ -13,7 +14,6 @@ extern "C" {
 
 static void solve()
 {
-#if 1
     SolverContext ctx(26);
 
 #include "blupp"
@@ -26,7 +26,7 @@ static void solve()
         //printf("TID(%d) --> unsat\n", (int) pthread_self());
     }
     free(var_values_arr);
-#endif
+
 #if 0
     void* ptr = malloc(100);
     free(ptr);
@@ -39,7 +39,7 @@ static void solve()
 static void* loop(void*)
 {
     for (int i = 0; i < NLOOPS; ++i) {
-        //GC_MALLOC(100);
+        GC_MALLOC(100);
         solve();
     }
     return NULL;

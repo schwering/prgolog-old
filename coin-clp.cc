@@ -90,12 +90,18 @@ bool SolverContext::solve(double* obj_val, double* var_vals)
       bool optimal = solver.isProvenOptimal();
       //solver.writeMps("problem");
       if (optimal) {
-        *obj_val = solver.getObjValue();
+        if (obj_val) {
+          *obj_val = solver.getObjValue();
+        }
         // use malloc() because Mercury has only free() but no delete
         //*var_vals = (double*) malloc(this->nvars * sizeof(double));
-        memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
+        if (var_vals) {
+          memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
+        }
       } else {
-        *obj_val = 0.0;
+        if (obj_val) {
+          *obj_val = 0.0;
+        }
       }
       return optimal;
   } catch (const CoinError& e) {

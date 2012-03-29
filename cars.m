@@ -445,13 +445,12 @@ random_outcome(set_yaw_st(Agent, Lane, Yaw),
                set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime),
                S) :-
     (   if      Yaw = 0.0
-        then    Mu = -0.7, Sigma = 0.7
-        else    Mu = -0.2, Sigma = 1.0
+        then    Mu = -0.7, Sigma = 0.7, TolMax = 0.75
+        else    Mu = -0.2, Sigma = 1.0, TolMax = 2.5
     ),
     %Tol = min(0.5 + abs(Yaw) * 4.0, 2.5),
     RS0 = random_supply(S),
     random_lognormal(Mu, Sigma, _, Tol0, RS0, RS1),
-    TolMax = 2.5,
     Tol = min(Tol0, TolMax).
 
 %-----------------------------------------------------------------------------%
@@ -1128,7 +1127,7 @@ exec(!IO) :-
                 VG = vargen(S1),
                 Cs = constraints(S1),
                 solve(VG, Cs, min(variable_sum(VG)), Map, _Val)
-        then    print_sit_info(Map, s0, !IO), nl(!IO)
+        then    print_sit_info(stdout_stream, Map, s0, !IO), nl(stdout_stream, !IO)
         else    true
     ),
     exec(C, _, !IO).
@@ -1150,7 +1149,7 @@ exec(!C, !IO) :-
         then    %print_sit(Map, sit(!.C), !IO), nl(!IO),
                 (   if      sit(!.C) = do(match(ObsT, _, _, _, _), _),
                             obs(ObsT, _, _, _, b, ObsX, ObsY)
-                    then    print_sit_info(Map, sit(!.C), !IO), nl(!IO),
+                    then    print_sit_info(stdout_stream, Map, sit(!.C), !IO), nl(!IO),
                             format("obs[%f] = (%.1f, %.1f)\n\n\n",
                                    [f(ObsT), f(ObsX), f(ObsY)], !IO)
                     else    true
@@ -1204,82 +1203,112 @@ lane_to_string(left) = "left".
 lane_to_string(right) = "right".
 
 
-:- pred print_action(assoc_list(var, number)::in, prim::in,
+:- pred print_action(output_stream::in,
+                      assoc_list(var, number)::in, prim::in,
                      io::di, io::uo) is det.
 
-print_action(Map, set_veloc(A, Mps, Tol, _, _, _, Time), !IO) :-
+print_action(Stream, Map, set_veloc(A, Mps, Tol, _, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format("set_veloc(%s, %f, %f, %f)\n",
+    format(Stream, "set_veloc(%s, %f, %f, %f)\n",
            [s(agent_to_string(A)), f(Mps), f(Tol), f(T)], !IO).
-print_action(Map, set_yaw(A, L, Rad, Tol, _, _, _, Time), !IO) :-
+print_action(Stream, Map, set_yaw(A, L, Rad, Tol, _, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format("set_yaw(%s, %s, %f, %f, %f)\n",
+    format(Stream, "set_yaw(%s, %s, %f, %f, %f)\n",
            [s(agent_to_string(A)), s(lane_to_string(L)),
             f(Rad), f(Tol), f(T)], !IO).
-print_action(Map, wait_for(_, _, _, Time), !IO) :-
+print_action(Stream, Map, wait_for(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format("wait_for(..., %f)\n",
+    format(Stream, "wait_for(..., %f)\n",
            [f(T)], !IO).
-print_action(Map, match(OTime, _, _, _, Time), !IO) :-
+print_action(Stream, Map, match(OTime, _, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format("match(%f, ..., %f)\n",
+    format(Stream, "match(%f, ..., %f)\n",
            [f(OTime), f(T)], !IO).
-print_action(Map, eval(_, _, _, Time), !IO) :-
+print_action(Stream, Map, eval(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format("eval(..., %f)\n",
+    format(Stream, "eval(..., %f)\n",
            [f(T)], !IO).
-print_action(_, A @ init_env(_, _), !IO) :-
-    write(A, !IO), nl(!IO).
-print_action(_, seed(Seed), !IO) :-
-    format("seed(%d)\n",
+print_action(Stream, _, A @ init_env(_, _), !IO) :-
+    write(Stream, A, !IO), nl(Stream, !IO).
+print_action(Stream, _, seed(Seed), !IO) :-
+    format(Stream, "seed(%d)\n",
            [i(Seed)], !IO).
 
 
 :- pred print_sit(assoc_list(var, float)::in, sit(prim)::in,
                   io::di, io::uo) is det.
 
-print_sit(Map, S, !IO) :- print_sit_2(Map, S, 1, _, !IO).
+print_sit(Map, S, !IO) :- print_sit_2(stdout_stream, "", Map, S, 1, _, !IO).
 
 
-:- pred print_sit_2(assoc_list(var, float)::in, sit(prim)::in,
+:- pred print_sit(output_stream::in,
+                  string::in,
+                  assoc_list(var, float)::in, sit(prim)::in,
+                  io::di, io::uo) is det.
+
+print_sit(Stream, Prefix, Map, S, !IO) :-
+    print_sit_2(Stream, Prefix, Map, S, 1, _, !IO).
+
+
+:- pred print_sit_2(output_stream::in,
+                    string::in,
+                    assoc_list(var, float)::in, sit(prim)::in,
                     int::in, int::out, io::di, io::uo) is det.
 
-print_sit_2(_, s0, !N, !IO).
-print_sit_2(Map, do(A, S), !.N, !:N, !IO) :-
-    print_sit_2(Map, S, !N, !IO),
-    write_string(" ", !IO), write(!.N, !IO), write_string(": ", !IO),
+print_sit_2(_, _, _, s0, !N, !IO).
+print_sit_2(Stream, Prefix, Map, do(A, S), !.N, !:N, !IO) :-
+    print_sit_2(Stream, Prefix, Map, S, !N, !IO),
+    write_string(Stream, Prefix, !IO),
+    write_string(Stream, " ", !IO),
+    write(Stream, !.N, !IO),
+    write_string(Stream, ": ", !IO),
     !:N = !.N + 1,
-    print_action(Map, A, !IO).
+    print_action(Stream, Map, A, !IO).
 
 
 :- pred print_sit_with_info(assoc_list(var, number)::in, sit(prim)::in,
                             io::di, io::uo) is det.
 
-print_sit_with_info(Map, s0, !IO) :-
-    write_string("initial situation", !IO), nl(!IO),
-    print_sit_info(Map, s0, !IO),
-    nl(!IO).
-print_sit_with_info(Map, S1 @ do(A, S), !IO) :-
-    print_sit_with_info(Map, S, !IO),
-    print_action(Map, A, !IO),
-    print_sit_info(Map, S1, !IO),
-    nl(!IO).
+print_sit_with_info(Map, S, !IO) :-
+    print_sit_with_info(stdout_stream, Map, S, !IO).
+
+
+:- pred print_sit_with_info(output_stream::in,
+                            assoc_list(var, number)::in, sit(prim)::in,
+                            io::di, io::uo) is det.
+
+print_sit_with_info(Stream, Map, s0, !IO) :-
+    write_string(Stream, "initial situation", !IO), nl(!IO),
+    print_sit_info(Stream, Map, s0, !IO),
+    nl(Stream, !IO).
+print_sit_with_info(Stream, Map, S1 @ do(A, S), !IO) :-
+    print_sit_with_info(Stream, Map, S, !IO),
+    print_action(Stream, Map, A, !IO),
+    print_sit_info(Stream, Map, S1, !IO),
+    nl(Stream, !IO).
 
 
 :- pred print_sit_info(assoc_list(var, number)::in, sit(prim)::in,
                        io::di, io::uo) is det.
 
-print_sit_info(Map, S, !IO) :-
+print_sit_info(Map, S, !IO) :- print_sit_info(stdout_stream, Map, S, !IO).
+
+
+:- pred print_sit_info(output_stream::in,
+                       assoc_list(var, number)::in, sit(prim)::in,
+                       io::di, io::uo) is det.
+
+print_sit_info(Stream, Map, S, !IO) :-
     E = ( func(T) = eval_float(Map, T) ),
-    format("veloc(b, S) = %.1f\n", [f(veloc(b, S))], !IO),
-    format("yaw(b, S) = %.1f\n", [f(yaw(b, S))], !IO),
-    format("start(S) = %.1f\n", [f(E(start(S)))], !IO),
-    format("x(b, S) = %.1f\n", [f(E(x(b, S)(start(S))))], !IO),
-    format("y(b, S) = %.1f\n", [f(E(y(b, S)(start(S))))], !IO),
-    format("x_tol(b, S) = %.1f\n", [f(x_tol(b, S))], !IO),
-    format("y_tol(b, S) = %.1f\n", [f(y_tol(b, S))], !IO),
-    format("now(S) = %.1f\n", [f(E(now(S)(start(S))))], !IO),
-    nl(!IO),
+    format(Stream, "veloc(b, S) = %.1f\n", [f(veloc(b, S))], !IO),
+    format(Stream, "yaw(b, S) = %.1f\n", [f(yaw(b, S))], !IO),
+    format(Stream, "start(S) = %.1f\n", [f(E(start(S)))], !IO),
+    format(Stream, "x(b, S) = %.1f\n", [f(E(x(b, S)(start(S))))], !IO),
+    format(Stream, "y(b, S) = %.1f\n", [f(E(y(b, S)(start(S))))], !IO),
+    format(Stream, "x_tol(b, S) = %.1f\n", [f(x_tol(b, S))], !IO),
+    format(Stream, "y_tol(b, S) = %.1f\n", [f(y_tol(b, S))], !IO),
+    format(Stream, "now(S) = %.1f\n", [f(E(now(S)(start(S))))], !IO),
+    nl(Stream, !IO),
 
     %Time = constant(13.132000),
     %wrt("x(b, S)(T) = ", E(x(b, S)(Time)), !IO),
@@ -1311,10 +1340,17 @@ open_next_file_2(Format, I, N, Stream, !IO) :-
     if      I > N
     then    error("cannot open file with pattern "++ Format)
     else    Filename = format(Format, [i(I)]),
-            open_output(Filename, Res, !IO),
-            (   if      Res = ok(Stream0)
-                then    Stream = Stream0
-                else    open_next_file_2(Format, I + 1, N, Stream, !IO)
+            open_input(Filename, TestRes, !IO),
+            (   if      TestRes = ok(TestStream)
+                then    close_input(TestStream, !IO),
+                        open_next_file_2(Format, I + 1, N, Stream, !IO)
+                else    open_output(Filename, Res, !IO),
+                        (   if      Res = ok(Stream0)
+                            then    Stream = Stream0
+                            else    error("cannot open non-existing file " ++
+                                          "with pattern " ++ Format ++
+                                          " for " ++ int_to_string(I))
+                        )
             ).
 
 
@@ -1323,16 +1359,19 @@ open_next_file_2(Format, I, N, Stream, !IO) :-
 
 draw_trace(Map, S, !IO) :-
     open_next_file("traces/%04d.dat", Stream, !IO),
-    draw_trace_2(Stream, Map, S, !IO).
+    print_sit(Stream, "# ", Map, S, !IO),
+    draw_trace_2(Stream, Map, S, !IO),
+    close_output(Stream, !IO).
 
 
 :- pred draw_trace_2(output_stream::in,
                      assoc_list(var, number)::in, sit(prim)::in,
                      io::di, io::uo) is det.
 
+
 draw_trace_2(Stream, Map, S, !IO) :-
     Agent = b,
-    (   if   S = do(_, S0)
+    (   if   S = do(A, S0), A \= init_env(_, _)
         then draw_trace_2(Stream, Map, S0, !IO)
         else format(Stream, "time     xobs     yobs     xmod     ymod      xlo      ylo      xhi      yhi\n", [], !IO)
     ),
@@ -1345,7 +1384,7 @@ draw_trace_2(Stream, Map, S, !IO) :-
                                 ObsY = format("%7.3f", [f(Y0)])
                         else    error("invalid observation does not contain driver")
                     )
-            else    ObsX = "NaN", ObsY = "NaN"
+            else    ObsX = "    NaN", ObsY = "    NaN"
         ),
         E = ( func(T) = eval_float(Map, T) ),
         Time = E(start(S)),
@@ -1359,6 +1398,14 @@ draw_trace_2(Stream, Map, S, !IO) :-
                         f(ModX + ModXTol), f(ModY + ModYTol)], !IO)
     ).
 
+
+:- pred draw_traces_incl_subsits(assoc_list(var, number)::in, sit(prim)::in,
+                   io::di, io::uo) is det.
+
+draw_traces_incl_subsits(_, s0, !IO).
+draw_traces_incl_subsits(Map, S1 @ do(_, S), !IO) :-
+    draw_traces_incl_subsits(Map, S, !IO),
+    draw_trace(Map, S1, !IO).
 
 
 :- pred wrt(string::in, T::in, io::di, io::uo) is det.
@@ -1399,7 +1446,7 @@ main(!IO) :-
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %planrecog(1, simple_init_obs, simple_next_obs, Prog, Results, !IO),
-    planrecog(5, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(50, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
@@ -1408,7 +1455,11 @@ main(!IO) :-
             (   if      solve(vargen(S), constraints(S), Map, _Val)
                 then    print_sit(Map, S, !SubIO),
                         print_sit_info(Map, S, !SubIO),
-                        draw_trace(Map, S, !SubIO)
+                        (   if      R = finished
+                            then    %draw_traces_incl_subsits(Map, S, !SubIO)
+                                    draw_trace(Map, S, !SubIO)
+                            else    true
+                        )
                 else    write_string("solving failed\n", !SubIO)
             ),
             write_string("Remaining program: ", !SubIO),
