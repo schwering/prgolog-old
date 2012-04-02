@@ -836,10 +836,6 @@ input_next_obs(ObsMsg, I0, I1) :-
     ).
 
 
-:- pred input_next_obs_pure(int::di, int::uo, bool::out, float::out,
-        string::out, float::out, float::out, float::out, float::out,
-        string::out, float::out, float::out, float::out, float::out) is det.
-
 :- pragma foreign_decl("C", "
     #define NRECORDS 500
     #define AGENTLEN 15
@@ -858,30 +854,49 @@ input_next_obs(ObsMsg, I0, I1) :-
     };
 ").
 
+
 :- pragma foreign_code("C", "
-    int max_valid_record = -1;
+    volatile int max_valid_record = -1;
     struct record records[NRECORDS];
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 ").
+
+
+:- pred input_next_obs_pure(int::di, int::uo, bool::out, float::out,
+    string::out, float::out, float::out, float::out, float::out,
+    string::out, float::out, float::out, float::out, float::out) is det.
 
 :- pragma foreign_proc("C",
     input_next_obs_pure(I0::di, I1::uo, Ok::out, T::out,
         Agent0::out, Veloc0::out, Rad0::out, X0::out, Y0::out,
         Agent1::out, Veloc1::out, Rad1::out, X1::out, Y1::out),
-    [will_not_call_mercury, promise_pure],
+    [will_not_call_mercury, promise_pure, thread_safe],
 "
     Ok = MR_YES;
     while (I0 > max_valid_record) {
-        struct record r;
-        int i = scanf(""%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\\n"",
-               &r.t,
-               r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
-               r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1);
-        if (i == 11) {
-            ++max_valid_record;
-            memcpy(&records[max_valid_record], &r, sizeof(struct record));
-        } else {
-            Ok = MR_NO;
-            break;
+        if (pthread_mutex_lock(&mutex) == 0) {
+            /* We don't need this condition, but the next observation may be
+             * read later.  So we re-test the loop condition and only read
+             * (which may block again) only if reading is really necessary. */
+            if (I0 > max_valid_record) {
+                struct record r;
+                int i = scanf(
+                        ""%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\\n"",
+                        &r.t,
+                        r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
+                        r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1);
+                if (i == EOF) {
+                    Ok = MR_NO;
+                    pthread_mutex_unlock(&mutex);
+                    break;
+                } else if (i == 11) {
+                    Ok = MR_YES;
+                    memcpy(&records[max_valid_record+1], &r,
+                        sizeof(struct record));
+                    ++max_valid_record;
+                }
+            }
+            pthread_mutex_unlock(&mutex);
         }
     }
     if (Ok == MR_YES) {
@@ -897,6 +912,19 @@ input_next_obs(ObsMsg, I0, I1) :-
         X1 = (MR_Float) records[I0].x1;
         Y1 = (MR_Float) records[I0].y1;
         I1 = I0 + 1;
+    } else {
+        Ok = MR_NO;
+        T = (MR_Float) -1.0;
+        Agent0 = MR_make_string_const("""");
+        Veloc0 = (MR_Float) -1.0;
+        Rad0 = (MR_Float) -1.0;
+        X0 = (MR_Float) -1.0;
+        Y0 = (MR_Float) -1.0;
+        Agent1 = MR_make_string_const("""");
+        Veloc1 = (MR_Float) -1.0;
+        Rad1 = (MR_Float) -1.0;
+        X1 = (MR_Float) -1.0;
+        Y1 = (MR_Float) -1.0;
     }
 ").
 
@@ -1090,12 +1118,12 @@ run_concurrently_thread(I, [V | Vs], P, !IO) :-
 
 %run_concurrently(N, P, Rs, !IO) :-
 %    run_concurrently_par_conj(N, P, Rs).
-run_concurrently(N, P, Rs, !IO) :-
-    run_sequentially(N, P, Rs).
 %run_concurrently(N, P, Rs, !IO) :-
-%    init_vars(N, Vs, !IO),
-%    run_concurrently_thread(N, Vs, P, !IO),
-%    take_vars(Vs, Rs, !IO).
+%    run_sequentially(N, P, Rs).
+run_concurrently(N, P, Rs, !IO) :-
+    init_vars(N, Vs, !IO),
+    run_concurrently_thread(N, Vs, P, !IO),
+    take_vars(Vs, Rs, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -1446,7 +1474,7 @@ main(!IO) :-
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %planrecog(1, simple_init_obs, simple_next_obs, Prog, Results, !IO),
-    planrecog(400, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(4, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (

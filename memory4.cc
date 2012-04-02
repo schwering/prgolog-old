@@ -5,7 +5,7 @@
 #include <pthread.h>
 extern "C" {
 #define GC_THREADS
-#define GC_DEBUG
+//#define GC_DEBUG
 #include <gc.h>
 }
 #include "coin-clp.h"
@@ -34,7 +34,7 @@ static void solve()
 }
 
 #define NTHREADS 50
-#define NLOOPS 100
+#define NLOOPS 500
 
 static void* loop(void*)
 {
@@ -59,9 +59,9 @@ int main(int argc, char* argv[])
         //pthread_attr_destroy(&attrs);
     }
     for (int i = 0; i < NTHREADS; ++i) {
-        //pthread_join(threads[i], NULL);
+        pthread_join(threads[i], NULL);
     }
-    //printf("all done\n");
+    printf("all done\n");
     return 0;
 }
 

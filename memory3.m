@@ -33,7 +33,7 @@ main(!IO) :-
             IO1 = !.TIO
         )
     ),
-    repeat(50, spawn(repeat(100, P)), !IO).
+    repeat(50, spawn(repeat(500, P)), !IO).
 
 
 :- pred solve(io::di, io::uo) is det.
