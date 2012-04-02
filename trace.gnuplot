@@ -13,9 +13,9 @@ middle_line(x) = 0
 right_line(x) = -5
 
 plot \
-"traces/0031.dat" using 1:5 with lines linetype 1 linewidth 2,\
-"traces/0031.dat" using 1:5:7:9 with yerrorbars pointtype 0 linetype 1,\
-"traces/0031.dat" using 1:3 with points pointtype 6,\
+"traces/0194.dat" using 1:5 with lines linetype 1 linewidth 2,\
+"traces/0194.dat" using 1:5:7:9 with yerrorbars pointtype 0 linetype 1,\
+"traces/0194.dat" using 1:3 with points pointtype 6,\
 middle_line(x) with lines linetype 3 linewidth 2,\
 left_line(x) with lines linetype 1 linewidth 2,\
 right_line(x) with lines linetype 1 linewidth 2

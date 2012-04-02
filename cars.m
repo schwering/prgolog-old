@@ -445,7 +445,7 @@ random_outcome(set_yaw_st(Agent, Lane, Yaw),
                set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime),
                S) :-
     (   if      Yaw = 0.0
-        then    Mu = -0.7, Sigma = 0.7, TolMax = 0.75
+        then    Mu = -0.7, Sigma = 0.7, TolMax = 2.0
         else    Mu = -0.2, Sigma = 1.0, TolMax = 2.5
     ),
     %Tol = min(0.5 + abs(Yaw) * 4.0, 2.5),
@@ -1446,7 +1446,7 @@ main(!IO) :-
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %planrecog(1, simple_init_obs, simple_next_obs, Prog, Results, !IO),
-    planrecog(50, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(400, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (

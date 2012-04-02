@@ -4,15 +4,22 @@ for f in $(find . -name \*.h -or -name \*.cc); do cp $f $f.tmp; echo '#include "
 export CPPFLAGS="-I/usr/local/mercury-11.07/lib/mercury/inc/"
 export LDFLAGS="-L/usr/local/mercury-11.07/lib/mercury/lib/"
 
-for f in $(find . -name \*.h -or -name \*.c); do cp $f $f.tmp; echo '#include "mygc.h"' >$f; cat $f.tmp >>$f; rm $f.tmp; done
-for f in $(find . -name \*.hpp -or -name \*.cpp); do cp $f $f.tmp; echo '#include "mygc.h"' >$f; cat $f.tmp >>$f; rm $f.tmp; done
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_malloc/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_realloc/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_free/g'
+export LDFLAGS="-L/home/chs/Programs/mercury-compiler-11.07.1/dist/lib/mercury/lib/"
+export CPPFLAGS="-I/home/chs/Programs/mercury-compiler-11.07.1/dist/lib/mercury/inc/"
+
 export CPPFLAGS="-I$(pwd)/../gc-7.1/dist/include"
 export LDFLAGS="-L$(pwd)/../gc-7.1/dist/lib"
+
+for f in $(find . -name \*.h -or -name \*.c); do cp $f $f.tmp; echo '#include "mygc.h"' >$f; cat $f.tmp >>$f; rm $f.tmp; done
+for f in $(find . -name \*.hpp -or -name \*.cpp); do cp $f $f.tmp; echo '#include "mygc.h"' >$f; cat $f.tmp >>$f; rm $f.tmp; done
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_MALLOC/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
 export COIN_SKIP_PROJECTS="DyLP Vol"
 ./configure
+# Mercury GC:
+find . -name Makefile | xargs sed --in-place -e 's/ADDLIBS =/ADDLIBS = -ldl -lpthread -lpar_gc/g'
+# eigene Boehm GC:
 find . -name Makefile | xargs sed --in-place -e 's/ADDLIBS =/ADDLIBS = -lgc/g'
 make
 make install
@@ -21,7 +28,7 @@ cp CoinUtils/src/mygc.h include/coin/
 
 
 
-
+cat >CoinUtils/src/mygc.h <<\EOF
 #define GC_DEBUG
 #define GC_THREADS
 #include <gc.h>
@@ -30,52 +37,55 @@ cp CoinUtils/src/mygc.h include/coin/
 #ifndef MYGC
 #define MYGC
 
+#include <new>
+
 inline void* operator new(std::size_t size) throw (std::bad_alloc)
 {
-  void* ptr = GC_malloc(size);
+  void* ptr = GC_MALLOC(size);
   if (!ptr) throw std::bad_alloc();
   return ptr;
 }
 
 inline void* operator new[](std::size_t size) throw (std::bad_alloc)
 {
-  void* ptr = GC_malloc(size);
+  void* ptr = GC_MALLOC(size);
   if (!ptr) throw std::bad_alloc();
   return ptr;
 }
 
 inline void operator delete(void* ptr) throw()
 {
-  if (ptr) GC_free(ptr);
+  if (ptr) GC_FREE(ptr);
 }
 
 inline void operator delete[](void* ptr) throw()
 {
-  if (ptr) GC_free(ptr);
+  if (ptr) GC_FREE(ptr);
 }
 
 inline void* operator new(std::size_t size, const std::nothrow_t&) throw()
 {
-  void* ptr = GC_malloc(size);
+  void* ptr = GC_MALLOC(size);
   return ptr;
 }
 
 inline void* operator new[](std::size_t size, const std::nothrow_t&) throw()
 {
-  void* ptr = GC_malloc(size);
+  void* ptr = GC_MALLOC(size);
   return ptr;
 }
 
 inline void operator delete(void* ptr, const std::nothrow_t&) throw()
 {
-  if (ptr) GC_free(ptr);
+  if (ptr) GC_FREE(ptr);
 }
 
 inline void operator delete[](void* ptr, const std::nothrow_t&) throw()
 {
-  if (ptr) GC_free(ptr);
+  if (ptr) GC_FREE(ptr);
 }
 
 #endif
 #endif
+EOF
 

@@ -19,13 +19,13 @@ static void solve()
 #include "blupp"
 
     double obj_val;
-    double* var_values_arr = (double*) malloc(ctx.varcnt() * sizeof(double));
+    double* var_values_arr = (double*) GC_MALLOC(ctx.varcnt() * sizeof(double));
     if (solve(&ctx, &obj_val, var_values_arr)) {
         //printf("TID(%d) --> %lf\n", (int) pthread_self(), obj_val);
     } else {
         //printf("TID(%d) --> unsat\n", (int) pthread_self());
     }
-    free(var_values_arr);
+    GC_FREE(var_values_arr);
 
 #if 0
     void* ptr = malloc(100);
@@ -52,16 +52,16 @@ int main(int argc, char* argv[])
     GC_INIT();
 
     for (int i = 0; i < NTHREADS; ++i) {
-        pthread_attr_t attrs;
-        pthread_attr_init(&attrs);
+        //pthread_attr_t attrs;
+        //pthread_attr_init(&attrs);
         //pthread_attr_setdetachstate(&attrs, PTHREAD_CREATE_DETACHED);
-        pthread_create(&threads[i], &attrs, &loop, NULL);
-        pthread_attr_destroy(&attrs);
+        pthread_create(&threads[i], NULL, &loop, NULL);
+        //pthread_attr_destroy(&attrs);
     }
     for (int i = 0; i < NTHREADS; ++i) {
-        pthread_join(threads[i], NULL);
+        //pthread_join(threads[i], NULL);
     }
-    printf("all done\n");
+    //printf("all done\n");
     return 0;
 }
 
