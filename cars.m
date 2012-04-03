@@ -1474,8 +1474,9 @@ main(!IO) :-
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %planrecog(1, simple_init_obs, simple_next_obs, Prog, Results, !IO),
-    planrecog(4, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(100, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
+/*
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
@@ -1496,6 +1497,7 @@ main(!IO) :-
             IO1 = !.SubIO
         )
     ), Results, !IO),
+*/
     (   if      Results \= []
         then    foldl((pred(s_state(_, R)::in, {N, M}::in, {N1, M1}::out) is det :-
                     if      R = finished

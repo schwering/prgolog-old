@@ -40,7 +40,7 @@ find . -name Makefile | xargs sed --in-place -e 's/ADDLIBS =/ADDLIBS = -ldl -lpt
 
 # Here comes the header:
 cat >CoinUtils/src/mygc.h <<\EOF
-#define GC_DEBUG
+//#define GC_DEBUG
 #define GC_THREADS
 #include <gc.h>
 

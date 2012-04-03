@@ -179,8 +179,8 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     add_constraint(N::in, As::in, Vs::in, Cmp::in, Bnd::in, Ctx0::di, Ctx1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    double* as_arr = malloc(N * sizeof(double));
-    int* vs_arr = malloc(N * sizeof(int));
+    double* as_arr = GC_MALLOC(N * sizeof(double));
+    int* vs_arr = GC_MALLOC(N * sizeof(int));
     MR_Word as_list = As;
     MR_Word vs_list = Vs;
     int i;
@@ -215,8 +215,8 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     printf(""}\\n\\n"");
 #endif
 
-    free(vs_arr);
-    free(as_arr);
+    GC_FREE(vs_arr);
+    GC_FREE(as_arr);
     Ctx1 = Ctx0;
 ").
 
@@ -229,7 +229,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     double obj_val;
-    double* var_values_arr = malloc(varcnt(Ctx0) * sizeof(double));
+    double* var_values_arr = GC_MALLOC(varcnt(Ctx0) * sizeof(double));
 
     if (solve(Ctx0, &obj_val, var_values_arr)) {
         MR_Word var_values_list = MR_list_empty();
@@ -242,13 +242,13 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
                 var_values_list);
         }
         VarValues = var_values_list;
-        free(var_values_arr);
     } else {
         Optimal = (MR_Integer) 0;
         ObjValue = (MR_Float) 0;
         VarValues = MR_list_empty();
     }
     finalize_solver_context(&Ctx0);
+    GC_FREE(var_values_arr);
 
     Ctx1 = Ctx0;
 ").

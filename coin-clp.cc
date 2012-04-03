@@ -93,8 +93,6 @@ bool SolverContext::solve(double* obj_val, double* var_vals)
         if (obj_val) {
           *obj_val = solver.getObjValue();
         }
-        // use malloc() because Mercury has only free() but no delete
-        //*var_vals = (double*) malloc(this->nvars * sizeof(double));
         if (var_vals) {
           memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
         }
