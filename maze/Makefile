@@ -1,14 +1,14 @@
-all: maze
+GOAL = maze
+SOURCE_FILES = $(shell ls *.m)
 
-maze: *.m
-	mmc --make --mld ../lib/mercury --ml prgolog --grade hlc.par.gc --parallel maze
+EXE_MCFLAGS += --ml prgolog
 
-clean:
-	rm -f cars
-	rm -rf Mercury
-	rm -f *.o
-	rm -f *.mh
-	rm -f *.err
-	rm -f cars maze
-	rm -f Prof.*
+all: exe
+
+exe: *.m prgolog
+
+prgolog:
+	make -C ../prgolog
+
+include ../Make.common
 

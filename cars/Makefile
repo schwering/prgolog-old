@@ -1,4 +1,5 @@
 GOAL = cars
+SOURCE_FILES = $(shell ls *.m)
 
 EXE_MCFLAGS += --ml prgolog --ml osi --ml util
 
@@ -19,7 +20,4 @@ include ../Make.common
 
 replay: replay.c
 	cc -Wall -O3 -o replay replay.c
-
-clean:
-	rm -f cars
 

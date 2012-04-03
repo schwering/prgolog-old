@@ -1,11 +1,11 @@
 GOAL = prgolog
+SOURCE_FILES = $(shell ls *.m)
 
 LIB_MCFLAGS = --ml osi
 
 all: lib
 
-lib: osi
-lib: *.m
+lib: *.m osi
 
 osi:
 	make -C ../osi
