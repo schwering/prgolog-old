@@ -1474,7 +1474,7 @@ main(!IO) :-
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %planrecog(1, simple_init_obs, simple_next_obs, Prog, Results, !IO),
-    planrecog(100, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(10, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
 /*
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-

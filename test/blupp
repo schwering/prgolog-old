@@ -1,0 +1,1862 @@
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 24;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 25;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 0, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = -2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = 2.174192;
+        vs_arr[3] = 24;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 1.226059);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = 2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = -2.174192;
+        vs_arr[3] = 24;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 2.773941);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(7 * sizeof(double));
+    int* vs_arr = (int*) malloc(7 * sizeof(int));
+    for (int i = 0; i < 7; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 20.800000;
+        vs_arr[1] = 5;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 10;
+        as_arr[3] = 0.202424;
+        vs_arr[3] = 16;
+        as_arr[4] = -0.113945;
+        vs_arr[4] = 21;
+        as_arr[5] = 0.113945;
+        vs_arr[5] = 24;
+        as_arr[6] = -5.710000;
+        vs_arr[6] = 25;
+    };
+    add_constraint(&ctx, 7, as_arr, vs_arr, 1, -28.472394);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 23;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 24;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = -2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = 2.174192;
+        vs_arr[3] = 24;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 1.226059);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = 2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = -2.174192;
+        vs_arr[3] = 24;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 2.773941);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 22;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 23;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 23;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 12.632000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 23;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -103.741712);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 23;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 108.510272);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(5 * sizeof(double));
+    int* vs_arr = (int*) malloc(5 * sizeof(int));
+    for (int i = 0; i < 5; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = -0.113945;
+        vs_arr[3] = 21;
+        as_arr[4] = -20.686055;
+        vs_arr[4] = 23;
+    };
+    add_constraint(&ctx, 5, as_arr, vs_arr, 1, -141.498643);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(5 * sizeof(double));
+    int* vs_arr = (int*) malloc(5 * sizeof(int));
+    for (int i = 0; i < 5; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = 0.113945;
+        vs_arr[3] = 21;
+        as_arr[4] = 20.686055;
+        vs_arr[4] = 23;
+    };
+    add_constraint(&ctx, 5, as_arr, vs_arr, 1, 150.977303);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = -2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = 2.174192;
+        vs_arr[3] = 23;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, -4.683143);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = 2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = -2.174192;
+        vs_arr[3] = 23;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 5.097477);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 21;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 22;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 22;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 12.132000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 22;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -96.203870);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 22;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 100.972430);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(5 * sizeof(double));
+    int* vs_arr = (int*) malloc(5 * sizeof(int));
+    for (int i = 0; i < 5; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = -0.113945;
+        vs_arr[3] = 21;
+        as_arr[4] = -20.686055;
+        vs_arr[4] = 22;
+    };
+    add_constraint(&ctx, 5, as_arr, vs_arr, 1, -131.131395);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(5 * sizeof(double));
+    int* vs_arr = (int*) malloc(5 * sizeof(int));
+    for (int i = 0; i < 5; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = 0.113945;
+        vs_arr[3] = 21;
+        as_arr[4] = 20.686055;
+        vs_arr[4] = 22;
+    };
+    add_constraint(&ctx, 5, as_arr, vs_arr, 1, 140.610055);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = -2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = 2.174192;
+        vs_arr[3] = 22;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, -5.667070);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+        as_arr[2] = 2.174192;
+        vs_arr[2] = 21;
+        as_arr[3] = -2.174192;
+        vs_arr[3] = 22;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 6.081404);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 20;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 21;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -3.773941);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 7.773941);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 19;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 20;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 20;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 11.632000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 20;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -88.666028);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 20;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 93.434588);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = -20.800000;
+        vs_arr[3] = 20;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, -120.690171);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = 20.800000;
+        vs_arr[3] = 20;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 130.168831);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -5.040539);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 7.087745);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 18;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 19;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 19;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 11.132000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 19;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -81.128186);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 19;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 85.896746);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = -20.800000;
+        vs_arr[3] = 19;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, -110.240831);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = 20.800000;
+        vs_arr[3] = 19;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 119.719491);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -5.174450);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 7.221656);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 17;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 18;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(5 * sizeof(double));
+    int* vs_arr = (int*) malloc(5 * sizeof(int));
+    for (int i = 0; i < 5; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 20.800000;
+        vs_arr[1] = 5;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 10;
+        as_arr[3] = 0.202424;
+        vs_arr[3] = 16;
+        as_arr[4] = -5.710000;
+        vs_arr[4] = 18;
+    };
+    add_constraint(&ctx, 5, as_arr, vs_arr, 1, -28.472394);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 16;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 17;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 17;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 10.632000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 17;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -73.590345);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 17;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 78.358905);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = -20.800000;
+        vs_arr[3] = 17;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, -99.792650);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(4 * sizeof(double));
+    int* vs_arr = (int*) malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -0.202424;
+        vs_arr[2] = 16;
+        as_arr[3] = 20.800000;
+        vs_arr[3] = 17;
+    };
+    add_constraint(&ctx, 4, as_arr, vs_arr, 1, 109.271310);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -5.253117);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 7.300323);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 15;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -3.773941);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 16;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 7.773941);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 14;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 15;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 15;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 10.132000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 15;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -66.052503);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 15;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 70.821063);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -20.597576;
+        vs_arr[2] = 15;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, -89.346788);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 20.597576;
+        vs_arr[2] = 15;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, 98.825448);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 15;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -3.799738);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 15;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 8.799738);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 13;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 14;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 14;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 9.632000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 14;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -58.514661);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 14;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 63.283221);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -20.597576;
+        vs_arr[2] = 14;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, -78.896516);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 20.597576;
+        vs_arr[2] = 14;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, 88.375176);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 14;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -3.765608);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 14;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 8.765608);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 12;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 13;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 13;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 9.132000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 13;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -50.976865);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 13;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 55.745425);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -20.597576;
+        vs_arr[2] = 13;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, -68.449952);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 20.597576;
+        vs_arr[2] = 13;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, 77.928612);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 13;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -3.675508);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 13;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 8.675508);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 11;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 12;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 12;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 8.632000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 12;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -43.438993);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 12;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 48.207553);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -20.597576;
+        vs_arr[2] = 12;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, -58.086137);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 20.597576;
+        vs_arr[2] = 12;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, 67.564797);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 12;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -2.654928);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 12;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 7.654928);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 10;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 11;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 11;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 8.132000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 11;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -35.901120);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 11;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 40.669680);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = -20.597576;
+        vs_arr[2] = 11;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, -48.063607);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(3 * sizeof(double));
+    int* vs_arr = (int*) malloc(3 * sizeof(int));
+    for (int i = 0; i < 3; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 0.202424;
+        vs_arr[1] = 10;
+        as_arr[2] = 20.597576;
+        vs_arr[2] = 11;
+    };
+    add_constraint(&ctx, 3, as_arr, vs_arr, 1, 57.542267);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = -2.894800;
+        vs_arr[1] = 11;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 0.291103);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -2.894800;
+        vs_arr[0] = 10;
+        as_arr[1] = 2.894800;
+        vs_arr[1] = 11;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 4.708897);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 9;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 10;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 8;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 9;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 9;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 7.618000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 9;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -28.152249);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 9;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 32.920809);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -20.800000;
+        vs_arr[1] = 9;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -37.584790);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 20.800000;
+        vs_arr[1] = 9;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 47.063450);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 7;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 8;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 8;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 7.112000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 8;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -20.521165);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 8;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 25.289725);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -20.800000;
+        vs_arr[1] = 8;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -26.999803);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 20.800000;
+        vs_arr[1] = 8;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 36.478463);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 6;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 7;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 7;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 6.606000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 7;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -12.885171);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 7;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 17.653731);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -20.800000;
+        vs_arr[1] = 7;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -16.421733);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 20.800000;
+        vs_arr[1] = 7;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 25.900393);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 5;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 6;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 6;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 6.100000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = -15.090000;
+        vs_arr[1] = 6;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -5.249147);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -15.090000;
+        vs_arr[0] = 3;
+        as_arr[1] = 15.090000;
+        vs_arr[1] = 6;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 10.017707);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = 20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = -20.800000;
+        vs_arr[1] = 6;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, -5.842880);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -20.800000;
+        vs_arr[0] = 5;
+        as_arr[1] = 20.800000;
+        vs_arr[1] = 6;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 1, 15.321540);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 4;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 5;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 3;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 4;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 2;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 3;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 1;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 2;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, -1, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(2 * sizeof(double));
+    int* vs_arr = (int*) malloc(2 * sizeof(int));
+    for (int i = 0; i < 2; ++i) {
+        as_arr[0] = -1.000000;
+        vs_arr[0] = 0;
+        as_arr[1] = 1.000000;
+        vs_arr[1] = 1;
+    };
+    add_constraint(&ctx, 2, as_arr, vs_arr, 0, 0.000000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 0;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, -1, 5.594000);
+    free(vs_arr);
+    free(as_arr);
+}
+
+BLOCK {
+    double* as_arr = (double*) malloc(1 * sizeof(double));
+    int* vs_arr = (int*) malloc(1 * sizeof(int));
+    for (int i = 0; i < 1; ++i) {
+        as_arr[0] = 1.000000;
+        vs_arr[0] = 0;
+    };
+    add_constraint(&ctx, 1, as_arr, vs_arr, 0, 5.594000);
+    free(vs_arr);
+    free(as_arr);
+}
+
