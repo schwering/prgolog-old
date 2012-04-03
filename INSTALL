@@ -112,9 +112,9 @@ cp CoinUtils/src/mygc.h include/coin/
 
 
 # BOEHM GC:
-cp ${MERCURY_SRC}/boehm_gc /tmp/boehm_gc
+cp -r ${MERCURY_SRC}/boehm_gc /tmp/boehm_gc
 cd /tmp/boehm_gc/
-sed --in-place -e 's/libgc/libpar_gc/g' *
+find -type f | xargs sed --in-place -e 's/libgc/libpar_gc/g'
 ./configure --prefix=$(pwd)/dist
 make
 make install
