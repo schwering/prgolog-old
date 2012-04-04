@@ -29,20 +29,14 @@
 :- implementation.
 
 :- import_module bat.
-:- import_module bool.
 :- import_module int.
 :- import_module io_util.
 :- import_module float.
 :- import_module list.
 :- import_module obs.
-:- import_module pair.
 :- import_module planrecog.
-:- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module solutions.
-:- import_module thread.
-:- import_module thread.mvar.
 :- import_module times.
 :- import_module types.
 %:- import_module table_statistics.
