@@ -5,8 +5,7 @@
 % File: types.m.
 % Main author: schwering.
 %
-% Basic action theory (BAT) for driving with two simple actions, set_yaw and
-% set_veloc that control the steering and speed of the vehicle.
+% Basic types used throughout the cars world.
 %
 % Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %

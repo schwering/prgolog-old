@@ -35,22 +35,22 @@
                 list(constraint), time)
     ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
     %;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
-    ;   match(s, obs, maybe(vargen), list(constraint), time)
+    ;   match(obs, maybe(vargen), list(constraint), time)
     ;   eval(ccformula(prim), maybe(vargen), list(constraint), time)
     ;   init_env(s, assoc_list(agent, agent_info))
     ;   seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
                 ;   set_yaw_st(agent, lane, rad).
-:- type procedure --->  straight_left(agent)
-                    ;   straight_right(agent)
-                    ;   left_lane_change(agent)
-                    ;   right_lane_change(agent)
-                    ;   cruise(agent)
-                    ;   overtake(agent, agent).
+:- type proc --->  straight_left(agent)
+                ;  straight_right(agent)
+                ;  left_lane_change(agent)
+                ;  right_lane_change(agent)
+                ;  cruise(agent)
+                ;  overtake(agent, agent).
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(bat.prim, bat.stoch, bat.procedure).
+:- instance bat(bat.prim, bat.stoch, bat.proc).
 
 %-----------------------------------------------------------------------------%
 
@@ -97,12 +97,11 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func match_count(prog(prim, stoch, procedure)) = int.
+:- func match_count(prog(prim, stoch, proc)) = int.
 
 %-----------------------------------------------------------------------------%
 
-:- pred proc(procedure, prog(prim, stoch, procedure)).
-:- mode proc(in, out) is det.
+:- pred proc(proc::in, prog(prim, stoch, proc)::out) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -198,7 +197,7 @@ start(do(A, S)) = T :-
     (   A = set_veloc(_, _, _, _, _, _, T)
     ;   A = set_yaw(_, _, _, _, _, _, _, T)
     ;   A = wait_for(_, _, _, T)
-    ;   A = match(_, _, _, _, T)
+    ;   A = match(_, _, _, T)
     ;   A = eval(_, _, _, T)
     ;   A = init_env(T0, _), T = constant(T0)
     ;   A = seed(_), T = start(S)
@@ -226,7 +225,7 @@ vargen(do(A, S)) = VG :-
     if      (   A = set_veloc(_, _, _, _, yes(VG0), _, _)
             ;   A = set_yaw(_, _, _, _, _, yes(VG0), _, _)
             ;   A = wait_for(_, yes(VG0), _, _)
-            ;   A = match(_, _, yes(VG0), _, _)
+            ;   A = match(_, yes(VG0), _, _)
             ;   A = eval(_, yes(VG0), _, _)
             )
     then    VG = VG0
@@ -239,7 +238,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
     (   A = set_veloc(_, _, _, _, _, Cs, _)
     ;   A = set_yaw(_, _, _, _, _, _, Cs, _)
     ;   A = wait_for(_, _, Cs, _)
-    ;   A = match(_, _, _, Cs, _)
+    ;   A = match(_, _, Cs, _)
     ;   A = eval(_, _, Cs, _)
     ;   A = init_env(_, _), Cs = []
     ;   A = seed(_), Cs = []
@@ -362,12 +361,12 @@ poss(wait_for(G, no, [], notime),
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1).
 
-poss(match(OT, Obs, no, [], notime),
-     match(OT, Obs, yes(VG), Cs0, T),
+poss(match(Obs, no, [], T),
+     match(Obs, yes(VG), Cs0, T),
      S) :-
-    T = new_variable(vargen(S), VG),
+    VG = vargen(S),
     {_, OF} = obs2ccformula(Obs),
-    Cs0 = filter_empty_cstrs([T `>=` start(S), T `=` constant(OT)] ++ OF(T, S)),
+    Cs0 = filter_empty_cstrs([T `>=` start(S), T `=` T] ++ OF(T, S)),
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1).
 
@@ -441,12 +440,12 @@ new_lookahead(H, _C) = H - 1.
 
 reward(s0) = 0.0.
 reward(do(A, S)) =
-    (   if      A = match(_, _, _, _, _)
+    (   if      A = match(_, _, _, _)
         then    reward(S) + 1.0
         else    reward(S)
     ).
 
-:- func reward(prog(prim, stoch, procedure), sit(prim)) = reward.
+:- func reward(prog(prim, stoch, proc), sit(prim)) = reward.
 :- mode reward(in, in) = out is det.
 
 reward(_, S) = reward(S).
@@ -461,7 +460,7 @@ match_count(proc(_)) = 0.
 match_count(nil) = 0.
 match_count(pseudo_atom(complex(P))) = match_count(P).
 match_count(pseudo_atom(atom(A))) =
-    ( if A = prim(match(_, _, _, _, _)) then 1 else 0 ).
+    ( if A = prim(match(_, _, _, _)) then 1 else 0 ).
 
 %-----------------------------------------------------------------------------%
 
@@ -522,7 +521,7 @@ proc(overtake(Agent, Victim), P) :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(bat.prim, bat.stoch, bat.procedure) where [
+:- instance bat(bat.prim, bat.stoch, bat.proc) where [
     pred(poss/3) is bat.poss,
     pred(random_outcome/3) is bat.random_outcome,
     func(reward/2) is bat.reward,
@@ -547,7 +546,7 @@ obs2ccformula({OT, A0, X0, Y0, A1, X1, Y1}) = {OT, OF} :-
     ] ).
 
 
-obs2match(Obs) = match(OT, Obs, no, [], notime) :-
+obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
     {OT, _} = obs2ccformula(Obs).
 
 %-----------------------------------------------------------------------------%

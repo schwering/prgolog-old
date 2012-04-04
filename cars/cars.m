@@ -5,8 +5,8 @@
 % File: cars.m.
 % Main author: schwering.
 %
-% Basic action theory (BAT) for driving with two simple actions, set_yaw and
-% set_veloc that control the steering and speed of the vehicle.
+% Main predicate that takes observations from stdin and performs plan
+% recognition.
 %
 % Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %

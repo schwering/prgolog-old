@@ -5,8 +5,8 @@
 % File: obs.m.
 % Main author: schwering.
 %
-% Basic action theory (BAT) for driving with two simple actions, set_yaw and
-% set_veloc that control the steering and speed of the vehicle.
+% Types and operations for observations, particularly the generator that reads
+% from stdin.
 %
 % Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
@@ -24,7 +24,9 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type obs_msg ---> init_msg(assoc_list(agent, {mps, rad, m, m}), s) ; obs_msg(obs) ; end_of_obs.
+:- type obs_msg ---> init_msg(assoc_list(agent, {mps, rad, m, m}), s)
+                ;    obs_msg(obs)
+                ;    end_of_obs.
 
 :- type init_obs(T) == (pred(T)).
 :- inst init_obs == (pred(uo) is det).
@@ -33,18 +35,18 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func append_match(prog(prim, stoch, procedure), prim) =
-    prog(prim, stoch, procedure) is det.
+:- func append_match(prog(prim, stoch, proc), prim) =
+    prog(prim, stoch, proc) is det.
 
-:- func remove_match_sequence(prog(prim, stoch, procedure)) =
-    prog(prim, stoch, procedure) is semidet.
+:- func remove_match_sequence(prog(prim, stoch, proc)) =
+    prog(prim, stoch, proc) is semidet.
 
 :- func last_match(sit(prim)) = prim is semidet.
 
 :- pred last_action_covered_by_match(sit(prim)::in) is semidet.
 
-:- func append_obs(prog(prim, stoch, procedure), obs) =
-    prog(prim, stoch, procedure) is det.
+:- func append_obs(prog(prim, stoch, proc), obs) =
+    prog(prim, stoch, proc) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -76,8 +78,8 @@ append_match(P, O) =
     ).
 
 
-:- func append_match_to_most_right(prog(prim, stoch, procedure), prim) =
-                                   prog(prim, stoch, procedure) is semidet.
+:- func append_match_to_most_right(prog(prim, stoch, proc), prim) =
+                                   prog(prim, stoch, proc) is semidet.
 
 append_match_to_most_right(seq(P1, P2), M) =
     (   if      Q2 = append_match_to_most_right(P2, M)
@@ -94,7 +96,7 @@ append_match_to_most_right(conc(P1, P2), M) =
 append_match_to_most_right(star(P), M) =
     append_match_to_most_right(P, M).
 append_match_to_most_right(M0, M) = seq(M0, pseudo_atom(atom(prim(M)))) :-
-    M0 = pseudo_atom(atom(prim(match(_, _, _, _, _)))).
+    M0 = pseudo_atom(atom(prim(match(_, _, _, _)))).
 
 
 remove_match_sequence(conc(P1, P2)) = Q :-
@@ -105,7 +107,7 @@ remove_match_sequence(conc(P1, P2)) = Q :-
     else        false.
 
 
-:- pred only_match_actions(prog(prim, stoch, procedure)::in) is semidet.
+:- pred only_match_actions(prog(prim, stoch, proc)::in) is semidet.
 
 only_match_actions(seq(P1, P2)) :-
     only_match_actions(P1),
@@ -118,17 +120,17 @@ only_match_actions(conc(P1, P2)) :-
     only_match_actions(P2).
 only_match_actions(star(P)) :-
     only_match_actions(P).
-only_match_actions(pseudo_atom(atom(prim(match(_, _, _, _, _))))).
+only_match_actions(pseudo_atom(atom(prim(match(_, _, _, _))))).
 only_match_actions(nil).
 
 
 last_match(do(A, S)) =
-    ( if A = match(_, _, _, _, _) then A else last_match(S) ).
+    ( if A = match(_, _, _, _) then A else last_match(S) ).
 
 
 last_action_covered_by_match(S) :-
-    match(T0, _, _, _, _) = last_match(S),
-    C = (start(S) `=` constant(T0)),
+    match(_, _, _, T0) = last_match(S),
+    C = (start(S) `=` T0),
     solve(vargen(S), [C] ++ constraints(S)).
 
 

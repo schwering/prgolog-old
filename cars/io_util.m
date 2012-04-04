@@ -2,11 +2,10 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: cars.m.
+% File: io_util.m.
 % Main author: schwering.
 %
-% Basic action theory (BAT) for driving with two simple actions, set_yaw and
-% set_veloc that control the steering and speed of the vehicle.
+% Some I/O-related utilities such as printing situation terms.
 %
 % Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
@@ -99,10 +98,10 @@ print_action(Stream, Map, wait_for(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
     format(Stream, "wait_for(..., %f)\n",
            [f(T)], !IO).
-print_action(Stream, Map, match(OTime, _, _, _, Time), !IO) :-
+print_action(Stream, Map, match(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format(Stream, "match(%f, ..., %f)\n",
-           [f(OTime), f(T)], !IO).
+    format(Stream, "match(..., %f)\n",
+           [f(T)], !IO).
 print_action(Stream, Map, eval(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
     format(Stream, "eval(..., %f)\n",
@@ -221,7 +220,7 @@ draw_trace_2(Stream, Map, S, !IO) :-
         then draw_trace_2(Stream, Map, S0, !IO)
         else format(Stream, "time     xobs     yobs     xmod     ymod      xlo      ylo      xhi      yhi\n", [], !IO)
     ),
-    (   (   if      S = do(match(_, Obs, _, _, _), _)
+    (   (   if      S = do(match(Obs, _, _, _), _)
             then    (   if      Obs = {_, Agent, X0, Y0, _, _, _}
                         then    ObsX = format("%7.3f", [f(X0)]),
                                 ObsY = format("%7.3f", [f(Y0)])

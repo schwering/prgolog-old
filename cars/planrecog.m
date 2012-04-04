@@ -5,8 +5,7 @@
 % File: planrecog.m.
 % Main author: schwering.
 %
-% Basic action theory (BAT) for driving with two simple actions, set_yaw and
-% set_veloc that control the steering and speed of the vehicle.
+% Plan recognition-specific utilities.
 %
 % Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
@@ -28,7 +27,7 @@
 %-----------------------------------------------------------------------------%
 
 :- type s_phase ---> running ; finishing ; finished ; failed.
-:- type s_state ---> s_state(conf(prim, stoch, procedure), s_phase).
+:- type s_state ---> s_state(conf(prim, stoch, proc), s_phase).
 
 %-----------------------------------------------------------------------------%
 
@@ -43,7 +42,7 @@
 :- pred planrecog(int::in,
                   init_obs(T)::in(init_obs),
                   next_obs(T)::in(next_obs),
-                  prog(prim, stoch, procedure)::in,
+                  prog(prim, stoch, proc)::in,
                   list(s_state)::out,
                   io::di, io::uo) is cc_multi.
 
