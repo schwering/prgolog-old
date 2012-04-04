@@ -31,12 +31,12 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_sit(assoc_list(var, float)::in, sit(prim)::in,
+:- pred print_sit(assoc_list(var, float)::in, sit::in,
                   io::di, io::uo) is det.
 
 :- pred print_sit(output_stream::in,
                   string::in,
-                  assoc_list(var, float)::in, sit(prim)::in,
+                  assoc_list(var, float)::in, sit::in,
                   io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -46,33 +46,33 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_prog(assoc_list(var, number)::in, prog(prim, stoch, proc)::in,
+:- pred print_prog(assoc_list(var, number)::in, prog::in,
                    io::di, io::uo) is det.
 
 :- pred print_prog(output_stream::in, assoc_list(var, number)::in,
-                   prog(prim, stoch, proc)::in,
+                   prog::in,
                    io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_sit_with_info(assoc_list(var, number)::in, sit(prim)::in,
+:- pred print_sit_with_info(assoc_list(var, number)::in, sit::in,
                             io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_sit_info(assoc_list(var, number)::in, sit(prim)::in,
+:- pred print_sit_info(assoc_list(var, number)::in, sit::in,
                        io::di, io::uo) is det.
 
 :- pred print_sit_info(output_stream::in,
-                       assoc_list(var, number)::in, sit(prim)::in,
+                       assoc_list(var, number)::in, sit::in,
                        io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- pred draw_trace(assoc_list(var, number)::in, sit(prim)::in,
+:- pred draw_trace(assoc_list(var, number)::in, sit::in,
                    io::di, io::uo) is det.
 
-:- pred draw_traces_incl_subsits(assoc_list(var, number)::in, sit(prim)::in,
+:- pred draw_traces_incl_subsits(assoc_list(var, number)::in, sit::in,
                    io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -129,7 +129,7 @@ print_prog(Stream, Map, P, !IO) :- print_prog_2(Stream, Map, "", P, !IO).
 
 
 :- pred print_prog_2(output_stream::in, assoc_list(var, number)::in,
-                     string::in, prog(prim, stoch, proc)::in,
+                     string::in, prog::in,
                      io::di, io::uo) is det.
 
 print_prog_2(Stream, Map, Op, seq(P1, P2), !IO) :-
@@ -184,7 +184,7 @@ print_sit(Stream, Prefix, Map, S, !IO) :-
 
 :- pred print_sit_2(output_stream::in,
                     string::in,
-                    assoc_list(var, float)::in, sit(prim)::in,
+                    assoc_list(var, float)::in, sit::in,
                     int::in, int::out, io::di, io::uo) is det.
 
 print_sit_2(_, _, _, s0, !N, !IO).
@@ -204,7 +204,7 @@ print_sit_with_info(Map, S, !IO) :-
 
 
 :- pred print_sit_with_info(output_stream::in,
-                            assoc_list(var, number)::in, sit(prim)::in,
+                            assoc_list(var, number)::in, sit::in,
                             io::di, io::uo) is det.
 
 print_sit_with_info(Stream, Map, s0, !IO) :-
@@ -271,7 +271,7 @@ draw_trace(Map, S, !IO) :-
 
 
 :- pred draw_trace_2(output_stream::in,
-                     assoc_list(var, number)::in, sit(prim)::in,
+                     assoc_list(var, number)::in, sit::in,
                      io::di, io::uo) is det.
 
 

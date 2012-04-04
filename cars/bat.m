@@ -22,6 +22,7 @@
 :- import_module maybe.
 :- import_module prgolog.
 :- import_module prgolog.ccfluent.
+:- import_module prgolog.nice.
 :- use_module random.
 :- import_module types.
 
@@ -48,6 +49,10 @@
                 ;  cruise(agent)
                 ;  overtake(agent, agent).
 
+:- type sit == sit(prim).
+:- type prog == prog(prim, stoch, proc).
+:- type conf == conf(prim, stoch, proc).
+
 %-----------------------------------------------------------------------------%
 
 :- instance bat(bat.prim, bat.stoch, bat.proc).
@@ -56,21 +61,21 @@
 
 :- func notime = (time::out) is det.
 
-:- func sitlen(sit(prim)::in) = (int::out) is det.
+:- func sitlen(sit::in) = (int::out) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func start(sit(prim)::in) = (time::out) is det.
-:- func now(sit(prim)::in) = (tfunc::out) is det.
-:- func random_supply(sit(prim)::in) = (random.supply::out) is det.
-:- func vargen(sit(prim)::in) = (vargen::out) is det.
-:- func constraints(sit(prim)::in) = (list(constraint)::out) is det.
-:- func veloc(agent::in, sit(prim)::in) = (mps::out) is det.
-:- func yaw(agent::in, sit(prim)::in) = (mps::out) is det.
-:- func x(agent::in, sit(prim)::in) = (tfunc::out) is det.
-:- func y(agent::in, sit(prim)::in) = (tfunc::out) is det.
-:- func x_tol(agent::in, sit(prim)::in) = (m::out) is det.
-:- func y_tol(agent::in, sit(prim)::in) = (m::out) is det.
+:- func start(sit::in) = (time::out) is det.
+:- func now(sit::in) = (tfunc::out) is det.
+:- func random_supply(sit::in) = (random.supply::out) is det.
+:- func vargen(sit::in) = (vargen::out) is det.
+:- func constraints(sit::in) = (list(constraint)::out) is det.
+:- func veloc(agent::in, sit::in) = (mps::out) is det.
+:- func yaw(agent::in, sit::in) = (mps::out) is det.
+:- func x(agent::in, sit::in) = (tfunc::out) is det.
+:- func y(agent::in, sit::in) = (tfunc::out) is det.
+:- func x_tol(agent::in, sit::in) = (m::out) is det.
+:- func y_tol(agent::in, sit::in) = (m::out) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -80,28 +85,28 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred poss(prim::in, prim::out, sit(prim)::in) is semidet.
+:- pred poss(prim::in, prim::out, sit::in) is semidet.
 
 %-----------------------------------------------------------------------------%
 
-:- pred random_outcome(stoch::in, prim::out, sit(prim)::in) is det.
+:- pred random_outcome(stoch::in, prim::out, sit::in) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func lookahead(sit(prim)) = lookahead is det.
+:- func lookahead(sit) = lookahead is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func reward(sit(prim)) = reward.
+:- func reward(sit) = reward.
 :- mode reward(in) = out is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func match_count(prog(prim, stoch, proc)) = int.
+:- func match_count(prog) = int.
 
 %-----------------------------------------------------------------------------%
 
-:- pred proc(proc::in, prog(prim, stoch, proc)::out) is det.
+:- pred proc(proc::in, prog::out) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -445,7 +450,7 @@ reward(do(A, S)) =
         else    reward(S)
     ).
 
-:- func reward(prog(prim, stoch, proc), sit(prim)) = reward.
+:- func reward(prog, sit) = reward.
 :- mode reward(in, in) = out is det.
 
 reward(_, S) = reward(S).

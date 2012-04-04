@@ -17,32 +17,21 @@
 :- interface.
 
 :- import_module bat.
-:- import_module bool.
 :- import_module io.
 :- import_module list.
 :- import_module obs.
-:- import_module prgolog.
-:- import_module prgolog.nice.
 
 %-----------------------------------------------------------------------------%
 
 :- type s_phase ---> running ; finishing ; finished ; failed.
-:- type s_state ---> s_state(conf(prim, stoch, proc), s_phase).
-
-%-----------------------------------------------------------------------------%
-
-:- pred merge_and_trans(next_obs(T)::in(next_obs),
-                        s_state::in,
-                        s_state::out,
-                        T::di, T::uo,
-                        bool::out) is det.
+:- type s_state ---> s_state(conf, s_phase).
 
 %-----------------------------------------------------------------------------%
 
 :- pred planrecog(int::in,
                   init_obs(T)::in(init_obs),
                   next_obs(T)::in(next_obs),
-                  prog(prim, stoch, proc)::in,
+                  prog::in,
                   list(s_state)::out,
                   io::di, io::uo) is cc_multi.
 
@@ -51,7 +40,10 @@
 
 :- implementation.
 
+:- import_module bool.
 :- import_module int.
+:- import_module prgolog.
+:- import_module prgolog.nice.
 :- import_module thread.
 :- import_module thread.mvar.
 
@@ -70,6 +62,12 @@ merge_and_trans_loop(NextObs, !State, !ObsGenState) :-
     ).
 
 
+:- pred merge_and_trans(next_obs(T)::in(next_obs),
+                        s_state::in,
+                        s_state::out,
+                        T::di, T::uo,
+                        bool::out) is det.
+
 merge_and_trans(NextObs,
                 s_state(conf(P, S), !.Phase),
                 s_state(conf(P2, S2), !:Phase),
@@ -77,7 +75,7 @@ merge_and_trans(NextObs,
                 Continue) :-
     (   if      !.Phase \= finishing,
                 match_count(P) < bat.lookahead(S)
-        then    NextObs(ObsMsg, !ObsGenState)
+        then    NextObs(ObsMsg, S, P, !ObsGenState)
         else    ObsMsg = end_of_obs
     ),
     P0 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
