@@ -35,6 +35,7 @@
 :- import_module list.
 :- import_module obs.
 :- import_module planrecog.
+:- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
 :- import_module times.
@@ -48,7 +49,6 @@ main(!IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     planrecog(10, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
-/*
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
             IO0 = !:SubIO,
@@ -60,7 +60,9 @@ main(!IO) :-
                             then    %draw_traces_incl_subsits(Map, S, !SubIO)
                                     draw_trace(Map, S, !SubIO)
                             else    true
-                        )
+                        ),
+                        write_string("Remaining program: ", !SubIO),
+                        print_prog(Map, P, !SubIO), nl(!SubIO)
                 else    write_string("solving failed\n", !SubIO)
             ),
             write_string("Remaining program: ", !SubIO),
@@ -69,7 +71,6 @@ main(!IO) :-
             IO1 = !.SubIO
         )
     ), Results, !IO),
-*/
     (   if      Results \= []
         then    foldl((pred(s_state(_, R)::in, {N, M}::in, {N1, M1}::out) is det :-
                     if      R = finished

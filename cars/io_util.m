@@ -41,9 +41,17 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_action(output_stream::in,
-                      assoc_list(var, number)::in, prim::in,
+:- pred print_action(output_stream::in, assoc_list(var, number)::in, prim::in,
                      io::di, io::uo) is det.
+
+%-----------------------------------------------------------------------------%
+
+:- pred print_prog(assoc_list(var, number)::in, prog(prim, stoch, proc)::in,
+                   io::di, io::uo) is det.
+
+:- pred print_prog(output_stream::in, assoc_list(var, number)::in,
+                   prog(prim, stoch, proc)::in,
+                   io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -87,30 +95,83 @@ map0_io(P, [X | Xs], !IO) :- P(X, !IO), map0_io(P, Xs, !IO).
 
 print_action(Stream, Map, set_veloc(A, Mps, Tol, _, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format(Stream, "set_veloc(%s, %f, %f, %f)\n",
+    format(Stream, "set_veloc(%s, %f, %f, %f)",
            [s(agent_to_string(A)), f(Mps), f(Tol), f(T)], !IO).
 print_action(Stream, Map, set_yaw(A, L, Rad, Tol, _, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format(Stream, "set_yaw(%s, %s, %f, %f, %f)\n",
+    format(Stream, "set_yaw(%s, %s, %f, %f, %f)",
            [s(agent_to_string(A)), s(lane_to_string(L)),
             f(Rad), f(Tol), f(T)], !IO).
 print_action(Stream, Map, wait_for(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format(Stream, "wait_for(..., %f)\n",
+    format(Stream, "wait_for(..., %f)",
            [f(T)], !IO).
 print_action(Stream, Map, match(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format(Stream, "match(..., %f)\n",
+    format(Stream, "match(..., %f)",
            [f(T)], !IO).
 print_action(Stream, Map, eval(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
-    format(Stream, "eval(..., %f)\n",
+    format(Stream, "eval(..., %f)",
            [f(T)], !IO).
 print_action(Stream, _, A @ init_env(_, _), !IO) :-
-    write(Stream, A, !IO), nl(Stream, !IO).
+    write(Stream, A, !IO).
 print_action(Stream, _, seed(Seed), !IO) :-
-    format(Stream, "seed(%d)\n",
+    format(Stream, "seed(%d)",
            [i(Seed)], !IO).
+
+%-----------------------------------------------------------------------------%
+
+print_prog(Map, P, !IO) :- print_prog(stdout_stream, Map, P, !IO).
+
+
+print_prog(Stream, Map, P, !IO) :- print_prog_2(Stream, Map, "", P, !IO).
+
+
+:- pred print_prog_2(output_stream::in, assoc_list(var, number)::in,
+                     string::in, prog(prim, stoch, proc)::in,
+                     io::di, io::uo) is det.
+
+print_prog_2(Stream, Map, Op, seq(P1, P2), !IO) :-
+    ThisOp = ";",
+    ( if Op = "" ; Op \= ThisOp then write_string("(", !IO) else true ),
+    print_prog_2(Stream, Map, ThisOp, P1, !IO),
+    write_string(Stream, " ; ", !IO),
+    print_prog_2(Stream, Map, ThisOp, P2, !IO),
+    ( if Op = "" ; Op \= ThisOp then write_string(")", !IO) else true ).
+print_prog_2(Stream, Map, Op, non_det(P1, P2), !IO) :-
+    ThisOp = "|",
+    ( if Op = "" ; Op \= ThisOp then write_string("(", !IO) else true ),
+    print_prog_2(Stream, Map, ThisOp, P1, !IO),
+    write_string(Stream, " | ", !IO),
+    print_prog_2(Stream, Map, ThisOp, P2, !IO),
+    ( if Op = "" ; Op \= ThisOp then write_string(")", !IO) else true ).
+print_prog_2(Stream, Map, Op, conc(P1, P2), !IO) :-
+    ThisOp = "||",
+    ( if Op = "" ; Op \= ThisOp then write_string("(", !IO) else true ),
+    print_prog_2(Stream, Map, ThisOp, P1, !IO),
+    write_string(Stream, " || ", !IO),
+    print_prog_2(Stream, Map, ThisOp, P2, !IO),
+    ( if Op = "" ; Op \= ThisOp then write_string(")", !IO) else true ).
+print_prog_2(Stream, Map, _, star(P), !IO) :-
+    ThisOp = "*",
+    write_string(Stream, "(", !IO),
+    print_prog_2(Stream, Map, ThisOp, P, !IO),
+    write_string(Stream, ")*", !IO).
+print_prog_2(Stream, _, _, proc(P), !IO) :-
+    write(Stream, P, !IO).
+print_prog_2(Stream, Map, _, pseudo_atom(complex(P)), !IO) :-
+    ThisOp = "atomic",
+    write_string(Stream, "atomic(", !IO),
+    print_prog_2(Stream, Map, ThisOp, P, !IO),
+    write_string(Stream, ")", !IO).
+print_prog_2(Stream, Map, _, pseudo_atom(atom(P)), !IO) :-
+    (   P = prim(A), print_action(Stream, Map, A, !IO)
+    ;   P = stoch(B), write(Stream, B, !IO)
+    ;   P = test(_), write_string(Stream, "(...)?", !IO)
+    ).
+print_prog_2(Stream, _, _, nil, !IO) :-
+    write_string(Stream, "nil", !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -134,7 +195,7 @@ print_sit_2(Stream, Prefix, Map, do(A, S), !.N, !:N, !IO) :-
     write(Stream, !.N, !IO),
     write_string(Stream, ": ", !IO),
     !:N = !.N + 1,
-    print_action(Stream, Map, A, !IO).
+    print_action(Stream, Map, A, !IO), nl(Stream, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -152,7 +213,7 @@ print_sit_with_info(Stream, Map, s0, !IO) :-
     nl(Stream, !IO).
 print_sit_with_info(Stream, Map, S1 @ do(A, S), !IO) :-
     print_sit_with_info(Stream, Map, S, !IO),
-    print_action(Stream, Map, A, !IO),
+    print_action(Stream, Map, A, !IO), nl(Stream, !IO),
     print_sit_info(Stream, Map, S1, !IO),
     nl(Stream, !IO).
 
