@@ -28,7 +28,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type agent_info == {mps, rad, m, m}.
+:- type agent_info ---> agent_info(mps, rad, m, m).
 :- type prim --->
         set_veloc(agent, mps, mps, maybe(random.supply),
                   maybe(vargen), list(constraint), time)
@@ -254,7 +254,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 veloc(_, s0) = 0.0.
 veloc(Agent, do(A, S)) = Veloc :-
     if      A = init_env(_, Map)
-    then    {Veloc, _, _, _} = Map^det_elem(Agent)
+    then    agent_info(Veloc, _, _, _) = Map^det_elem(Agent)
     else if A = set_veloc(Agent, V0, _, _, _, _, _)
     then    Veloc = V0
     else    Veloc = veloc(Agent, S).
@@ -264,7 +264,7 @@ veloc(Agent, do(A, S)) = Veloc :-
 yaw(_, s0) = 0.0.
 yaw(Agent, do(A, S)) = Rad :-
     if      A = init_env(_, Map)
-    then    {_, Rad, _, _} = Map^det_elem(Agent)
+    then    agent_info(_, Rad, _, _) = Map^det_elem(Agent)
     else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
     else    Rad = yaw(Agent, S).
@@ -275,7 +275,7 @@ x(_, s0) = ( func(_) = constant(0.0) ).
 %x(Agent, s0) = ( func(_) = constant(X) ) :- initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
     if      A = init_env(_, Map)
-    then    {_, _, X0, _} = Map^det_elem(Agent),
+    then    agent_info(_, _, X0, _) = Map^det_elem(Agent),
             X = ( func(_) = constant(X0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
             ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(Agent, S)
@@ -290,7 +290,7 @@ y(_, s0) = ( func(_) = constant(0.0) ).
 %y(Agent, s0) = ( func(_) = constant(Y) ) :- initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
     if      A = init_env(_, Map)
-    then    {_, _, _, Y0} = Map^det_elem(Agent),
+    then    agent_info(_, _, _, Y0) = Map^det_elem(Agent),
             Y = ( func(_) = constant(Y0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
             ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(Agent, S)

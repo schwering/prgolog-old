@@ -1,5 +1,5 @@
-#ifndef _OBS_H_
-#define _OBS_H_
+#ifndef _OBSERVATION_INTERFACE_H_
+#define _OBSERVATION_INTERFACE_H_
 
 #include <assert.h>
 #include <pthread.h>
@@ -34,6 +34,7 @@ extern int max_valid_record;
 extern struct state states[];
 extern int max_valid_state;
 
+extern pthread_mutex_t mutex;
 extern pthread_cond_t cond;
 extern volatile bool obs_coming;
 

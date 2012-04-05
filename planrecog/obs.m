@@ -23,7 +23,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type obs_msg ---> init_msg(assoc_list(agent, {mps, rad, m, m}), s)
+:- type obs_msg ---> init_msg(assoc_list(agent, agent_info), s)
                 ;    obs_msg(obs)
                 ;    end_of_obs.
 
@@ -142,17 +142,86 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 
 %-----------------------------------------------------------------------------%
 
-:- pragma foreign_decl("C", "#include ""obs.h""").
+:- pragma foreign_decl("C", "
+    #include <assert.h>
+    #include <pthread.h>
+    #include <stdbool.h>
+
+    #define AGENTLEN  15
+    #define NRECORDS 500
+    #define NSAMPLES 500
+
+    struct record {
+      double t;
+      char agent0[AGENTLEN+1];
+      double veloc0;
+      double rad0;
+      double x0;
+      double y0;
+      char agent1[AGENTLEN+1];
+      double veloc1;
+      double rad1;
+      double x1;
+      double y1;
+    };
+
+    struct state {
+      int done;
+      int tbd;
+    };
+
+    extern struct record records[];
+    extern int max_valid_record;
+
+    extern struct state states[];
+    extern int max_valid_state;
+
+    extern pthread_mutex_t mutex;
+    extern pthread_cond_t cond;
+    extern volatile bool obs_coming;
+
+    void push_obs(const struct record *r);
+    void read_obs(void);
+").
 
 
 :- pragma foreign_code("C", "
     int max_valid_record = -1;
-    int max_valid_state = -1;
     struct record records[NRECORDS];
     struct state states[NSAMPLES];
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     volatile bool obs_coming = true;
+").
+
+
+:- pragma foreign_code("C", "
+    void push_obs(const struct record *r)
+    {
+      assert(max_valid_record + 1 < NRECORDS);
+      memcpy(&records[max_valid_record + 1], r, sizeof(struct record));
+      ++max_valid_record;
+      pthread_cond_broadcast(&cond);
+    }
+
+    void read_obs(void)
+    {
+      for (;;) {
+        struct record r;
+        int i = scanf(
+                ""%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\\n"",
+                &r.t,
+                r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
+                r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1);
+        if (i == EOF) {
+          obs_coming = false;
+          pthread_cond_broadcast(&cond);
+          break;
+        } else if (i == 11) {
+          push_obs(&r);
+        }
+      }
+    }
 ").
 
 %-----------------------------------------------------------------------------%
@@ -169,8 +238,10 @@ input_next_obs(ObsMsg, _, _, I0, I1) :-
         Agent0 = string_to_agent(AgentS0),
         Agent1 = string_to_agent(AgentS1),
         (   if      I1 = 1
-            then    ObsMsg = init_msg([Agent0 - {Veloc0, Rad0, X0, Y0},
-                                       Agent1 - {Veloc1, Rad1, X1, Y1}], Time)
+            then    ObsMsg = init_msg(
+                        [ Agent0 - agent_info(Veloc0, Rad0, X0, Y0)
+                        , Agent1 - agent_info(Veloc1, Rad1, X1, Y1)
+                        ], Time)
             else    ObsMsg = obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1})
         )
     ;
@@ -261,8 +332,10 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
         Agent0 = string_to_agent(AgentS0),
         Agent1 = string_to_agent(AgentS1),
         (   if      I1 = 1
-            then    ObsMsg = init_msg([Agent0 - {Veloc0, Rad0, X0, Y0},
-                                       Agent1 - {Veloc1, Rad1, X1, Y1}], Time)
+            then    ObsMsg = init_msg(
+                        [ Agent0 - agent_info(Veloc0, Rad0, X0, Y0)
+                        , Agent1 - agent_info(Veloc1, Rad1, X1, Y1)
+                        ], Time)
             else    ObsMsg = obs_msg({Time, Agent0, X0, Y0, Agent1, X1, Y1})
         )
     ;
