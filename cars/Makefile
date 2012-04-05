@@ -1,5 +1,5 @@
 GOAL = cars
-SOURCE_FILES = $(shell ls *.m)
+SOURCE_FILES = $(shell ls *.m *.h)
 
 EXE_MCFLAGS += --ml prgolog --ml osi --ml util
 

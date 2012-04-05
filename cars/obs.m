@@ -27,8 +27,8 @@
                 ;    obs_msg(obs)
                 ;    end_of_obs.
 
-:- type init_obs(T) == (pred(T)).
-:- inst init_obs == (pred(uo) is det).
+:- type init_obs(T) == (pred(int, T)).
+:- inst init_obs == (pred(in, uo) is det).
 
 :- type next_obs(T) == (pred(obs_msg, sit, prog, T, T)).
 :- inst next_obs == (pred(out, in, in, di, uo) is det).
@@ -47,17 +47,17 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred input_init_obs(int::uo) is det.
+:- pred input_init_obs(int::in, int::uo) is det.
 
 :- pred input_next_obs(obs_msg::out, sit::in, prog::in,
                        int::di, int::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- pred global_init_obs(int::uo) is det.
+:- pred global_init_obs(int::in, {int, int}::uo) is det.
 
 :- pred global_next_obs(obs_msg::out, sit::in, prog::in,
-                        int::di, int::uo) is det.
+                        {int, int}::di, {int, int}::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -150,12 +150,14 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     int max_valid_state = -1;
     struct record records[NRECORDS];
     struct state states[NSAMPLES];
+    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    volatile bool obs_coming = true;
 ").
 
 %-----------------------------------------------------------------------------%
 
-input_init_obs(0).
+input_init_obs(_, 0).
 
 
 input_next_obs(ObsMsg, _, _, I0, I1) :-
@@ -244,13 +246,13 @@ input_next_obs(ObsMsg, _, _, I0, I1) :-
 
 %-----------------------------------------------------------------------------%
 
-global_init_obs(0).
+global_init_obs(I, {I1, 0}) :- copy(I, I1).
 
 
-global_next_obs(ObsMsg, S, P, I0, I1) :-
+global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     Done = floor_to_int(reward(S)),
     ToBeDone = match_count(P) - bat.lookahead(S),
-    global_next_obs_pure(I0, I1, Done, ToBeDone,
+    global_next_obs_pure(I0, I1, ID, Done, ToBeDone,
                          Ok, Time, AgentS0, Veloc0, Rad0, X0, Y0,
                              AgentS1, Veloc1, Rad1, X1, Y1),
     (
@@ -266,26 +268,31 @@ global_next_obs(ObsMsg, S, P, I0, I1) :-
     ;
         Ok = no,
         ObsMsg = end_of_obs
-    ).
+    ),
+    copy({ID, I1}, State1).
 
 
 :- pred global_next_obs_pure(int::di, int::uo,
-    int::in, int::in,
+    int::in, int::in, int::in,
     bool::out, float::out,
     string::out, float::out, float::out, float::out, float::out,
     string::out, float::out, float::out, float::out, float::out) is det.
 
 :- pragma foreign_proc("C",
     global_next_obs_pure(I0::di, I1::uo,
-        Done::in, ToBeDone::in,
+        ID::in, Done::in, ToBeDone::in,
         Ok::out, T::out,
         Agent0::out, Veloc0::out, Rad0::out, X0::out, Y0::out,
         Agent1::out, Veloc1::out, Rad1::out, X1::out, Y1::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    Ok = MR_YES;
-    // somehow wait for I0 =< max_valid_record
-    if (Ok == MR_YES) {
+    states[ID] = (struct state) { Done, ToBeDone };
+    while (obs_coming && I0 > max_valid_record) {
+        printf(""%d && %d > %d\\n"", (int) obs_coming, (int) I0, (int) max_valid_record);
+        pthread_cond_wait(&cond, &mutex);
+    }
+    if (I0 <= max_valid_record) {
+        Ok = MR_YES;
         T = (MR_Float) records[I0].t;
         Agent0 = MR_make_string_const(records[I0].agent0);
         Veloc0 = (MR_Float) records[I0].veloc0;

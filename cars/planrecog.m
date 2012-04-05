@@ -186,7 +186,7 @@ run_concurrently(N, P, Rs, !IO) :-
 planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
     Thread = (pred(I::in, R::out) is det :-
         InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
-        InitObs(InitialObsGenState),
+        InitObs(I, InitialObsGenState),
         merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
     ),
     run_concurrently(ThreadCount, Thread, Results, !IO).

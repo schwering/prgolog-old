@@ -44,10 +44,24 @@
 
 %-----------------------------------------------------------------------------%
 
+:- import_module thread.
+
+:- pred forward_obs(io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    forward_obs(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    read_obs();
+    IO1 = IO0;
+").
+
 main(!IO) :-
     times(Tms2, !IO),
     Prog = p(cruise(a)) // p(overtake(b, a)),
-    planrecog(10, input_init_obs, input_next_obs, Prog, Results, !IO),
+    %spawn((pred(IO0::di, IO1::uo) is cc_multi :- forward_obs(IO0, IO1)), !IO),
+    %planrecog(500, global_init_obs, global_next_obs, Prog, Results, !IO),
+    planrecog(500, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
