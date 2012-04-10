@@ -35,6 +35,8 @@
                   list(s_state)::out,
                   io::di, io::uo) is cc_multi.
 
+:- pred c_planrecog(int::in, io::di, io::uo) is cc_multi.
+
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -46,6 +48,7 @@
 :- import_module prgolog.nice.
 :- import_module thread.
 :- import_module thread.mvar.
+:- import_module types.
 
 %-----------------------------------------------------------------------------%
 
@@ -190,6 +193,21 @@ planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
         merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
     ),
     run_concurrently(ThreadCount, Thread, Results, !IO).
+
+
+:- pragma foreign_export("C", c_planrecog(in, di, uo), "c_planrecog").
+
+c_planrecog(ThreadCount, !IO) :-
+    Prog = p(cruise(a)) // p(overtake(b, a)),
+    InitObs = global_init_obs,
+    NextObs = global_next_obs,
+    Thread = (pred(I::in, R::out) is det :-
+        InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
+        InitObs(I, InitialObsGenState),
+        merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
+    ),
+    init_vars(ThreadCount, Vs, !IO),
+    run_concurrently_thread(ThreadCount, Vs, Thread, !IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module planrecog.

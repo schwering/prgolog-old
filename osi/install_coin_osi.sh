@@ -21,6 +21,30 @@ then
         exit 1
 fi
 
+
+
+# BOEHM GC:
+if [ -d "/tmp/boehm_gc" ]
+then
+        rm -rf "/tmp/boehm_gc" 
+fi
+cp -r "${MERCURY_SRC_DIR}/boehm_gc" "/tmp/boehm_gc" || exit 1
+cd "/tmp/boehm_gc/" || exit 1
+find -type f | xargs sed --in-place -e 's/libgc/libpar_gc/g'
+./configure "--prefix=$(pwd)/dist" "--enable-cplusplus"
+make
+make install
+if [ ! -f "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak" ]
+then
+        cp "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so" "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak"
+else
+        echo "Not backing up original libpar_gc.so because there already was a backup."
+fi
+cp $(find "dist/lib/" -name "libpar_gc.so*") "${MERCURY_BIN_DIR}/lib/mercury/lib/"
+
+
+
+# COIN-OR OSI/CLP:
 svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$COIN_DIR" || exit 1
 cd "$COIN_DIR" || exit 1
 
@@ -28,12 +52,13 @@ cd "$COIN_DIR" || exit 1
 export LDFLAGS="-L${MERCURY_BIN_DIR}/lib/mercury/lib/"
 export CPPFLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc/"
 # Add the new mygc.h header which accounts for new->GC_MALLOC and replace malloc->GC_MALLOC
-for f in $(find . -name \*.h -or -name \*.c); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; cat "$f.tmp" >>"$f"; rm "$f.tmp"; done
-for f in $(find . -name \*.hpp -or -name \*.cpp); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; cat "$f.tmp" >>"$f"; rm "$f.tmp"; done
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_MALLOC/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
+for f in $(find . -name \*.h -or -name \*.c); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
+for f in $(find . -name \*.hpp -or -name \*.cpp); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
+# We do this with macros in mygc.h now:
+#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_MALLOC/g'
+#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
+#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
+#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
 # We only need CLP, CoinUtils, and OSI.
 export COIN_SKIP_PROJECTS="DyLP Vol"
 ./configure "--prefix=$(pwd)/dist"
@@ -46,6 +71,30 @@ cat >CoinUtils/src/mygc.h <<\EOF
 #define GC_THREADS
 #include <gc.h>
 
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef malloc
+#define malloc(x) GC_MALLOC_UNCOLLECTABLE(x)
+#endif
+
+#ifndef realloc
+#define realloc(x, y) GC_REALLOC(x, y)
+#endif
+
+#ifndef calloc
+#define calloc(x, y) GC_MALLOC_UNCOLLECTABLE((x) * (y))
+#endif
+
+#ifndef free
+#define free(x) GC_FREE(x)
+#endif
+
+#ifndef strdup
+#define strdup(x) GC_STRDUP(x)
+#endif
+
+
 #ifdef __cplusplus
 #ifndef MYGC
 #define MYGC
@@ -54,14 +103,14 @@ cat >CoinUtils/src/mygc.h <<\EOF
 
 inline void* operator new(std::size_t size) throw (std::bad_alloc)
 {
-  void* ptr = GC_MALLOC(size);
+  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
   if (!ptr) throw std::bad_alloc();
   return ptr;
 }
 
 inline void* operator new[](std::size_t size) throw (std::bad_alloc)
 {
-  void* ptr = GC_MALLOC(size);
+  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
   if (!ptr) throw std::bad_alloc();
   return ptr;
 }
@@ -78,13 +127,13 @@ inline void operator delete[](void* ptr) throw()
 
 inline void* operator new(std::size_t size, const std::nothrow_t&) throw()
 {
-  void* ptr = GC_MALLOC(size);
+  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
   return ptr;
 }
 
 inline void* operator new[](std::size_t size, const std::nothrow_t&) throw()
 {
-  void* ptr = GC_MALLOC(size);
+  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
   return ptr;
 }
 
@@ -108,26 +157,6 @@ make install
 # The header must be includable:
 cp CoinUtils/src/mygc.h dist/include/coin/
 
-
-
-# BOEHM GC:
-if [ -d "/tmp/boehm_gc" ]
-then
-        rm -rf "/tmp/boehm_gc" 
-fi
-cp -r "${MERCURY_SRC_DIR}/boehm_gc" "/tmp/boehm_gc" || exit 1
-cd "/tmp/boehm_gc/" || exit 1
-find -type f | xargs sed --in-place -e 's/libgc/libpar_gc/g'
-./configure "--prefix=$(pwd)/dist"
-make
-make install
-if [ ! -f "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak" ]
-then
-        cp "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so" "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak"
-else
-        echo "Not backing up original libpar_gc.so because there already was a backup."
-fi
-cp $(find "dist/lib/" -name "libpar_gc.so*") "${MERCURY_BIN_DIR}/lib/mercury/lib/"
 
 cd "${OLD_DIR}"
 

@@ -1,11 +1,11 @@
 GOAL = planrecog
-SOURCE_FILES = $(shell ls *.m *.h)
+SOURCE_FILES = $(shell ls *.m)
 
 LIB_MCFLAGS += --ml prgolog --ml osi --ml util
 
 all: lib
 
-lib: *.m *.h osi prgolog util
+lib: *.m osi prgolog util
 
 osi:
 	make -C ../osi

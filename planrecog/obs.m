@@ -67,6 +67,7 @@
 :- import_module bool.
 :- import_module float.
 :- import_module int.
+:- import_module io.
 :- import_module list.
 :- import_module pair.
 :- import_module prgolog.
@@ -174,7 +175,6 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     extern int max_valid_record;
 
     extern struct state states[];
-    extern int max_valid_state;
 
     extern pthread_mutex_t mutex;
     extern pthread_cond_t cond;
@@ -222,6 +222,20 @@ append_obs(P, O) = append_match(P, obs2match(O)).
         }
       }
     }
+").
+
+
+:- initialize initialize_globals/2.
+
+:- pred initialize_globals(io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    initialize_globals(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    memset(states, 0, NSAMPLES * sizeof(struct state));
+    memset(records, 0, NRECORDS * sizeof(struct record));
+    IO1 = IO0;
 ").
 
 %-----------------------------------------------------------------------------%
@@ -359,9 +373,9 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
         Agent1::out, Veloc1::out, Rad1::out, X1::out, Y1::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
+    assert(0 <= ID && ID < NSAMPLES);
     states[ID] = (struct state) { Done, ToBeDone };
     while (obs_coming && I0 > max_valid_record) {
-        printf(""%d && %d > %d\\n"", (int) obs_coming, (int) I0, (int) max_valid_record);
         pthread_cond_wait(&cond, &mutex);
     }
     if (I0 <= max_valid_record) {

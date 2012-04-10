@@ -1,6 +1,6 @@
 GRADE = hlc.par.gc
 
-INSTALL_PREFIX = ..
+INSTALL_PREFIX = /home/chs/Documents/Prolog/mercury
 
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
