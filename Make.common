@@ -1,5 +1,7 @@
 GRADE = hlc.par.gc
 
+MMC = mmc
+
 INSTALL_PREFIX = /home/chs/Documents/Prolog/mercury
 
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
@@ -14,12 +16,12 @@ EXE_MCFLAGS += --mld $(LIB_DIR) --grade $(GRADE)
 lib: $(LIB_FILE)
 
 $(LIB_FILE): $(SOURCE_FILES)
-	mmc --make $(LIB_MCFLAGS) lib$(GOAL).install
+	$(MMC) --make $(LIB_MCFLAGS) lib$(GOAL).install
 
 exe: $(EXE_FILE)
 
 $(EXE_FILE): $(SOURCE_FILES)
-	mmc --make $(EXE_MCFLAGS) $(GOAL)
+	$(MMC) --make $(EXE_MCFLAGS) $(GOAL)
 
 clean:
 	rm -rf Mercury

@@ -3,7 +3,7 @@ MERCURY_SRC_DIR=$2
 MERCURY_BIN_DIR=$3
 OLD_DIR=$(pwd)
 
-if [ -d "$COIN_DIR" ]
+if [ -d "$COIN_DIR/dist" ]
 then
         echo "COIN source directory $COIN_DIR already exists. Will not install."
         exit 0
@@ -45,8 +45,11 @@ cp $(find "dist/lib/" -name "libpar_gc.so*") "${MERCURY_BIN_DIR}/lib/mercury/lib
 
 
 # COIN-OR OSI/CLP:
-svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$COIN_DIR" || exit 1
-cd "$COIN_DIR" || exit 1
+if [ ! -d "$COIN_DIR" ]
+then
+        svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$COIN_DIR" || exit 1
+        cd "$COIN_DIR" || exit 1
+fi
 
 # Here he will find gc.h and libpar_gc.so:
 export LDFLAGS="-L${MERCURY_BIN_DIR}/lib/mercury/lib/"
@@ -55,10 +58,10 @@ export CPPFLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc/"
 for f in $(find . -name \*.h -or -name \*.c); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
 for f in $(find . -name \*.hpp -or -name \*.cpp); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
 # We do this with macros in mygc.h now:
-#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_MALLOC/g'
-#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
-#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
-#find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_MALLOC_UNCOLLECTABLE/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
 # We only need CLP, CoinUtils, and OSI.
 export COIN_SKIP_PROJECTS="DyLP Vol"
 ./configure "--prefix=$(pwd)/dist"
