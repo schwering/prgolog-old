@@ -1,7 +1,7 @@
 GOAL = planrecog
 SOURCE_FILES = $(shell ls *.m)
 
-LIB_MCFLAGS += --ml prgolog --ml osi --ml util
+LIB_MCFLAGS += --extra-library-header obs_types.h --ml prgolog --ml osi --ml util
 
 all: lib
 

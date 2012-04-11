@@ -148,28 +148,10 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     #include <pthread.h>
     #include <stdbool.h>
 
-    #define AGENTLEN  15
+    #include ""obs_types.h""
+
     #define NRECORDS 500
     #define NSAMPLES 500
-
-    struct record {
-      double t;
-      char agent0[AGENTLEN+1];
-      double veloc0;
-      double rad0;
-      double x0;
-      double y0;
-      char agent1[AGENTLEN+1];
-      double veloc1;
-      double rad1;
-      double x1;
-      double y1;
-    };
-
-    struct state {
-      int done;
-      int tbd;
-    };
 
     extern struct record records[];
     extern int max_valid_record;
