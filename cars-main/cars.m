@@ -61,7 +61,7 @@ main(!IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     %spawn((pred(IO0::di, IO1::uo) is cc_multi :- forward_obs(IO0, IO1)), !IO),
     %planrecog(500, global_init_obs, global_next_obs, Prog, Results, !IO),
-    planrecog(50, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(20, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
