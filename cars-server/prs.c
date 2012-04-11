@@ -18,7 +18,7 @@
 
 static void start_plan_recognition(void)
 {
-  c_planrecog(5);
+  online_planrecog(5);
   printf("started plan recognition\n");
 }
 
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
   int sockfd;
 
   mercury_init(argc, argv, &stackbottom);
+  start_plan_recognition();
 
   sockfd = make_server_socket();
   for (;;) {

@@ -20,6 +20,7 @@
 :- import_module io.
 :- import_module list.
 :- import_module obs.
+:- import_module thread.mvar.
 
 %-----------------------------------------------------------------------------%
 
@@ -35,7 +36,11 @@
                   list(s_state)::out,
                   io::di, io::uo) is cc_multi.
 
-:- pred c_planrecog(int::in, io::di, io::uo) is cc_multi.
+:- pred online_planrecog(int::in, list(mvar(s_state))::out,
+                         io::di, io::uo) is cc_multi.
+
+:- pred wait_for_planrecog_finish(list(mvar(s_state))::in,
+                                  io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -47,10 +52,20 @@
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module thread.
-:- import_module thread.mvar.
 :- import_module types.
+:- import_module string.
 
 %-----------------------------------------------------------------------------%
+
+:- pred thread_id(int::out, io::di, io::uo) is det.
+
+:- pragma foreign_proc(c, thread_id(Id::out, IO0::di, IO::uo),
+                [will_not_call_mercury, thread_safe, promise_pure, tabled_for_io],
+"
+    Id = (int) pthread_self();
+    IO = IO0;
+").
+
 
 :- pred merge_and_trans_loop(next_obs(T)::in(next_obs),
                              s_state::in,
@@ -59,6 +74,14 @@
 
 merge_and_trans_loop(NextObs, !State, !ObsGenState) :-
     merge_and_trans(NextObs, !State, !ObsGenState, Cont),
+    trace [io(!IO)] (
+        !.State = s_state(conf(_, S), _),
+        thread_id(TID, !IO),
+        %format("troet reward = %f in tid = %d\n", [f(reward(S)), i(TID)], !IO),
+        copy(!.ObsGenState, X),
+        %write_string("state = ", !IO), write(X, !IO), nl(!IO),
+        true
+    ),
     (   if      Cont = yes
         then    merge_and_trans_loop(NextObs, !State, !ObsGenState)
         else    true
@@ -166,8 +189,18 @@ take_vars([V | Vs], [R | Rs], !IO) :-
 run_concurrently_thread(_, [], _, !IO).
 run_concurrently_thread(I, [V | Vs], P, !IO) :-
     spawn((pred(IO0::di, IO1::uo) is cc_multi :-
-        P(I, R),
-        put(V, R, IO0, IO1)
+        some [!IO] (
+            !:IO = IO0,
+            P(I, R),
+            R = s_state(_, Phase),
+            (   Phase = running, update_state(I, working, !IO)
+            ;   Phase = finishing, update_state(I, working, !IO)
+            ;   Phase = finished, update_state(I, finished, !IO)
+            ;   Phase = failed, update_state(I, failed, !IO)
+            ),
+            put(V, R, !IO),
+            !.IO = IO1
+        )
     ), !IO),
     run_concurrently_thread(I - 1, Vs, P, !IO).
 
@@ -195,9 +228,9 @@ planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
     run_concurrently(ThreadCount, Thread, Results, !IO).
 
 
-:- pragma foreign_export("C", c_planrecog(in, di, uo), "c_planrecog").
+%:- pragma foreign_export("C", online_planrecog(in, di, uo), "online_planrecog").
 
-c_planrecog(ThreadCount, !IO) :-
+online_planrecog(ThreadCount, Vars, !IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     InitObs = global_init_obs,
     NextObs = global_next_obs,
@@ -206,8 +239,13 @@ c_planrecog(ThreadCount, !IO) :-
         InitObs(I, InitialObsGenState),
         merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
     ),
-    init_vars(ThreadCount, Vs, !IO),
-    run_concurrently_thread(ThreadCount, Vs, Thread, !IO).
+    init_vars(ThreadCount, Vars, !IO),
+    run_concurrently_thread(ThreadCount, Vars, Thread, !IO).
+
+
+wait_for_planrecog_finish(Vars, !IO) :-
+    mark_observation_end(!IO),
+    take_vars(Vars, _, !IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module planrecog.

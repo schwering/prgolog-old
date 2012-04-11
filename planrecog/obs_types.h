@@ -17,9 +17,22 @@ struct record {
   double y1;
 };
 
+enum activity {
+  UNUSED = 0,
+  WORKING = 1,
+  FINISHED = 2,
+  FAILED = 3
+};
+
 struct state {
   int done;
   int tbd;
+  enum activity activity;
+};
+
+struct confidence_pair {
+  double online;
+  double finished;
 };
 
 #endif

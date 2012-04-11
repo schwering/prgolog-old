@@ -19,6 +19,7 @@
 
 :- import_module assoc_list.
 :- import_module bat.
+:- import_module io.
 :- import_module types.
 
 %-----------------------------------------------------------------------------%
@@ -59,6 +60,15 @@
 :- pred global_next_obs(obs_msg::out, sit::in, prog::in,
                         {int, int}::di, {int, int}::uo) is det.
 
+:- pred mark_observation_end(io::di, io::uo) is det.
+
+:- type activity --->   unused
+                    ;   working
+                    ;   finished
+                    ;   failed.
+
+:- pred update_state(int::in, activity::in, io::di, io::uo) is det.
+
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -67,7 +77,6 @@
 :- import_module bool.
 :- import_module float.
 :- import_module int.
-:- import_module io.
 :- import_module list.
 :- import_module pair.
 :- import_module prgolog.
@@ -146,20 +155,21 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 :- pragma foreign_decl("C", "
     #include <assert.h>
     #include <pthread.h>
+    #include <semaphore.h>
     #include <stdbool.h>
 
     #include ""obs_types.h""
 
-    #define NRECORDS 500
-    #define NSAMPLES 500
+    #define NRECORDS 1000
+    #define NSAMPLES 50
 
     extern struct record records[];
     extern int max_valid_record;
 
     extern struct state states[];
 
+    extern sem_t semaphores[];
     extern pthread_mutex_t mutex;
-    extern pthread_cond_t cond;
     extern volatile bool obs_coming;
 
     void push_obs(const struct record *r);
@@ -171,7 +181,7 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     int max_valid_record = -1;
     struct record records[NRECORDS];
     struct state states[NSAMPLES];
-    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    sem_t semaphores[NSAMPLES];
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     volatile bool obs_coming = true;
 ").
@@ -180,10 +190,13 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 :- pragma foreign_code("C", "
     void push_obs(const struct record *r)
     {
+      int i;
       assert(max_valid_record + 1 < NRECORDS);
       memcpy(&records[max_valid_record + 1], r, sizeof(struct record));
       ++max_valid_record;
-      pthread_cond_broadcast(&cond);
+      for (i = 0; i < NSAMPLES; ++i) {
+        sem_post(&semaphores[i]);
+      }
     }
 
     void read_obs(void)
@@ -196,8 +209,11 @@ append_obs(P, O) = append_match(P, obs2match(O)).
                 r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
                 r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1);
         if (i == EOF) {
+          int j;
           obs_coming = false;
-          pthread_cond_broadcast(&cond);
+          for (j = 0; i < NSAMPLES; ++i) {
+            sem_post(&semaphores[i]);
+          }
           break;
         } else if (i == 11) {
           push_obs(&r);
@@ -215,8 +231,12 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     initialize_globals(IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
+    int i;
     memset(states, 0, NSAMPLES * sizeof(struct state));
     memset(records, 0, NRECORDS * sizeof(struct record));
+    for (i = 0; i < NSAMPLES; ++i) {
+        sem_init(&semaphores[i], 0, 0);
+    }
     IO1 = IO0;
 ").
 
@@ -318,10 +338,10 @@ global_init_obs(I, {I1, 0}) :- copy(I, I1).
 
 global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     Done = floor_to_int(reward(S)),
-    ToBeDone = match_count(P) - bat.lookahead(S),
+    ToBeDone = max(0, match_count(P) - bat.lookahead(S)),
     global_next_obs_pure(I0, I1, ID, Done, ToBeDone,
                          Ok, Time, AgentS0, Veloc0, Rad0, X0, Y0,
-                             AgentS1, Veloc1, Rad1, X1, Y1),
+                                   AgentS1, Veloc1, Rad1, X1, Y1),
     (
         Ok = yes,
         % XXX TODO adapt to handle multiple drivers or so
@@ -356,9 +376,9 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     assert(0 <= ID && ID < NSAMPLES);
-    states[ID] = (struct state) { Done, ToBeDone };
+    states[ID] = (struct state) { Done, ToBeDone, true };
     while (obs_coming && I0 > max_valid_record) {
-        pthread_cond_wait(&cond, &mutex);
+        sem_wait(&semaphores[ID]);
     }
     if (I0 <= max_valid_record) {
         Ok = MR_YES;
@@ -389,6 +409,40 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
         Y1 = (MR_Float) -1.0;
     }
 ").
+
+
+:- pragma foreign_proc("C",
+    mark_observation_end(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    int i;
+    obs_coming = false;
+    for (i = 0; i < NSAMPLES; ++i) {
+        sem_post(&semaphores[i]);
+    }
+    IO1 = IO0;
+").
+
+
+update_state(ID, unused, !IO) :- update_state_2(ID, 0, !IO).
+update_state(ID, working, !IO) :- update_state_2(ID, 1, !IO).
+update_state(ID, finished, !IO) :- update_state_2(ID, 2, !IO).
+update_state(ID, failed, !IO) :- update_state_2(ID, 3, !IO).
+
+
+:- pred update_state_2(int::in, int::in, io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    update_state_2(ID::in, Activity::in, IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (Activity == 0) states[ID].activity = UNUSED;
+    if (Activity == 1) states[ID].activity = WORKING;
+    if (Activity == 2) states[ID].activity = FINISHED;
+    if (Activity == 3) states[ID].activity = FAILED;
+    IO1 = IO0;
+").
+
 
 %-----------------------------------------------------------------------------%
 :- end_module obs.

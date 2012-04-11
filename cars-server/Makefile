@@ -1,22 +1,14 @@
 GOAL = prs
+SOURCE_FILES = $(shell ls *.m *.h)
 
-all: planrecog prs
+EXE_MCFLAGS += --ml planrecog
 
-include ../Make.common
+all: exe
 
-MERCURY_LINKAGE = --mercury-linkage shared
-
-CFLAGS   = $(shell $(MMC) $(MERCURY_LINKAGE) $(LIB_MCFLAGS) --ml --grade $(GRADE) --output-cflags) -Wall
-CXXFLAGS = $(CFLAGS) -fpermissive
-LDFLAGS  = $(shell $(MMC) $(MERCURY_LINKAGE) $(LIB_MCFLAGS) --ml planrecog --output-library-link-flags)
+exe: *.m planrecog
 
 planrecog:
-	make -C ../prgolog
+	make -C ../planrecog
 
-prs: mercury_interface.o prs.o
-	$(CXX) $(LDFLAGS) $^ -o $@
-
-mercury_interface.c mercury_interface.h:
-	$(MMC) $(LIB_MCFLAGS) --ml planrecog --generate-standalone-interface mercury_interface
-
+include ../Make.common
 
