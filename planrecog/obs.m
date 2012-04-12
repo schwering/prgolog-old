@@ -55,6 +55,8 @@
 
 %-----------------------------------------------------------------------------%
 
+:- pred reset_globals(io::di, io::uo) is det.
+
 :- pred global_init_obs(int::in, {int, int}::uo) is det.
 
 :- pred global_next_obs(obs_msg::out, sit::in, prog::in,
@@ -182,8 +184,8 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     struct record records[NRECORDS];
     struct state states[NSAMPLES];
     sem_t semaphores[NSAMPLES];
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    volatile bool obs_coming = true;
+    pthread_mutex_t mutex;
+    volatile bool obs_coming;
 ").
 
 
@@ -212,7 +214,7 @@ append_obs(P, O) = append_match(P, obs2match(O)).
           int j;
           obs_coming = false;
           for (j = 0; i < NSAMPLES; ++i) {
-            sem_post(&semaphores[i]);
+            sem_post(&semaphores[j]);
           }
           break;
         } else if (i == 11) {
@@ -237,6 +239,26 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     for (i = 0; i < NSAMPLES; ++i) {
         sem_init(&semaphores[i], 0, 0);
     }
+    pthread_mutex_init(&mutex, NULL);
+    obs_coming = true;
+    IO1 = IO0;
+").
+
+
+:- finalize finalize_globals/2.
+
+:- pred finalize_globals(io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    finalize_globals(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    int i;
+    for (i = 0; i < NSAMPLES; ++i) {
+        sem_destroy(&semaphores[i]);
+    }
+    pthread_mutex_destroy(&mutex);
+    obs_coming = true;
     IO1 = IO0;
 ").
 
@@ -333,6 +355,11 @@ input_next_obs(ObsMsg, _, _, I0, I1) :-
 
 %-----------------------------------------------------------------------------%
 
+reset_globals(!IO) :-
+    finalize_globals(!IO),
+    initialize_globals(!IO).
+
+
 global_init_obs(I, {I1, 0}) :- copy(I, I1).
 
 
@@ -376,11 +403,9 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     assert(0 <= ID && ID < NSAMPLES);
-    states[ID] = (struct state) { Done, ToBeDone, true };
-    while (obs_coming && I0 > max_valid_record) {
-        sem_wait(&semaphores[ID]);
-    }
-    if (I0 <= max_valid_record) {
+    states[ID] = (struct state) { Done, ToBeDone, WORKING };
+    sem_wait(&semaphores[ID]);
+    if (obs_coming && I0 <= max_valid_record) {
         Ok = MR_YES;
         T = (MR_Float) records[I0].t;
         Agent0 = MR_make_string_const(records[I0].agent0);
@@ -417,6 +442,7 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
 "
     int i;
     obs_coming = false;
+    printf(""BROADCASTING\\n"");
     for (i = 0; i < NSAMPLES; ++i) {
         sem_post(&semaphores[i]);
     }

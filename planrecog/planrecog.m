@@ -36,6 +36,8 @@
                   list(s_state)::out,
                   io::di, io::uo) is cc_multi.
 
+%-----------------------------------------------------------------------------%
+
 :- pred online_planrecog(int::in, list(mvar(s_state))::out,
                          io::di, io::uo) is cc_multi.
 
@@ -193,6 +195,7 @@ run_concurrently_thread(I, [V | Vs], P, !IO) :-
             !:IO = IO0,
             P(I, R),
             R = s_state(_, Phase),
+            write(I, !IO), write_string(" --> ", !IO), write(Phase, !IO), nl(!IO),
             (   Phase = running, update_state(I, working, !IO)
             ;   Phase = finishing, update_state(I, working, !IO)
             ;   Phase = finished, update_state(I, finished, !IO)
@@ -227,8 +230,7 @@ planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
     ),
     run_concurrently(ThreadCount, Thread, Results, !IO).
 
-
-%:- pragma foreign_export("C", online_planrecog(in, di, uo), "online_planrecog").
+%-----------------------------------------------------------------------------%
 
 online_planrecog(ThreadCount, Vars, !IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),

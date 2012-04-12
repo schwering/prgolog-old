@@ -33,19 +33,19 @@
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_code("C", "
-    static double confidence(void) {
+    static float confidence(void) {
         int i;
-        double c = 0.0;
+        float c = 0.0f;
         int n = 0;
         for (i = 0; i < NSAMPLES; ++i) {
-            if (states[i].activity == WORKING || states[i].activity == FINISHED) {
-                if (states[i].done + states[i].tbd != 0) {
+            if (states[i].activity != UNUSED) {
+                if (states[i].activity != FAILED && states[i].done + states[i].tbd != 0) {
                     c += (double) states[i].done / (double) (states[i].done + states[i].tbd);
                 }
                 ++n;
             }
         }
-        return (n > 0) ? c / (double) n : 0.0;
+        return (n > 0) ? (float) c / (float) n : 0.0f;
     }
 ").
 
@@ -143,6 +143,12 @@
             break;
         }
         push_obs(&obs);
+/*
+        printf(""%c\\t%10.5lf\\t"", 'O', obs.t);
+        printf(""%5s\\t%10.5lf\\t%10.5lf\\t%10.5lf\\t%10.5lf"", obs.agent0, obs.veloc0, obs.rad0, obs.x0, obs.y0);
+        printf(""%5s\\t%10.5lf\\t%10.5lf\\t%10.5lf\\t%10.5lf"", obs.agent1, obs.veloc1, obs.rad1, obs.x1, obs.y1);
+        printf(""\\n"");
+*/
 //      DEBUG(""read observation %.2lf  (%s: %.2lf %.2lf %.2lf %.2lf; ""
 //                                     ""%s: %.2lf %.2lf %.2lf %.2lf)\\n"",
 //            obs.t, obs.agent0, obs.veloc0, obs.rad0, obs.x0, obs.y0,
@@ -152,7 +158,7 @@
         if (ret != sizeof(conf)) {
             break;
         }
-        DEBUG(""write confidence %lf\\n"", confidence());
+        DEBUG(""write confidence %f\\n"", confidence());
     }
     IO1 = IO0;
 ").
@@ -162,6 +168,7 @@
 
 accept_connections(ServerSocket, !IO) :-
     accept_connection(ServerSocket, Socket, !IO),
+    %reset_globals(!IO),
     online_planrecog(10, Vars, !IO),
     handle_connection(Socket, !IO),
     format("Connection terminated, waiting for plan recognition...\n", [], !IO),
@@ -169,7 +176,7 @@ accept_connections(ServerSocket, !IO) :-
     format("Plan recognition finished with confidence %.2f.\n",
            [f(confidence)], !IO),
     finalize_connection(Socket, !IO),
-    accept_connections(ServerSocket, !IO).
+    true.% accept_connections(ServerSocket, !IO).
 
 
 main(!IO) :-

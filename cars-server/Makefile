@@ -3,9 +3,12 @@ SOURCE_FILES = $(shell ls *.m *.h)
 
 EXE_MCFLAGS += --ml planrecog
 
-all: exe
+all: exe replay
 
 exe: *.m planrecog
+
+replay: replay.c
+	$(CC) -Wall -I../planrecog replay.c -o replay
 
 planrecog:
 	make -C ../planrecog
