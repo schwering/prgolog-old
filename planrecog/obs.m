@@ -172,7 +172,6 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 
     extern sem_t semaphores[];
     extern pthread_mutex_t mutex;
-    extern volatile bool obs_coming;
 
     void push_obs(const struct record *r);
     void read_obs(void);
@@ -180,12 +179,11 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 
 
 :- pragma foreign_code("C", "
-    int max_valid_record = -1;
+    int max_valid_record;
     struct record records[NRECORDS];
     struct state states[NSAMPLES];
     sem_t semaphores[NSAMPLES];
     pthread_mutex_t mutex;
-    volatile bool obs_coming;
 ").
 
 
@@ -212,7 +210,6 @@ append_obs(P, O) = append_match(P, obs2match(O)).
                 r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1);
         if (i == EOF) {
           int j;
-          obs_coming = false;
           for (j = 0; i < NSAMPLES; ++i) {
             sem_post(&semaphores[j]);
           }
@@ -234,13 +231,13 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
+    max_valid_record = -1;
     memset(states, 0, NSAMPLES * sizeof(struct state));
     memset(records, 0, NRECORDS * sizeof(struct record));
     for (i = 0; i < NSAMPLES; ++i) {
         sem_init(&semaphores[i], 0, 0);
     }
     pthread_mutex_init(&mutex, NULL);
-    obs_coming = true;
     IO1 = IO0;
 ").
 
@@ -258,7 +255,6 @@ append_obs(P, O) = append_match(P, obs2match(O)).
         sem_destroy(&semaphores[i]);
     }
     pthread_mutex_destroy(&mutex);
-    obs_coming = true;
     IO1 = IO0;
 ").
 
@@ -405,7 +401,7 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     assert(0 <= ID && ID < NSAMPLES);
     states[ID] = (struct state) { Done, ToBeDone, WORKING };
     sem_wait(&semaphores[ID]);
-    if (obs_coming && I0 <= max_valid_record) {
+    if (I0 <= max_valid_record) {
         Ok = MR_YES;
         T = (MR_Float) records[I0].t;
         Agent0 = MR_make_string_const(records[I0].agent0);
@@ -441,7 +437,6 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
-    obs_coming = false;
     printf(""BROADCASTING\\n"");
     for (i = 0; i < NSAMPLES; ++i) {
         sem_post(&semaphores[i]);

@@ -56,6 +56,7 @@
 :- import_module float.
 :- import_module math.
 :- import_module require.
+:- import_module string.
 
 %-----------------------------------------------------------------------------%
 
@@ -78,7 +79,7 @@ string_to_agent(S) = A :-
     then    A = a
     else if S = agent_to_string(b)
     then    A = b
-    else    error("string_to_agent/1: conversion failed").
+    else    error("string_to_agent/1: conversion failed for '" ++ S ++ "'").
 
 
 lane_to_string(left) = "left".

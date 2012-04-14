@@ -101,31 +101,25 @@ merge_and_trans(NextObs,
                 s_state(conf(P2, S2), !:Phase),
                 !ObsGenState,
                 Continue) :-
-    (   if      !.Phase \= finishing,
-                match_count(P) < bat.lookahead(S)
-        then    NextObs(ObsMsg, S, P, !ObsGenState)
-        else    ObsMsg = end_of_obs
-    ),
-    P0 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
-    S0 = ( if ObsMsg = init_msg(Map, T) then do(init_env(T, Map), S) else S ),
     (   if
             !.Phase \= finishing,
             match_count(P) < bat.lookahead(S)
         then
             Continue = yes,
-            P2 = P0,
-            S2 = S0,
+            NextObs(ObsMsg, S, P, !ObsGenState),
+            P2 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
+            S2 = ( if ObsMsg = init_msg(Map, T) then do(init_env(T, Map), S) else S ),
             !:Phase = ( if ObsMsg = end_of_obs then finishing else running )
         else if
             final(remove_match_sequence(P), S),
             last_action_covered_by_match(S)
         then
             Continue = no,
-            P2 = P0,
-            S2 = S0,
+            P2 = P,
+            S2 = S,
             !:Phase = finished
         else if
-            trans(P0, S0, P1, S1)
+            trans(P, S, P1, S1)
         then
             Continue = yes,
             P2 = P1,
@@ -133,8 +127,8 @@ merge_and_trans(NextObs,
             !:Phase = !.Phase
         else
             Continue = no,
-            P2 = P0,
-            S2 = S0,
+            P2 = P,
+            S2 = S,
             !:Phase = failed
     ).
 
