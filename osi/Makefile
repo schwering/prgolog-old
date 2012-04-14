@@ -1,9 +1,10 @@
-MERCURY = /home/chs/Programs/mercury-compiler-11.07.1
-COIN = /home/chs/Documents/Prolog/mercury/osi/coin-Osi-gc
+MERCURY = $(shell dirname $(shell which mmc))/../..
+COIN = $(shell pwd)/coin-Osi-gc
 GOAL = osi
 SOURCE_FILES = $(shell ls *.m *.cc *.h)
 
-LIB_MCFLAGS = --extra-library-header coin-clp.h --link-object coin-clp.o -R ${COIN}/dist/lib -L ${COIN}/dist/lib -l Clp -l OsiClp -l Osi -l CoinUtils -l blas -l m -l stdc++
+# --no-as-needed is for some reason needed on Rambo (gcc 4.6.1)
+LIB_MCFLAGS = --extra-library-header coin-clp.h --ld-libflags -Wl,--no-as-needed --link-object coin-clp.o -R ${COIN}/dist/lib -L ${COIN}/dist/lib -lClp -lOsi -lOsiClp -lCoinUtils -lblas -lm -lstdc++
 
 all: lib
 

@@ -2,15 +2,17 @@ GRADE = hlc.par.gc
 
 MMC = mmc
 
-INSTALL_PREFIX = /home/chs/Documents/Prolog/mercury
+INSTALL_PREFIX = $(HOME)/Documents/Prolog/mercury
+
+LINKAGE = shared
 
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
 LIB_FILE = $(LIB_DIR)/lib/$(GRADE)/lib$(GOAL).so
-LIB_MCFLAGS += --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR) --no-libgrade --libgrade $(GRADE)
+LIB_MCFLAGS += --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --linkage $(LINKAGE) --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR)
 
 EXE_FILE = $(GOAL)
-EXE_MCFLAGS += --mld $(LIB_DIR) --grade $(GRADE)
+EXE_MCFLAGS += --grade $(GRADE) --linkage $(LINKAGE) --mld $(LIB_DIR)
 
 
 lib: $(LIB_FILE)

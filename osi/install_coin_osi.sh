@@ -3,9 +3,18 @@ MERCURY_SRC_DIR=$2
 MERCURY_BIN_DIR=$3
 OLD_DIR=$(pwd)
 
+if [ -d "/tmp/boehm_gc" ]
+then
+        echo "Boehm GC seems to be installed already. Will not install."
+fi
+
 if [ -d "$COIN_DIR/dist" ]
 then
         echo "COIN source directory $COIN_DIR already exists. Will not install."
+fi
+
+if [ -d "/tmp/boehm_gc" -a -d "$COIN_DIR/dist" ]
+then
         exit 0
 fi
 
@@ -30,30 +39,32 @@ then
 fi
 cp -r "${MERCURY_SRC_DIR}/boehm_gc" "/tmp/boehm_gc" || exit 1
 cd "/tmp/boehm_gc/" || exit 1
-find -type f | xargs sed --in-place -e 's/libgc/libpar_gc/g'
-./configure "--prefix=$(pwd)/dist" "--enable-cplusplus"
-make
-make install
+find -type f | xargs sed --in-place -e 's/libgc/libpar_gc/g' || exit 1
+./configure "--prefix=$(pwd)/dist" "--enable-cplusplus" || exit 1
+make || exit 1
+make install || exit 1
 if [ ! -f "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak" ]
 then
         cp "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so" "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak"
 else
         echo "Not backing up original libpar_gc.so because there already was a backup."
 fi
-cp $(find "dist/lib/" -name "libpar_gc.so*") "${MERCURY_BIN_DIR}/lib/mercury/lib/"
+cp $(find "dist/lib/" -name "libpar_gc.so*") "${MERCURY_BIN_DIR}/lib/mercury/lib/" || exit 1
 
+
+cd "${OLD_DIR}"
 
 
 # COIN-OR OSI/CLP:
 if [ ! -d "$COIN_DIR" ]
 then
         svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$COIN_DIR" || exit 1
-        cd "$COIN_DIR" || exit 1
 fi
+cd "$COIN_DIR" || exit 1
 
 # Here he will find gc.h and libpar_gc.so:
-export LDFLAGS="-L${MERCURY_BIN_DIR}/lib/mercury/lib/"
-export CPPFLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc/"
+export LDFLAGS="-L${MERCURY_BIN_DIR}/lib/mercury/lib -L/usr/lib/gcc/x86_64-linux-gnu/4.6 -L/usr/lib -L/usr/lib/x86_64-linux-gnu"
+export CXXFLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc -fPIC"
 # Add the new mygc.h header which accounts for new->GC_MALLOC and replace malloc->GC_MALLOC
 for f in $(find . -name \*.h -or -name \*.c); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
 for f in $(find . -name \*.hpp -or -name \*.cpp); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
@@ -64,7 +75,7 @@ find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed -
 find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
 # We only need CLP, CoinUtils, and OSI.
 export COIN_SKIP_PROJECTS="DyLP Vol"
-./configure "--prefix=$(pwd)/dist"
+./configure "--prefix=$(pwd)/dist" "--enable-static" || exit 1
 # Tell him to link GC and some other libraries (do we need them?)
 find . -name Makefile | xargs sed --in-place -e 's/ADDLIBS =/ADDLIBS = -ldl -lpthread -lpar_gc/g'
 
@@ -155,10 +166,10 @@ inline void operator delete[](void* ptr, const std::nothrow_t&) throw()
 EOF
 
 # And now go for it:
-make
-make install
+make || exit 1
+make install || exit 1
 # The header must be includable:
-cp CoinUtils/src/mygc.h dist/include/coin/
+cp CoinUtils/src/mygc.h dist/include/coin/ || exit 1
 
 
 cd "${OLD_DIR}"

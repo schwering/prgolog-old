@@ -158,7 +158,7 @@
         if (ret != sizeof(conf)) {
             break;
         }
-        DEBUG(""write confidence %f\\n"", confidence());
+//      DEBUG(""write confidence %f\\n"", confidence());
     }
     IO1 = IO0;
 ").
@@ -168,7 +168,7 @@
 
 accept_connections(ServerSocket, !IO) :-
     accept_connection(ServerSocket, Socket, !IO),
-    %reset_globals(!IO),
+    reset_globals(!IO),
     online_planrecog(10, Vars, !IO),
     handle_connection(Socket, !IO),
     format("Connection terminated, waiting for plan recognition...\n", [], !IO),
@@ -176,7 +176,7 @@ accept_connections(ServerSocket, !IO) :-
     format("Plan recognition finished with confidence %.2f.\n",
            [f(confidence)], !IO),
     finalize_connection(Socket, !IO),
-    true.% accept_connections(ServerSocket, !IO).
+    accept_connections(ServerSocket, !IO).
 
 
 main(!IO) :-
