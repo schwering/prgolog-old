@@ -76,14 +76,6 @@
 
 merge_and_trans_loop(NextObs, !State, !ObsGenState) :-
     merge_and_trans(NextObs, !State, !ObsGenState, Cont),
-    trace [io(!IO)] (
-        !.State = s_state(conf(_, S), _),
-        thread_id(TID, !IO),
-        %format("troet reward = %f in tid = %d\n", [f(reward(S)), i(TID)], !IO),
-        copy(!.ObsGenState, X),
-        %write_string("state = ", !IO), write(X, !IO), nl(!IO),
-        true
-    ),
     (   if      Cont = yes
         then    merge_and_trans_loop(NextObs, !State, !ObsGenState)
         else    true
@@ -185,18 +177,21 @@ take_vars([V | Vs], [R | Rs], !IO) :-
 run_concurrently_thread(_, [], _, !IO).
 run_concurrently_thread(I, [V | Vs], P, !IO) :-
     spawn((pred(IO0::di, IO1::uo) is cc_multi :-
-        some [!IO] (
-            !:IO = IO0,
+        some [!SubIO] (
+            !:SubIO = IO0,
             P(I, R),
             R = s_state(_, Phase),
-            write(I, !IO), write_string(" --> ", !IO), write(Phase, !IO), nl(!IO),
-            (   Phase = running, update_state(I, working, !IO)
-            ;   Phase = finishing, update_state(I, working, !IO)
-            ;   Phase = finished, update_state(I, finished, !IO)
-            ;   Phase = failed, update_state(I, failed, !IO)
+            write(I, !SubIO),
+            write_string(" --> ", !SubIO),
+            write(Phase, !SubIO),
+            nl(!SubIO),
+            (   Phase = running, update_state(I, working, !SubIO)
+            ;   Phase = finishing, update_state(I, working, !SubIO)
+            ;   Phase = finished, update_state(I, finished, !SubIO)
+            ;   Phase = failed, update_state(I, failed, !SubIO)
             ),
-            put(V, R, !IO),
-            !.IO = IO1
+            put(V, R, !SubIO),
+            !.SubIO = IO1
         )
     ), !IO),
     run_concurrently_thread(I - 1, Vs, P, !IO).

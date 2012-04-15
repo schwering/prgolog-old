@@ -1,3 +1,10 @@
 *.c_date
 *.mh
 *.d
+*.err
+*.o
+*.a
+*.so
+*.init
+Mercury
+lib
