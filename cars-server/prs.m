@@ -33,14 +33,34 @@
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_code("C", "
+    static void make_message(struct state_message *msg) {
+        int i;
+        msg->working = 0;
+        msg->finished = 0;
+        msg->failed = 0;
+        for (i = 0; i < NSAMPLES; ++i) {
+            switch (state_samples[i].activity) {
+            case UNUSED:                    break;
+            case WORKING:  ++msg->working;  break;
+            case FINISHED: ++msg->finished; break;
+            case FAILED:   ++msg->failed;   break;
+            }
+        }
+    }
+").
+
+
+:- pragma foreign_code("C", "
     static float confidence(void) {
         int i;
         float c = 0.0f;
         int n = 0;
         for (i = 0; i < NSAMPLES; ++i) {
-            if (states[i].activity != UNUSED) {
-                if (states[i].activity != FAILED && states[i].done + states[i].tbd != 0) {
-                    c += (double) states[i].done / (double) (states[i].done + states[i].tbd);
+            if (state_samples[i].activity != UNUSED) {
+                if (state_samples[i].activity != FAILED &&
+                    state_samples[i].done + state_samples[i].tbd != 0) {
+                    c += (double) (state_samples[i].done) /
+                         (double) (state_samples[i].done + state_samples[i].tbd);
                 }
                 ++n;
             }

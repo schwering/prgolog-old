@@ -168,7 +168,7 @@ append_obs(P, O) = append_match(P, obs2match(O)).
     extern struct record records[];
     extern int max_valid_record;
 
-    extern struct state states[];
+    extern struct sample_state state_samples[];
 
     extern sem_t semaphores[];
     extern pthread_mutex_t mutex;
@@ -181,7 +181,7 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 :- pragma foreign_code("C", "
     int max_valid_record;
     struct record records[NRECORDS];
-    struct state states[NSAMPLES];
+    struct sample_state state_samples[NSAMPLES];
     sem_t semaphores[NSAMPLES];
     pthread_mutex_t mutex;
 ").
@@ -232,7 +232,7 @@ append_obs(P, O) = append_match(P, obs2match(O)).
 "
     int i;
     max_valid_record = -1;
-    memset(states, 0, NSAMPLES * sizeof(struct state));
+    memset(state_samples, 0, NSAMPLES * sizeof(struct sample_state));
     memset(records, 0, NRECORDS * sizeof(struct record));
     for (i = 0; i < NSAMPLES; ++i) {
         sem_init(&semaphores[i], 0, 0);
@@ -399,7 +399,7 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     assert(0 <= ID && ID < NSAMPLES);
-    states[ID] = (struct state) { Done, ToBeDone, WORKING };
+    state_samples[ID] = (struct sample_state) { Done, ToBeDone, WORKING };
     sem_wait(&semaphores[ID]);
     if (I0 <= max_valid_record) {
         Ok = MR_YES;
@@ -457,10 +457,10 @@ update_state(ID, failed, !IO) :- update_state_2(ID, 3, !IO).
     update_state_2(ID::in, Activity::in, IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    if (Activity == 0) states[ID].activity = UNUSED;
-    if (Activity == 1) states[ID].activity = WORKING;
-    if (Activity == 2) states[ID].activity = FINISHED;
-    if (Activity == 3) states[ID].activity = FAILED;
+    if (Activity == 0) state_samples[ID].activity = UNUSED;
+    if (Activity == 1) state_samples[ID].activity = WORKING;
+    if (Activity == 2) state_samples[ID].activity = FINISHED;
+    if (Activity == 3) state_samples[ID].activity = FAILED;
     IO1 = IO0;
 ").
 

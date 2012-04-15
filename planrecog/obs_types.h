@@ -1,6 +1,8 @@
 #ifndef _OBS_TYPES_H_
 #define _OBS_TYPES_H_
 
+#include <stdint.h>
+
 #define AGENTLEN  15
 
 struct record {
@@ -24,15 +26,16 @@ enum activity {
   FAILED = 3
 };
 
-struct state {
+struct sample_state {
   int done;
   int tbd;
   enum activity activity;
 };
 
-struct confidence_pair {
-  double online;
-  double finished;
+struct state_message {
+  uint8_t working;
+  uint8_t finished;
+  uint8_t failed;
 };
 
 #endif
