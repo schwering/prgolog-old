@@ -156,7 +156,7 @@
 "
     for (;;) {
         struct record obs;
-        float conf;
+        struct state_message msg;
         int ret;
         ret = read(Socket, &obs, sizeof(obs));
         if (ret != sizeof(obs)) {
@@ -173,9 +173,9 @@
 //                                     ""%s: %.2lf %.2lf %.2lf %.2lf)\\n"",
 //            obs.t, obs.agent0, obs.veloc0, obs.rad0, obs.x0, obs.y0,
 //                   obs.agent1, obs.veloc1, obs.rad1, obs.x1, obs.y1);
-        conf = confidence();
-        ret = write(Socket, &conf, sizeof(conf));
-        if (ret != sizeof(conf)) {
+        make_message(&msg);
+        ret = write(Socket, &msg, sizeof(msg));
+        if (ret != sizeof(msg)) {
             break;
         }
 //      DEBUG(""write confidence %f\\n"", confidence());
