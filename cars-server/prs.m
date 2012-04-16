@@ -36,6 +36,7 @@
 :- import_module obs.
 :- import_module planrecog.
 :- import_module string.
+:- import_module visual.
 
 %-----------------------------------------------------------------------------%
 
@@ -194,16 +195,21 @@
 :- pred accept_connections(int::in, io::di, io::uo) is cc_multi.
 
 accept_connections(ServerSocket, !IO) :-
+    init_visual(NSamples, Areas, !IO),
+    %visualize(Areas, 1, s0, !IO),
     accept_connection(ServerSocket, Socket, !IO),
     reset_globals(!IO),
-    online_planrecog(10, Vars, empty_handler, !IO),
+    NSamples = 9,
+    online_planrecog(NSamples, Vars, visualize(Areas), !IO),
     handle_connection(Socket, !IO),
-    format("Connection terminated, waiting for plan recognition...\n", [], !IO),
+    %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Vars, !IO),
-    format("Plan recognition finished with confidence %.2f.\n",
-           [f(confidence)], !IO),
+    wait_for_key(!IO),
+    finish_visual(!IO),
+    %format("Plan recognition finished with confidence %.2f.\n",
+    %       [f(confidence)], !IO),
     finalize_connection(Socket, !IO),
-    accept_connections(ServerSocket, !IO).
+    true.% ( if Cont = yes then accept_connections(ServerSocket, !IO) else true ).
 
 
 main(!IO) :-

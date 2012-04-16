@@ -194,27 +194,6 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     }
     add_constraint(Ctx0, N, as_arr, vs_arr, Cmp, Bnd);
 
-#if 0
-    printf(""BLOCK {\\n"");
-
-    printf(""    double* as_arr = (double*) GC_malloc(%d * sizeof(double));\\n"", N);
-    printf(""    int* vs_arr = (int*) GC_malloc(%d * sizeof(int));\\n"", N);
-
-    printf(""    for (int i = 0; i < %d; ++i) {\\n"", N);
-    for (i = 0; i < N; ++i) {
-        printf(""        as_arr[%d] = %lf;\\n"", i, as_arr[i]);
-        printf(""        vs_arr[%d] = %d;\\n"", i, vs_arr[i]);
-    }
-    printf(""    };\\n"");
-
-    printf(""    add_constraint(&ctx, %d, as_arr, vs_arr, %d, %lf);\\n"",
-           N, Cmp, Bnd);
-    printf(""    free(vs_arr);\\n"");
-    printf(""    free(as_arr);\\n"");
-
-    printf(""}\\n\\n"");
-#endif
-
     GC_FREE(vs_arr);
     GC_FREE(as_arr);
     Ctx1 = Ctx0;

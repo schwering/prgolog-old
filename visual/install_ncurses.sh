@@ -1,70 +1,45 @@
-COIN_DIR=$1
+DIR=$1
 MERCURY_SRC_DIR=$2
 MERCURY_BIN_DIR=$3
 OLD_DIR=$(pwd)
 
-if [ -d "/tmp/boehm_gc" ]
+if [ "${DIR}" == "" ]
 then
-        echo "Boehm GC seems to be installed already. Will not install."
-fi
-
-if [ -d "$COIN_DIR/dist" ]
-then
-        echo "COIN source directory $COIN_DIR already exists. Will not install."
-fi
-
-if [ -d "/tmp/boehm_gc" -a -d "$COIN_DIR/dist" ]
-then
-        exit 0
-fi
-
-if [ ! -d "$MERCURY_SRC_DIR" ]
-then
-        echo "Mercury source directory $MERCURY_SRC_DIR does not exists. Aborting."
+        echo "Dir is empty."
         exit 1
 fi
 
-if [ ! -d "$MERCURY_BIN_DIR" ]
+if [ "$(echo ${DIR} | grep ncurses)" == "" ]
 then
-        echo "Mercury installation directory $MERCURY_BIN_DIR does not exists. Aborting."
+        echo "Dir ${DIR} seems not to be ncurses."
         exit 1
 fi
 
-
-
-# BOEHM GC:
-if [ -d "/tmp/boehm_gc" ]
+if [ ! -f "${DIR}.tar.gz" ]
 then
-        rm -rf "/tmp/boehm_gc" 
+        wget http://ftp.gnu.org/gnu/ncurses/${DIR}.tar.gz
 fi
-cp -r "${MERCURY_SRC_DIR}/boehm_gc" "/tmp/boehm_gc" || exit 1
-cd "/tmp/boehm_gc/" || exit 1
-find -type f | xargs sed --in-place -e 's/libgc/libpar_gc/g' || exit 1
-./configure "--prefix=$(pwd)/dist" "--enable-cplusplus" || exit 1
-make || exit 1
-make install || exit 1
-if [ ! -f "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak" ]
+
+if [ -d "${DIR}" ]
 then
-        cp "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so" "${MERCURY_BIN_DIR}/lib/mercury/lib/libpar_gc.so.bak"
-else
-        echo "Not backing up original libpar_gc.so because there already was a backup."
+        echo "NCurses source directory $DIR already exists. Will not install."
+        exit
 fi
-cp $(find "dist/lib/" -name "libpar_gc.so*") "${MERCURY_BIN_DIR}/lib/mercury/lib/" || exit 1
 
+echo ncurses_dir=${DIR}
+echo mercury_src=${MERCURY_SRC_DIR}
+echo mercury_bin=${MERCURY_BIN_DIR}
 
-cd "${OLD_DIR}"
+rm -rf "${DIR}"
+tar xvfz "${DIR}.tar.gz"
 
-
-# COIN-OR OSI/CLP:
-if [ ! -d "$COIN_DIR" ]
-then
-        svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$COIN_DIR" || exit 1
-fi
-cd "$COIN_DIR" || exit 1
+cd "$DIR" || exit 1
 
 # Here he will find gc.h and libpar_gc.so:
 export LDFLAGS="-L${MERCURY_BIN_DIR}/lib/mercury/lib"
-export CXXFLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc -fPIC"
+export CLAGS="-fPIC"
+export CPPLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc"
+export CXXFLAGS="${CFLAGS}"
 # Add the new mygc.h header which accounts for new->GC_MALLOC and replace malloc->GC_MALLOC
 for f in $(find . -name \*.h -or -name \*.c); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
 for f in $(find . -name \*.hpp -or -name \*.cpp); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
@@ -72,14 +47,21 @@ find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed -
 find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
 find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
 find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
-# We only need CLP, CoinUtils, and OSI.
-export COIN_SKIP_PROJECTS="DyLP Vol"
-./configure "--prefix=$(pwd)/dist" "--enable-static" || exit 1
+./configure --prefix=$(pwd)/dist --without-cxx-binding --without-ada --without-manpages --without-tests --without-progs --with-shared || exit 1
 # Tell him to link GC and some other libraries (do we need them?)
-find . -name Makefile | xargs sed --in-place -e 's/ADDLIBS =/ADDLIBS = -ldl -lpthread -lpar_gc/g'
+find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LIBS[\\t ]\\+=/BUILD_LIBS = -ldl -lpar_gc/g"
+find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LDFLAGS[\\t ]\\+=/BUILD_LDFLAGS = -L$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/lib/g"
+find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LDFLAGS[\\t ]\\+=/BUILD_LDFLAGS = -Wl,-rpath=$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/lib/g"
+find . -name Makefile | xargs sed --in-place -e "s/^BUILD_CPPFLAGS[\\t ]\\+=/BUILD_CPPFLAGS = -I$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/inc/g"
+find . -name Makefile | xargs sed --in-place -e "s/^BUILD_CFLAGS[\\t ]\\+=/BUILD_CFLAGS = -fPIC/g"
+find . -name Makefile | xargs sed --in-place -e "s/^LIBS[\\t ]\\+=/LIBS = -ldl -lpar_gc/g"
+find . -name Makefile | xargs sed --in-place -e "s/^LDFLAGS[\\t ]\\+=/LDFLAGS = -L$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/lib/g"
+find . -name Makefile | xargs sed --in-place -e "s/^LDFLAGS[\\t ]\\+=/LDFLAGS = -Wl,-rpath=$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/lib/g"
+find . -name Makefile | xargs sed --in-place -e "s/^CPPFLAGS[\\t ]\\+=/CPPFLAGS = -I$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/inc/g"
+find . -name Makefile | xargs sed --in-place -e "s/^CFLAGS[\\t ]\\+=/CFLAGS = -fPIC/g"
 
 # Here comes the header:
-cat >CoinUtils/src/mygc.h <<\EOF
+cat >include/mygc.h <<\EOF
 //#define GC_DEBUG
 #define GC_THREADS
 #include <gc.h>
@@ -168,7 +150,7 @@ EOF
 make || exit 1
 make install || exit 1
 # The header must be includable:
-cp CoinUtils/src/mygc.h dist/include/coin/ || exit 1
+cp include/mygc.h dist/include/ncurses/ || exit 1
 
 
 cd "${OLD_DIR}"
