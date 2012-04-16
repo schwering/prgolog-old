@@ -20,6 +20,7 @@
 :- import_module io.
 :- import_module list.
 :- import_module obs.
+:- import_module prgolog.
 :- import_module thread.mvar.
 
 %-----------------------------------------------------------------------------%
@@ -38,7 +39,13 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type handler == (pred(sit(prim), io, io)).
+:- inst handler == (pred(in, di, uo) is det).
+
+:- pred empty_handler(sit(prim)::in, io::di, io::uo) is det.
+
 :- pred online_planrecog(int::in, list(mvar(s_state))::out,
+                         handler::in(handler),
                          io::di, io::uo) is cc_multi.
 
 :- pred wait_for_planrecog_finish(list(mvar(s_state))::in,
@@ -51,7 +58,6 @@
 
 :- import_module bool.
 :- import_module int.
-:- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module thread.
 :- import_module types.
@@ -221,7 +227,9 @@ planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-online_planrecog(ThreadCount, Vars, !IO) :-
+empty_handler(_, !IO).
+
+online_planrecog(ThreadCount, Vars, Handler, !IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     InitObs = global_init_obs,
     NextObs = global_next_obs,

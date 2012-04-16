@@ -5,6 +5,8 @@ GRADE = hlc.par.gc
 LINKAGE = shared
 
 # Name or path to the mercury compiler
+MERCURY_INST = $(shell dirname $(shell which mmc))/..
+MERCURY_SRC = $(MERCURY_INST)/..
 MMC = mmc
 
 # We install to the directory of Make.common.

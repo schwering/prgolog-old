@@ -5,6 +5,13 @@
 % File: prs.m.
 % Main author: schwering.
 %
+% Plan recognition server. Accepts TCP connections on port 19123. The protocol
+% is then a loop of the following two steps:
+% (1) the server receives (syscall read) an observation (struct obs)
+% (2) the server answers (syscall write) the state (struct state_message).
+% The communication parts are written in C. This probably makes the
+% serialization simpler.
+%
 % Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
@@ -189,7 +196,7 @@
 accept_connections(ServerSocket, !IO) :-
     accept_connection(ServerSocket, Socket, !IO),
     reset_globals(!IO),
-    online_planrecog(10, Vars, !IO),
+    online_planrecog(10, Vars, empty_handler, !IO),
     handle_connection(Socket, !IO),
     format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Vars, !IO),
