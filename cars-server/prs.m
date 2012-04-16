@@ -195,11 +195,10 @@
 :- pred accept_connections(int::in, io::di, io::uo) is cc_multi.
 
 accept_connections(ServerSocket, !IO) :-
-    init_visual(NSamples, Areas, !IO),
-    %visualize(Areas, 1, s0, !IO),
+    NSamples = 9,
     accept_connection(ServerSocket, Socket, !IO),
     reset_globals(!IO),
-    NSamples = 9,
+    init_visual(9, Areas, !IO),
     online_planrecog(NSamples, Vars, visualize(Areas), !IO),
     handle_connection(Socket, !IO),
     %format("Connection terminated, waiting for plan recognition...\n", [], !IO),

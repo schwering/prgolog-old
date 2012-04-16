@@ -237,13 +237,15 @@ finish_visual(!IO) :-
 
 
 visualize(Areas, I, S, !IO) :-
-    Area = det_index1(Areas, I),
-    (   if      solve(vargen(S), constraints(S), Map, _Val)
-        then    draw_sit({Map, S}, Area, !IO)
-        else    draw_null_sit(Area, !IO)
-    ),
-    move(bottom(Area), right(Area), !IO),
-    refresh(!IO).
+    (   if      index1(Areas, I, Area)
+        then    (   if      solve(vargen(S), constraints(S), Map, _Val)
+                    then    draw_sit({Map, S}, Area, !IO)
+                    else    draw_null_sit(Area, !IO)
+                ),
+                move(bottom(Area), right(Area), !IO),
+                refresh(!IO)
+        else   true
+    ).
 
 
 wait_for_key(!IO) :-
