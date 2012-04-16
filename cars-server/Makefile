@@ -6,7 +6,7 @@ EXE_MCFLAGS += --ml planrecog --ml prgolog --ml visual
 
 all: exe replay
 
-exe: *.m planrecog
+exe: *.m planrecog visual
 
 replay: replay.c
 	$(CC) -Wall -I../planrecog replay.c -o replay

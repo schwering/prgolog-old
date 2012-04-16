@@ -437,7 +437,7 @@ global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
-    printf(""BROADCASTING\\n"");
+    //printf(""BROADCASTING\\n"");
     for (i = 0; i < NSAMPLES; ++i) {
         sem_post(&semaphores[i]);
     }

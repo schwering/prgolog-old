@@ -28,8 +28,12 @@
 :- type areas.
 
 :- pred init_visual(int::in, areas::out, io::di, io::uo) is det.
+
 :- pred finish_visual(io::di, io::uo) is det.
+
 :- pred visualize(areas::in, int::in, sit(prim)::in, io::di, io::uo) is det.
+
+:- pred wait_for_key(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -50,7 +54,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type area ---> area(panel  :: panel,
+:- type area ---> area(top    :: int,
+                       left   :: int,
                        rows   :: int,
                        cols   :: int,
                        width  :: m,
@@ -59,6 +64,17 @@
 :- type areas == list(area).
 
 :- type mapsit == {assoc_list(var, number), sit(prim)}.
+
+%-----------------------------------------------------------------------------%
+
+:- func bottom(area) = int is det.
+
+bottom(Area) = top(Area) + rows(Area) - 1.
+
+
+:- func right(area) = int is det.
+
+right(Area) = left(Area) + cols(Area) - 1.
 
 %-----------------------------------------------------------------------------%
 
@@ -83,24 +99,58 @@ get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
     ModY = E(y(Agent, S)(start(S))).
 
 
-:- func color(agent::in) = (colour::out) is det.
+:- func agent_to_color(agent::in) = (colour::out) is det.
 
-color(a) = red.
-color(b) = blue.
+agent_to_color(a) = red.
+agent_to_color(b) = blue.
+
+
+:- pred border(area::in, io::di, io::uo) is det.
+
+border(Area, !IO) :-
+    Top = top(Area),
+    Left = left(Area),
+    Rows = rows(Area),
+    Cols = cols(Area),
+    move(Top + 0,        Left + 1, !IO), hline(acs_hline, Cols - 2, !IO),
+    move(Top + Rows - 1, Left + 1, !IO), hline(acs_hline, Cols - 2, !IO),
+    %move(Top + 1,        Left + 0,        !IO), vline(acs_hline, Rows - 2, !IO),
+    %move(Top + 1,        Left + Cols - 1, !IO), vline(acs_hline, Rows - 2, !IO),
+    %move(top(Area), left(Area), !IO), addch(normal, to_int('+'), !IO),
+    %move(top(Area), right(Area), !IO), addch(normal, to_int('+'), !IO),
+    %move(bottom(Area), left(Area), !IO), addch(normal, to_int('+'), !IO),
+    %move(bottom(Area), right(Area), !IO), addch(normal, to_int('+'), !IO),
+    true.
+
+
+:- pred clear(area::in, io::di, io::uo) is det.
+
+clear(Area, !IO) :- clear_2(Area, top(Area), cols(Area), !IO).
+
+
+:- pred clear_2(area::in, int::in, int::in, io::di, io::uo) is det.
+
+clear_2(Area, ThisRow, Cols, !IO) :-
+    move(ThisRow, left(Area), !IO),
+    hline(to_int(' '), Cols, !IO),
+    (   if      ThisRow < bottom(Area)
+        then    clear_2(Area, ThisRow + 1, Cols, !IO)
+        else    true
+    ).
 
 
 :- pred draw_center_line(area::in, io::di, io::uo) is det.
 
 draw_center_line(Area, !IO) :-
-    move(panel(Area), rows(Area) / 2, 1, !IO),
-    hline(panel(Area), to_int('-'), cols(Area) - 2, !IO).
+    move(top(Area) + rows(Area) / 2, left(Area) + 1, !IO),
+    hline(to_int('-'), cols(Area) - 2, !IO).
 
 
 :- pred draw_time(area::in, s::in, io::di, io::uo) is det.
 
 draw_time(Area, Time, !IO) :-
-    move(panel(Area), 1, 1, !IO),
-    addstr(panel(Area), normal, "t = " ++ float_to_string(Time), !IO).
+    move(top(Area) + 1, left(Area) + 1, !IO),
+    addstr(normal, "t = " ++ format("%.2f", [f(Time)]), !IO).
 
 
 :- pred draw_point(area::in, attr::in, agent::in,
@@ -108,11 +158,11 @@ draw_time(Area, Time, !IO) :-
 
 draw_point(Area, Attr, Agent, X, Y, !IO) :-
     W = float(rows(Area)) / 2.0,
-    Row = truncate_to_int(Y / width(Area) * W + W),
+    Row = truncate_to_int(-1.0 * Y / width(Area) * W + W),
     Col = truncate_to_int(X / length(Area) * float(cols(Area))) + 1,
-    move(panel(Area), Row, Col, !IO),
-    addstr(panel(Area), Attr + fg_bg(color(Agent), black),
-           agent_to_string(Agent), !IO).
+    move(top(Area) + Row, left(Area) + Col, !IO),
+    addstr(Attr + fg_bg(agent_to_color(Agent), black),
+           to_upper(agent_to_string(Agent)), !IO).
 
 
 :- pred draw_data(mapsit::in, area::in, agent::in, io::di, io::uo) is det.
@@ -120,53 +170,26 @@ draw_point(Area, Attr, Agent, X, Y, !IO) :-
 draw_data(MapSit, Area, Agent, !IO) :-
     get_data(MapSit, Agent, Time, ModX, ModY, ObsX, ObsY),
     draw_time(Area, Time, !IO),
-    draw_point(Area, normal, Agent, ModX, ModY, !IO),
-    draw_point(Area, underline, Agent, ObsX, ObsY, !IO).
+    draw_point(Area, bold, Agent, ModX, ModY, !IO),
+    true.% draw_point(Area, underline, Agent, ObsX, ObsY, !IO).
 
 
 :- pred draw_sit(mapsit::in, area::in, io::di, io::uo) is det.
 
 draw_sit(MapSit, Area, !IO) :-
-    clear(panel(Area), !IO),
+    clear(Area, !IO),
     draw_center_line(Area, !IO),
     draw_data(MapSit, Area, a, !IO),
     draw_data(MapSit, Area, b, !IO),
-    border(panel(Area), !IO).
+    border(Area, !IO).
 
 
 :- pred draw_null_sit(area::in, io::di, io::uo) is det.
 
 draw_null_sit(Area, !IO) :-
-    clear(panel(Area), !IO),
+    clear(Area, !IO),
     draw_center_line(Area, !IO),
-    border(panel(Area), !IO).
-
-
-:- pred visualize_sit(mapsit::in,
-                      int::in, int::in,
-                      int::in, int::in,
-                      area::out,
-                      io::di, io::uo) is det.
-
-visualize_sit(MapSit, RowOffset, ColOffset, NRows, NCols, Area, !IO) :-
-    rows_cols(MaxRow, MaxCol, !IO),
-    Row = min(RowOffset, MaxRow - 2),
-    Col = min(ColOffset, MaxCol - 2),
-    Rows = min(NRows, MaxRow - RowOffset),
-    Cols = min(NCols, MaxCol - ColOffset),
-    Attr = fg_bg(white, black),
-    new(Rows, Cols, Row, Col, Attr, Panel, !IO),
-    Area = area(Panel, Rows, Cols, 5.0, 750.0),
-    draw_sit(MapSit, Area, !IO).
-
-
-:- pred visualize_sits(list(mapsit)::in, int::in, int::in, list(area)::out,
-                       io::di, io::uo) is det.
-
-visualize_sits([], _, _, [], !IO).
-visualize_sits([MapSit | MapSits], RowOffset, ColOffset, [Area | Areas], !IO) :-
-    visualize_sit(MapSit, RowOffset, ColOffset, 21, 80, Area, !IO),
-    visualize_sits(MapSits, RowOffset + 1, ColOffset + 1, Areas, !IO).
+    border(Area, !IO).
 
 
 :- pred create_area_rows(int::in, int::in, int::in, int::in,
@@ -175,9 +198,7 @@ visualize_sits([MapSit | MapSits], RowOffset, ColOffset, [Area | Areas], !IO) :-
 create_area_rows(Rows, Cols, Row, Col, Areas, !IO) :-
     rows_cols(_, MaxCols, !IO),
     (   if      Col + Cols =< MaxCols
-        then    Attr = fg_bg(white, black),
-                new(Rows, Cols, Row, Col, Attr, Panel, !IO),
-                Area = area(Panel, Rows, Cols, 5.0, 750.0),
+        then    Area = area(Row, Col, Rows, Cols, 5.0, 750.0),
                 draw_null_sit(Area, !IO),
                 create_area_rows(Rows, Cols, Row, Col + Cols, Areas0, !IO),
                 Areas = [Area | Areas0]
@@ -208,7 +229,7 @@ init_visual(N, Areas, !IO) :-
     create_area_rows(Rows, Cols, 1 * Rows, 0, Areas1, !IO),
     create_area_rows(Rows, Cols, 2 * Rows, 0, Areas2, !IO),
     Areas = reverse(Areas0) ++ reverse(Areas1) ++ reverse(Areas2),
-    update_panels(!IO).
+    refresh(!IO).
 
 
 finish_visual(!IO) :-
@@ -221,7 +242,12 @@ visualize(Areas, I, S, !IO) :-
         then    draw_sit({Map, S}, Area, !IO)
         else    draw_null_sit(Area, !IO)
     ),
-    update_panels(!IO).
+    move(bottom(Area), right(Area), !IO),
+    refresh(!IO).
+
+
+wait_for_key(!IO) :-
+    getch(_, !IO).
 
 
 %:- pred curs_main(io::di, io::uo) is det.
@@ -233,9 +259,17 @@ visualize(Areas, I, S, !IO) :-
 
 
 %main(!IO) :-
-%    init_visual(10, _, !IO),
+%    start(!IO),
+%    Area = area(2, 2, 10, 50, 1.0, 1.0),
+%    border(Area, !IO),
+%    addstr(fg_bg(white, black), "huhu", !IO),
+%    %move(Panel, 3, 3, !IO),
+%    %addstr(Panel, normal, "huhu", !IO),
+%    %move(Panel, 6, 6, !IO),
+%    %addstr(Panel, normal, "haha", !IO),
+%    refresh(!IO),
 %    getch(_, !IO),
-%    finish_visual(!IO).
+%    stop(!IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module visual.

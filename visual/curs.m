@@ -311,6 +311,7 @@
 
 #ifdef MR_CONSERVATIVE_GC
 
+/* XXX TODO chs understand this comment, maybe it helps with COIN OR CLP? */
 /*      
 ** The addresses of the closures that we pass to curses
 ** will be stored by curses in malloc()'ed memory.
@@ -320,11 +321,14 @@
 ** Hence we redefine malloc() and friends to call GC_malloc().
 */
 
+#if 0
 void *malloc(size_t s)
 {
         return GC_MALLOC(s);
 }
+#endif
 
+#if 0
 void *calloc(size_t s, size_t n)
 {
         void *t;
@@ -332,16 +336,21 @@ void *calloc(size_t s, size_t n)
         memset(t, 0, s*n);
         return t;
 }
+#endif
 
+#if 0
 void *realloc(void *ptr, size_t s)
 {
         return GC_REALLOC(ptr, s);
 }
+#endif
 
+#if 0
 void free(void *ptr)
 {
         GC_FREE(ptr);
 }
+#endif
 
 #endif
 

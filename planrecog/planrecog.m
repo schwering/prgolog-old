@@ -65,6 +65,19 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type logger == (pred(sit(prim), io, io)).
+:- inst logger == (pred(in, di, uo) is det).
+
+
+:- pred empty_logger(sit(prim)::in, io::di, io::uo) is det.
+
+empty_logger(_, !IO).
+
+
+empty_handler(_, _, !IO).
+
+%-----------------------------------------------------------------------------%
+
 :- pred thread_id(int::out, io::di, io::uo) is det.
 
 :- pragma foreign_proc(c, thread_id(Id::out, IO0::di, IO::uo),
@@ -74,9 +87,6 @@
     IO = IO0;
 ").
 
-
-:- type logger == (pred(sit(prim), io, io)).
-:- inst logger == (pred(in, di, uo) is det).
 
 :- pred merge_and_trans_loop(logger::in(logger),
                              next_obs(T)::in(next_obs),
@@ -196,10 +206,10 @@ run_concurrently_thread(I, [V | Vs], P, !IO) :-
             !:SubIO = IO0,
             P(I, R),
             R = s_state(_, Phase),
-            write(I, !SubIO),
-            write_string(" --> ", !SubIO),
-            write(Phase, !SubIO),
-            nl(!SubIO),
+            %write(I, !SubIO),
+            %write_string(" --> ", !SubIO),
+            %write(Phase, !SubIO),
+            %nl(!SubIO),
             (   Phase = running, update_state(I, working, !SubIO)
             ;   Phase = finishing, update_state(I, working, !SubIO)
             ;   Phase = finished, update_state(I, finished, !SubIO)
@@ -237,24 +247,16 @@ planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-empty_handler(_, _, !IO).
-
-
-:- pred empty_logger(sit(prim)::in, io::di, io::uo) is det.
-
-empty_logger(_, !IO).
-
-
 online_planrecog(ThreadCount, Vars, Handler, !IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
     InitObs = global_init_obs,
     NextObs = global_next_obs,
     Thread = (pred(I::in, R::out) is det :-
-        InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
-        InitObs(I, InitialObsGenState),
-        Log = ( pred(S::in, IO0::di, IO1::uo) is det :-
+        Log = (pred(S::in, IO0::di, IO1::uo) is det :-
             Handler(I, S, IO0, IO1)
         ),
+        InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
+        InitObs(I, InitialObsGenState),
         merge_and_trans_loop(Log, NextObs, InitialState, R,
                              InitialObsGenState, _)
     ),
