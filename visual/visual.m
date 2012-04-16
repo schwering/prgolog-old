@@ -222,12 +222,12 @@ draw_sits_on_areas([_ | _], [], !IO) :-
 init_visual(N, Areas, !IO) :-
     start(!IO),
     rows_cols(MaxRows, MaxCols, !IO),
-    NStacks = 3,
+    NStacks = 1,
     Rows = ( if (MaxRows / NStacks) mod 2 = 0 then MaxRows / NStacks - 1 else MaxRows / NStacks ),
     Cols = MaxCols / ((N + NStacks - 1) / NStacks),
     create_area_rows(Rows, Cols, 0 * Rows, 0, Areas0, !IO),
-    create_area_rows(Rows, Cols, 1 * Rows, 0, Areas1, !IO),
-    create_area_rows(Rows, Cols, 2 * Rows, 0, Areas2, !IO),
+    Areas1=[], %create_area_rows(Rows, Cols, 1 * Rows, 0, Areas1, !IO),
+    Areas2=[], %create_area_rows(Rows, Cols, 2 * Rows, 0, Areas2, !IO),
     Areas = reverse(Areas0) ++ reverse(Areas1) ++ reverse(Areas2),
     refresh(!IO).
 
@@ -237,6 +237,7 @@ finish_visual(!IO) :-
 
 
 visualize(Areas, I, S, !IO) :-
+    lock(!IO),
     (   if      index1(Areas, I, Area)
         then    (   if      solve(vargen(S), constraints(S), Map, _Val)
                     then    draw_sit({Map, S}, Area, !IO)
@@ -245,7 +246,35 @@ visualize(Areas, I, S, !IO) :-
                 move(bottom(Area), right(Area), !IO),
                 refresh(!IO)
         else   true
-    ).
+    ),
+    unlock(!IO).
+
+
+:- pragma foreign_code("C", "
+    static pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
+").
+
+
+:- pred lock(io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    lock(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    pthread_mutex_lock(&ncurses_mutex);
+    IO1 = IO0;
+").
+
+
+:- pred unlock(io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    unlock(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    pthread_mutex_unlock(&ncurses_mutex);
+    IO1 = IO0;
+").
 
 
 wait_for_key(!IO) :-
