@@ -42,10 +42,22 @@ static int make_socket(void)
     return sockfd;
 }
 
+static float min_conf(const struct state_message *msg)
+{
+    return (double) (msg->finished) /
+           (double) (msg->working + msg->finished + msg->working);
+}
+
+static float max_conf(const struct state_message *msg)
+{
+    return (double) (msg->working + msg->finished) /
+           (double) (msg->working + msg->finished + msg->working);
+}
+
 static void klatschtgleich2(FILE *fp, int sockfd)
 {
     struct record r;
-    float conf;
+    struct state_message state;
     double t0 = -1.0;
     int ret;
 
@@ -66,12 +78,13 @@ static void klatschtgleich2(FILE *fp, int sockfd)
             fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(r));
             exit(1);
         }
-        ret = read(sockfd, &conf, sizeof(conf));
-        if (ret != sizeof(conf)) {
-            fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(conf));
+        ret = read(sockfd, &state, sizeof(state));
+        if (ret != sizeof(state)) {
+            fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));
             exit(1);
         }
-        printf("confidence %.2lf\n", conf);
+        printf("%.2lf =< confidence =< %.2lf\n",
+                min_conf(&state), max_conf(&state));
     }
 }
 
