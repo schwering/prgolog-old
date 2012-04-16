@@ -2,7 +2,7 @@ GOAL = prs
 SOURCE_FILES = $(shell ls *.m)
 
 # XXX Why is prgolog needed???
-EXE_MCFLAGS += --ml planrecog --ml prgolog
+EXE_MCFLAGS += --ml planrecog --ml prgolog --ml visual
 
 all: exe replay
 
@@ -13,6 +13,9 @@ replay: replay.c
 
 planrecog:
 	make -C ../planrecog
+
+visual:
+	make -C ../visual
 
 include ../Make.common
 

@@ -36,6 +36,7 @@
 :- import_module obs.
 :- import_module planrecog.
 :- import_module string.
+:- import_module visual.
 
 %-----------------------------------------------------------------------------%
 
@@ -196,12 +197,15 @@
 accept_connections(ServerSocket, !IO) :-
     accept_connection(ServerSocket, Socket, !IO),
     reset_globals(!IO),
-    online_planrecog(10, Vars, empty_handler, !IO),
+    Samples = 10,
+    %init_visual(Samples, Areas, !IO),
+    online_planrecog(Samples, Vars, empty_handler, !IO),
     handle_connection(Socket, !IO),
-    format("Connection terminated, waiting for plan recognition...\n", [], !IO),
+    %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Vars, !IO),
-    format("Plan recognition finished with confidence %.2f.\n",
-           [f(confidence)], !IO),
+    %finish_visual(!IO),
+    %format("Plan recognition finished with confidence %.2f.\n",
+    %       [f(confidence)], !IO),
     finalize_connection(Socket, !IO),
     accept_connections(ServerSocket, !IO).
 

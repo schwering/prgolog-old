@@ -4,7 +4,7 @@ SOURCE_FILES = $(shell ls *.m)
 LIB_MCFLAGS += --ml prgolog --ml planrecog -lncurses -lpanel
 EXE_MCFLAGS += --ml prgolog --ml planrecog -lncurses -lpanel
 
-all: exe
+all: lib
 
 lib: *.m planrecog
 

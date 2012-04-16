@@ -20,15 +20,15 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred main(io::di, io::uo) is det.
+%:- pred main(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
 :- type area.
 :- type areas.
 
-:- pred init(int::in, areas::out, io::di, io::uo) is det.
-:- pred finish(io::di, io::uo) is det.
+:- pred init_visual(int::in, areas::out, io::di, io::uo) is det.
+:- pred finish_visual(io::di, io::uo) is det.
 :- pred visualize(areas::in, int::in, sit(prim)::in, io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -198,7 +198,7 @@ draw_sits_on_areas([_ | _], [], !IO) :-
     error("not enough areas for mapsits").
 
 
-init(N, Areas, !IO) :-
+init_visual(N, Areas, !IO) :-
     start(!IO),
     rows_cols(MaxRows, MaxCols, !IO),
     NStacks = 3,
@@ -211,7 +211,7 @@ init(N, Areas, !IO) :-
     update_panels(!IO).
 
 
-finish(!IO) :-
+finish_visual(!IO) :-
     stop(!IO).
 
 
@@ -232,10 +232,10 @@ visualize(Areas, I, S, !IO) :-
 %    getch(_, !IO).
 
 
-main(!IO) :-
-    init(10, _, !IO),
-    getch(_, !IO),
-    finish(!IO).
+%main(!IO) :-
+%    init_visual(10, _, !IO),
+%    getch(_, !IO),
+%    finish_visual(!IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module visual.

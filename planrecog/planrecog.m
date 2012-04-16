@@ -28,6 +28,9 @@
 :- type s_phase ---> running ; finishing ; finished ; failed.
 :- type s_state ---> s_state(conf, s_phase).
 
+:- type handler == (pred(int, sit(prim), io, io)).
+:- inst handler == (pred(in, in, di, uo) is det).
+
 %-----------------------------------------------------------------------------%
 
 :- pred planrecog(int::in,
@@ -39,10 +42,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type handler == (pred(sit(prim), io, io)).
-:- inst handler == (pred(in, di, uo) is det).
-
-:- pred empty_handler(sit(prim)::in, io::di, io::uo) is det.
+:- pred empty_handler(int::in, sit(prim)::in, io::di, io::uo) is det.
 
 :- pred online_planrecog(int::in, list(mvar(s_state))::out,
                          handler::in(handler),
@@ -75,15 +75,24 @@
 ").
 
 
-:- pred merge_and_trans_loop(next_obs(T)::in(next_obs),
+:- type logger == (pred(sit(prim), io, io)).
+:- inst logger == (pred(in, di, uo) is det).
+
+:- pred merge_and_trans_loop(logger::in(logger),
+                             next_obs(T)::in(next_obs),
                              s_state::in,
                              s_state::out,
                              T::di, T::uo) is det.
 
-merge_and_trans_loop(NextObs, !State, !ObsGenState) :-
+merge_and_trans_loop(Log, NextObs, !State, !ObsGenState) :-
     merge_and_trans(NextObs, !State, !ObsGenState, Cont),
+    trace [io(!IO)] (
+        !.State = s_state(Conf, _),
+        Conf = conf(_, S),
+        Log(S, !IO)
+    ),
     (   if      Cont = yes
-        then    merge_and_trans_loop(NextObs, !State, !ObsGenState)
+        then    merge_and_trans_loop(Log, NextObs, !State, !ObsGenState)
         else    true
     ).
 
@@ -221,13 +230,20 @@ planrecog(ThreadCount, InitObs, NextObs, Prog, Results, !IO) :-
     Thread = (pred(I::in, R::out) is det :-
         InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
         InitObs(I, InitialObsGenState),
-        merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
+        merge_and_trans_loop(empty_logger, NextObs, InitialState, R,
+                             InitialObsGenState, _)
     ),
     run_concurrently(ThreadCount, Thread, Results, !IO).
 
 %-----------------------------------------------------------------------------%
 
-empty_handler(_, !IO).
+empty_handler(_, _, !IO).
+
+
+:- pred empty_logger(sit(prim)::in, io::di, io::uo) is det.
+
+empty_logger(_, !IO).
+
 
 online_planrecog(ThreadCount, Vars, Handler, !IO) :-
     Prog = p(cruise(a)) // p(overtake(b, a)),
@@ -236,7 +252,11 @@ online_planrecog(ThreadCount, Vars, Handler, !IO) :-
     Thread = (pred(I::in, R::out) is det :-
         InitialState = s_state(conf(Prog, do(seed(I), s0)), running),
         InitObs(I, InitialObsGenState),
-        merge_and_trans_loop(NextObs, InitialState, R, InitialObsGenState, _)
+        Log = ( pred(S::in, IO0::di, IO1::uo) is det :-
+            Handler(I, S, IO0, IO1)
+        ),
+        merge_and_trans_loop(Log, NextObs, InitialState, R,
+                             InitialObsGenState, _)
     ),
     init_vars(ThreadCount, Vars, !IO),
     run_concurrently_thread(ThreadCount, Vars, Thread, !IO).
