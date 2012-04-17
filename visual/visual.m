@@ -192,15 +192,15 @@ draw_null_sit(Area, !IO) :-
     border(Area, !IO).
 
 
-:- pred create_area_rows(int::in, int::in, int::in, int::in,
-                         list(area)::out, io::di, io::uo) is det.
+:- pred create_area_row(int::in, int::in, int::in, int::in,
+                        list(area)::out, io::di, io::uo) is det.
 
-create_area_rows(Rows, Cols, Row, Col, Areas, !IO) :-
+create_area_row(Rows, Cols, Row, Col, Areas, !IO) :-
     rows_cols(_, MaxCols, !IO),
     (   if      Col + Cols =< MaxCols
         then    Area = area(Row, Col, Rows, Cols, 5.0, 750.0),
                 draw_null_sit(Area, !IO),
-                create_area_rows(Rows, Cols, Row, Col + Cols, Areas0, !IO),
+                create_area_row(Rows, Cols, Row, Col + Cols, Areas0, !IO),
                 Areas = [Area | Areas0]
         else    Areas = []
     ).
@@ -222,12 +222,12 @@ draw_sits_on_areas([_ | _], [], !IO) :-
 init_visual(N, Areas, !IO) :-
     start(!IO),
     rows_cols(MaxRows, MaxCols, !IO),
-    NStacks = 1,
+    NStacks = 3,
     Rows = ( if (MaxRows / NStacks) mod 2 = 0 then MaxRows / NStacks - 1 else MaxRows / NStacks ),
     Cols = MaxCols / ((N + NStacks - 1) / NStacks),
-    create_area_rows(Rows, Cols, 0 * Rows, 0, Areas0, !IO),
-    Areas1=[], %create_area_rows(Rows, Cols, 1 * Rows, 0, Areas1, !IO),
-    Areas2=[], %create_area_rows(Rows, Cols, 2 * Rows, 0, Areas2, !IO),
+    create_area_row(Rows, Cols, 0 * Rows, 0, Areas0, !IO),
+    create_area_row(Rows, Cols, 1 * Rows, 0, Areas1, !IO),
+    create_area_row(Rows, Cols, 2 * Rows, 0, Areas2, !IO),
     Areas = reverse(Areas0) ++ reverse(Areas1) ++ reverse(Areas2),
     refresh(!IO).
 
