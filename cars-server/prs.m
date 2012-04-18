@@ -198,7 +198,7 @@ accept_connections(ServerSocket, !IO) :-
     NSamples = 9,
     accept_connection(ServerSocket, Socket, !IO),
     reset_globals(!IO),
-    init_visual(9, Areas, !IO),
+    init_visual(6, Areas, !IO),
     online_planrecog(NSamples, Vars, visualize(Areas), !IO),
     handle_connection(Socket, !IO),
     %format("Connection terminated, waiting for plan recognition...\n", [], !IO),

@@ -29,8 +29,8 @@
 :- implementation.
 
 :- import_module bat.
+:- import_module bat.io_util.
 :- import_module int.
-:- import_module io_util.
 :- import_module float.
 :- import_module list.
 :- import_module obs.
