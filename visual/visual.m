@@ -14,9 +14,8 @@
 
 :- interface.
 
-:- import_module bat.
 :- import_module io.
-:- import_module prgolog.
+:- import_module planrecog.
 
 %-----------------------------------------------------------------------------%
 
@@ -31,7 +30,7 @@
 
 :- pred finish_visual(io::di, io::uo) is det.
 
-:- pred visualize(areas::in, int::in, sit(prim)::in, io::di, io::uo) is det.
+:- pred visualize(areas::in, int::in, s_state::in, io::di, io::uo) is det.
 
 :- pred wait_for_key(io::di, io::uo) is det.
 
@@ -41,13 +40,17 @@
 :- implementation.
 
 :- import_module assoc_list.
+:- import_module bat.
+:- import_module bat.io_util.
 :- import_module char.
 :- import_module curs.
 :- import_module curs.panel.
 :- import_module float.
 :- import_module int.
 :- import_module list.
+:- import_module prgolog.
 :- import_module prgolog.ccfluent.
+:- import_module prgolog.nice.
 :- import_module string.
 :- import_module types.
 :- import_module require.
@@ -146,11 +149,23 @@ draw_center_line(Area, !IO) :-
     hline(to_int('-'), cols(Area) - 2, !IO).
 
 
+:- pred draw_phase(area::in, s_phase::in, io::di, io::uo) is det.
+
+draw_phase(Area, Phase, !IO) :-
+    (   Phase = running,   Str = "running",   Attr = fg_bg(yellow, black)
+    ;   Phase = finishing, Str = "finishing", Attr = fg_bg(yellow, black)
+    ;   Phase = finished,  Str = "finished",  Attr = fg_bg(green, black)
+    ;   Phase = failed,    Str = "failed",    Attr = fg_bg(red, black)
+    ),
+    move(top(Area) + 1, left(Area) + 1, !IO),
+    addstr(Attr, Str, !IO).
+
+
 :- pred draw_time(area::in, s::in, io::di, io::uo) is det.
 
 draw_time(Area, Time, !IO) :-
-    move(top(Area) + 1, left(Area) + 1, !IO),
-    addstr(normal, "t = " ++ format("%.2f", [f(Time)]), !IO).
+    move(top(Area) + 1, left(Area) + 5 + length("finished"), !IO),
+    addstr(normal, "t = " ++ format("%4.1f", [f(Time)]), !IO).
 
 
 :- pred draw_point(area::in, attr::in, agent::in,
@@ -168,7 +183,7 @@ draw_point(Area, Attr, Agent, X, Y, !IO) :-
 :- pred draw_data(mapsit::in, area::in, agent::in, io::di, io::uo) is det.
 
 draw_data(MapSit, Area, Agent, !IO) :-
-    get_data(MapSit, Agent, Time, ModX, ModY, ObsX, ObsY),
+    get_data(MapSit, Agent, Time, ModX, ModY, _ObsX, _ObsY),
     draw_time(Area, Time, !IO),
     draw_point(Area, bold, Agent, ModX, ModY, !IO),
     true.% draw_point(Area, underline, Agent, ObsX, ObsY, !IO).
@@ -177,7 +192,6 @@ draw_data(MapSit, Area, Agent, !IO) :-
 :- pred draw_sit(mapsit::in, area::in, io::di, io::uo) is det.
 
 draw_sit(MapSit, Area, !IO) :-
-    clear(Area, !IO),
     draw_center_line(Area, !IO),
     draw_data(MapSit, Area, a, !IO),
     draw_data(MapSit, Area, b, !IO),
@@ -187,7 +201,6 @@ draw_sit(MapSit, Area, !IO) :-
 :- pred draw_null_sit(area::in, io::di, io::uo) is det.
 
 draw_null_sit(Area, !IO) :-
-    clear(Area, !IO),
     draw_center_line(Area, !IO),
     border(Area, !IO).
 
@@ -236,11 +249,15 @@ finish_visual(!IO) :-
     stop(!IO).
 
 
-visualize(Areas, I, S, !IO) :-
+visualize(Areas, I, State, !IO) :-
     lock(!IO),
+    State = s_state(Conf, Phase),
+    Conf = conf(_Prog, Sit),
     (   if      index1(Areas, I, Area)
-        then    (   if      solve(vargen(S), constraints(S), Map, _Val)
-                    then    draw_sit({Map, S}, Area, !IO)
+        then    clear(Area, !IO),
+                draw_phase(Area, Phase, !IO),
+                (   if      solve(vargen(Sit), constraints(Sit), Map, _Val)
+                    then    draw_sit({Map, Sit}, Area, !IO)
                     else    draw_null_sit(Area, !IO)
                 ),
                 move(bottom(Area), right(Area), !IO),

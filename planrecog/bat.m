@@ -26,6 +26,8 @@
 :- use_module random.
 :- import_module types.
 
+:- include_module io_util.
+
 %-----------------------------------------------------------------------------%
 
 :- type agent_info ---> agent_info(mps, rad, m, m).

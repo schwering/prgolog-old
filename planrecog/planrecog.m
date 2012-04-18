@@ -20,7 +20,6 @@
 :- import_module io.
 :- import_module list.
 :- import_module obs.
-:- import_module prgolog.
 :- import_module thread.mvar.
 
 %-----------------------------------------------------------------------------%
@@ -28,7 +27,7 @@
 :- type s_phase ---> running ; finishing ; finished ; failed.
 :- type s_state ---> s_state(conf, s_phase).
 
-:- type handler == (pred(int, sit(prim), io, io)).
+:- type handler == (pred(int, s_state, io, io)).
 :- inst handler == (pred(in, in, di, uo) is det).
 
 %-----------------------------------------------------------------------------%
@@ -42,7 +41,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred empty_handler(int::in, sit(prim)::in, io::di, io::uo) is det.
+:- pred empty_handler(int::in, s_state::in, io::di, io::uo) is det.
 
 :- pred online_planrecog(int::in, list(mvar(s_state))::out,
                          handler::in(handler),
@@ -58,6 +57,7 @@
 
 :- import_module bool.
 :- import_module int.
+:- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module thread.
 :- import_module types.
@@ -65,11 +65,11 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type logger == (pred(sit(prim), io, io)).
+:- type logger == (pred(s_state, io, io)).
 :- inst logger == (pred(in, di, uo) is det).
 
 
-:- pred empty_logger(sit(prim)::in, io::di, io::uo) is det.
+:- pred empty_logger(s_state::in, io::di, io::uo) is det.
 
 empty_logger(_, !IO).
 
@@ -97,9 +97,7 @@ empty_handler(_, _, !IO).
 merge_and_trans_loop(Log, NextObs, !State, !ObsGenState) :-
     merge_and_trans(NextObs, !State, !ObsGenState, Cont),
     trace [io(!IO)] (
-        !.State = s_state(Conf, _),
-        Conf = conf(_, S),
-        Log(S, !IO)
+        Log(!.State, !IO)
     ),
     (   if      Cont = yes
         then    merge_and_trans_loop(Log, NextObs, !State, !ObsGenState)
