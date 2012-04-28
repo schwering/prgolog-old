@@ -68,10 +68,10 @@ export CXXFLAGS="-I${MERCURY_BIN_DIR}/lib/mercury/inc -fPIC"
 # Add the new mygc.h header which accounts for new->GC_MALLOC and replace malloc->GC_MALLOC
 for f in $(find . -name \*.h -or -name \*.c); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
 for f in $(find . -name \*.hpp -or -name \*.cpp); do cp "$f" "$f.tmp"; echo '#include "mygc.h"' >"$f"; grep -v '#include "mygc.h"' "$f.tmp" >>"$f"; rm "$f.tmp"; done
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/GC_MALLOC_UNCOLLECTABLE/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/GC_REALLOC/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/GC_FREE/g'
-find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<malloc\>/MY_MALLOC/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<realloc\>/MY_REALLOC/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<free\>/MY_FREE/g'
+find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/MY_STRDUP/g'
 # We only need CLP, CoinUtils, and OSI.
 export COIN_SKIP_PROJECTS="DyLP Vol"
 ./configure "--prefix=$(pwd)/dist" "--enable-static" || exit 1
@@ -88,23 +88,40 @@ cat >CoinUtils/src/mygc.h <<\EOF
 #include <string.h>
 
 #ifndef malloc
-#define malloc(x) GC_MALLOC_UNCOLLECTABLE(x)
+#define malloc(x) MY_MALLOC(x)
 #endif
 
 #ifndef realloc
-#define realloc(x, y) GC_REALLOC(x, y)
+#define realloc(x, y) MY_REALLOC(x, y)
 #endif
 
 #ifndef calloc
-#define calloc(x, y) GC_MALLOC_UNCOLLECTABLE((x) * (y))
+#define calloc(x, y) MY_MALLOC((x) * (y))
 #endif
 
 #ifndef free
-#define free(x) GC_FREE(x)
+#define free(x) MY_FREE(x)
 #endif
 
 #ifndef strdup
-#define strdup(x) GC_STRDUP(x)
+#define strdup(x) MY_STRDUP(x)
+#endif
+
+
+#ifndef MY_MALLOC
+#define MY_MALLOC(x) GC_MALLOC(x)
+#endif
+
+#ifndef MY_REALLOC
+#define MY_REALLOC(x, y) GC_REALLOC(x, y)
+#endif
+
+#ifndef MY_FREE
+#define MY_FREE(x) GC_FREE(x)
+#endif
+
+#ifndef MY_STRDUP
+#define MY_STRDUP(x) GC_STRDUP(x)
 #endif
 
 
@@ -116,48 +133,48 @@ cat >CoinUtils/src/mygc.h <<\EOF
 
 inline void* operator new(std::size_t size) throw (std::bad_alloc)
 {
-  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
+  void* ptr = MY_MALLOC(size);
   if (!ptr) throw std::bad_alloc();
   return ptr;
 }
 
 inline void* operator new[](std::size_t size) throw (std::bad_alloc)
 {
-  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
+  void* ptr = MY_MALLOC(size);
   if (!ptr) throw std::bad_alloc();
   return ptr;
 }
 
 inline void operator delete(void* ptr) throw()
 {
-  if (ptr) GC_FREE(ptr);
+  if (ptr) MY_FREE(ptr);
 }
 
 inline void operator delete[](void* ptr) throw()
 {
-  if (ptr) GC_FREE(ptr);
+  if (ptr) MY_FREE(ptr);
 }
 
 inline void* operator new(std::size_t size, const std::nothrow_t&) throw()
 {
-  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
+  void* ptr = MY_MALLOC(size);
   return ptr;
 }
 
 inline void* operator new[](std::size_t size, const std::nothrow_t&) throw()
 {
-  void* ptr = GC_MALLOC_UNCOLLECTABLE(size);
+  void* ptr = MY_MALLOC(size);
   return ptr;
 }
 
 inline void operator delete(void* ptr, const std::nothrow_t&) throw()
 {
-  if (ptr) GC_FREE(ptr);
+  if (ptr) MY_FREE(ptr);
 }
 
 inline void operator delete[](void* ptr, const std::nothrow_t&) throw()
 {
-  if (ptr) GC_FREE(ptr);
+  if (ptr) MY_FREE(ptr);
 }
 
 #endif

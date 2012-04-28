@@ -1,0 +1,8 @@
+$ gdb ./cars
+
+# Boehm GC uses SIGPWR and SIGXCPU, so we want to ignore them in GDB:
+handle SIGPWR nostop noprint
+handle SIGXCPU nostop noprint
+
+run ./cars < ../planrecog/obs/obs-0016.log
+

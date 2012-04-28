@@ -135,20 +135,35 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     N = length(Sum),
     As = map((func(_ - C) = C), Sum),
     Vs = map((func(V - _) = var_to_int_id(V)), Sum),
-    (   Op = (=<),  Cmp = 1
+    (   Op = (=<),  Cmp = -1
     ;   Op = (=),   Cmp = 0
-    ;   Op = (>=),  Cmp = -1
+    ;   Op = (>=),  Cmp = 1
     ),
     add_constraint(N, As, Vs, Cmp, Bnd, SC0, SC1),
     add_constraints(Cs, SC1, SC2).
 
 %-----------------------------------------------------------------------------%
 
-:- pragma foreign_decl("C", "#include ""coin-clp.h""").
+:- pragma foreign_decl("C", "
+//#define STANDALONE
+#ifdef STANDALONE
+    #include ""coin-clp.h""
+#else
+    #include ""../lp-server/lp-msg.h""
+    #include <netdb.h>
+    #include <sys/socket.h>
+    #define HOST ""localhost""
+#endif
+").
+
+
+:- pragma foreign_decl("C", "extern int lp_socket;").
+:- pragma foreign_code("C", "int lp_socket = -1;").
 
 :- type solver_context.
 
-:- pragma foreign_type("C", solver_context, "SolverContext*").
+:- type solver_context == int.
+%:- pragma foreign_type("C", solver_context, "SolverContext*").
 
 
 :- pred new_solver_context(int::in, solver_context::uo) is det.
@@ -157,7 +172,49 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     new_solver_context(N::in, Ctx::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
+#ifdef STANDALONE
     Ctx = new_solver_context(N);
+#else
+    Header h;
+    void *payload;
+
+    if (lp_socket == -1) {
+        int sockfd;
+        struct sockaddr_in server_addr;
+        struct hostent *server;
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            fprintf(stderr, ""Couldn't open socket\\n"");
+            exit(1);
+        }
+        server = gethostbyname(HOST);
+        if (server == NULL) {
+            fprintf(stderr, ""Couldn't resolve host %s\\n"", HOST);
+            exit(1);
+        }
+        bzero((char *) &server_addr, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        bcopy( server->h_addr, &server_addr.sin_addr.s_addr, server->h_length);
+        server_addr.sin_port = htons(LP_PORT);
+        if (connect(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+            fprintf(stderr, ""Couldn't connect to server\\n"");
+            exit(1);
+        }
+        lp_socket = sockfd;
+    }
+
+    h.type = MSG_INIT;
+    h.len = N;
+    payload = alloc_payload(&h);
+    if (!send_msg(lp_socket, &h, payload)) {
+        fprintf(stderr, ""Couldn't connect to server\\n"");
+        exit(1);
+    }
+    free_payload(&h, payload);
+
+    Ctx = lp_socket;
+#endif
 ").
 
 
@@ -167,7 +224,10 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     finalize_solver_context(Ctx::di),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
+#ifdef STANDALONE
     finalize_solver_context(Ctx);
+#else
+#endif
 ").
 
 
@@ -179,6 +239,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     add_constraint(N::in, As::in, Vs::in, Cmp::in, Bnd::in, Ctx0::di, Ctx1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
+#ifdef STANDALONE
     double* as_arr = GC_MALLOC(N * sizeof(double));
     int* vs_arr = GC_MALLOC(N * sizeof(int));
     MR_Word as_list = As;
@@ -196,6 +257,38 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
     GC_FREE(vs_arr);
     GC_FREE(as_arr);
+#else
+    const int sockfd = Ctx0;
+    Header h;
+    void *payload;
+
+    h.type = MSG_CSTR;
+    h.len = N;
+
+    payload = alloc_payload(&h);
+
+    MR_Word as_list = As;
+    MR_Word vs_list = Vs;
+    int i;
+
+    for (i = 0; i < N; ++i) {
+        assert(!MR_list_is_empty(as_list));
+        assert(!MR_list_is_empty(vs_list));
+        ((Constraint *) payload)->as[i] = MR_word_to_float(MR_list_head(as_list));
+        ((Constraint *) payload)->vs[i] = (MR_Integer) MR_list_head(vs_list);
+        vs_list = MR_list_tail(vs_list);
+        as_list = MR_list_tail(as_list);
+    }
+    ((Constraint *) payload)->cmp = Cmp;
+    ((Constraint *) payload)->bnd = Bnd;
+    if (!send_msg(sockfd, &h, payload)) {
+        free_payload(&h, payload);
+        fprintf(stderr, ""%s:%d: Couldn't write message\\n"", __FILE__, __LINE__);
+        exit(1);
+    }
+
+    free_payload(&h, payload);
+#endif
     Ctx1 = Ctx0;
 ").
 
@@ -207,6 +300,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     solve(Optimal::out, ObjValue::out, VarValues::out, Ctx0::di, Ctx1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
+#ifdef STANDALONE
     double obj_val;
     double* var_values_arr = GC_MALLOC(varcnt(Ctx0) * sizeof(double));
 
@@ -228,6 +322,47 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     }
     finalize_solver_context(&Ctx0);
     GC_FREE(var_values_arr);
+#else
+    const int sockfd = Ctx0;
+    Header h;
+    void *payload;
+
+    h.type = MSG_SOLVE;
+    h.len = 0;
+    payload = alloc_payload(&h);
+    if (!send_msg(sockfd, &h, payload)) {
+        free_payload(&h, payload);
+        fprintf(stderr, ""%s:%d: Couldn't write header\\n"", __FILE__, __LINE__);
+        exit(1);
+    }
+    free_payload(&h, payload);
+
+    if (!recv_msg(sockfd, &h, &payload)) {
+        fprintf(stderr, ""%s:%d: Couldn't write header\\n"", __FILE__, __LINE__);
+        exit(1);
+    }
+    if (h.type == MSG_SUCCESS) {
+        MR_Word var_values_list = MR_list_empty();
+        int i;
+        Optimal = (MR_Integer) 1;
+        ObjValue = (MR_Float) ((Solution *) payload)->val;
+        for (i = h.len - 1; i >= 0; --i) {
+            const num_t val = ((Solution *) payload)->as[i];
+            var_values_list = MR_list_cons(
+                MR_float_to_word((MR_Float) val),
+                var_values_list);
+        }
+        VarValues = var_values_list;
+    } else if (h.type == MSG_FAILURE) {
+        Optimal = (MR_Integer) 0;
+        ObjValue = (MR_Float) 0;
+        VarValues = MR_list_empty();
+    } else {
+        fprintf(stderr, ""%s:%d: Received unexpected message %d\\n"",
+                __FILE__, __LINE__, (int) h.type);
+    }
+    free_payload(&h, payload);
+#endif
 
     Ctx1 = Ctx0;
 ").

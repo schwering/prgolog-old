@@ -19,12 +19,12 @@
 #include <CoinPackedMatrix.hpp>
 #include <CoinPackedVector.hpp>
 
-SolverContext::SolverContext(int nvars)
+SolverContext::SolverContext(len_t nvars)
   : nvars(nvars),
     matrix(CoinPackedMatrix(false, 0.0, 0.0)),
-    var_lb(new double[nvars]),
-    var_ub(new double[nvars]),
-    objective(new double[nvars])
+    var_lb(new num_t[nvars]),
+    var_ub(new num_t[nvars]),
+    objective(new num_t[nvars])
 {
   matrix.setDimensions(0, nvars);
   for (int i = 0; i < nvars; ++i) {
@@ -44,17 +44,19 @@ SolverContext::~SolverContext()
   delete[] var_lb;
 }
 
-void SolverContext::add_constraint(int n, const double* as, const int* vs,
-                                   int cmp, double bnd)
+void SolverContext::add_constraint(len_t n,
+                                   const num_t* as, const var_t* vs,
+                                   cmp_type_t cmp, num_t bnd)
 {
   try {
     //fprintf(stderr, "n = %d (%d)\n", n, nvars);
     CoinPackedVector row;
     for (int i = 0; i < n; ++i) {
       //fprintf(stderr, "  + %lf * v_%d", as[i], vs[i]);
-      row.insert(vs[i], as[i]);
+      assert(vs[i] < nvars);
+      row.insert(static_cast<int>(vs[i]), as[i]);
     }
-    double row_lb, row_ub;
+    num_t row_lb, row_ub;
     if (cmp > 0) { // ">="
       row_lb = bnd;
       row_ub = solver.getInfinity();
@@ -78,12 +80,12 @@ void SolverContext::add_constraint(int n, const double* as, const int* vs,
   }
 }
 
-int SolverContext::varcnt() const
+len_t SolverContext::varcnt() const
 {
   return nvars;
 }
 
-bool SolverContext::solve(double* obj_val, double* var_vals)
+bool SolverContext::solve(num_t* obj_val, num_t* var_vals)
 {
   try {
       solver.initialSolve();
@@ -94,7 +96,7 @@ bool SolverContext::solve(double* obj_val, double* var_vals)
           *obj_val = solver.getObjValue();
         }
         if (var_vals) {
-          memcpy(var_vals, solver.getColSolution(), nvars * sizeof(double));
+          memcpy(var_vals, solver.getColSolution(), nvars * sizeof(num_t));
         }
       } else {
         if (obj_val) {
@@ -109,7 +111,7 @@ bool SolverContext::solve(double* obj_val, double* var_vals)
   }
 }
 
-SolverContext* new_solver_context(int nvars)
+SolverContext* new_solver_context(len_t nvars)
 {
   return new SolverContext(nvars);
 }
@@ -121,18 +123,19 @@ void finalize_solver_context(SolverContext** ctx)
   }
 }
 
-void add_constraint(SolverContext* ctx, int n, const double* as, const int* vs,
-                    int cmp, double bnd)
+void add_constraint(SolverContext* ctx, len_t n,
+                    const num_t* as, const var_t* vs,
+                    cmp_type_t cmp, num_t bnd)
 {
   ctx->add_constraint(n, as, vs, cmp, bnd);
 }
 
-int varcnt(SolverContext* ctx)
+len_t varcnt(SolverContext* ctx)
 {
   return ctx->varcnt();
 }
 
-bool solve(SolverContext* ctx, double* obj_val, double* var_vals)
+bool solve(SolverContext* ctx, num_t* obj_val, num_t* var_vals)
 {
   return ctx->solve(obj_val, var_vals);
 }
