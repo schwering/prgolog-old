@@ -158,8 +158,19 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 ").
 
 
-:- pragma foreign_decl("C", "extern int lp_socket;").
-:- pragma foreign_code("C", "int lp_socket = -1;").
+:- pragma foreign_decl("C", "
+    struct solver_context_node {
+        pthread_t tid;
+        int sockfd;
+        struct solver_context_node *next;
+    };
+    extern struct solver_context_node *solver_context_head;
+    extern pthread_mutex_t solver_context_mutex;
+").
+:- pragma foreign_code("C", "
+    struct solver_context_node *solver_context_head = NULL;
+    pthread_mutex_t solver_context_mutex = PTHREAD_MUTEX_INITIALIZER;
+").
 
 :- type solver_context.
 
@@ -175,27 +186,59 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 #ifdef STANDALONE
     Ctx = new_solver_context(N);
 #else /* STANDALONE */
+    const pthread_t self = pthread_self();
+    struct solver_context_node *node;
+    int sockfd = -1;
     Header h;
     void *payload;
 
-    if (lp_socket == -1) {
+    /* In most cases, the thread already has a connection, so we look for
+     * it without a lock first.  If this fails, we prepare for creating a
+     * connection.  This step is then protected with the mutex and at first
+     * we need to re-check that no connection already exists.  If that's
+     * the case, a connection is created. */
+
+    for (node = solver_context_head; node != NULL; node = node->next) {
+        if (pthread_equal(self, node->tid)) {
+            sockfd = node->sockfd;
+            break;
+        }
+    }
+
+    if (sockfd < 0) {
+        pthread_mutex_lock(&solver_context_mutex);
+        for (node = solver_context_head; node != NULL; node = node->next) {
+            if (pthread_equal(self, node->tid)) {
+                sockfd = node->sockfd;
+                break;
+            }
+        }
+        if (sockfd < 0) {
+            //printf(""creating a new connection %d\\n"", self);
 #ifdef UNIX_SOCKETS
-        lp_socket = connect_unix_socket(UNIX_SOCKET_PATH);
+            sockfd = connect_unix_socket(UNIX_SOCKET_PATH);
 #else /* UNIX_SOCKETS */
-        lp_socket = connect_tcp_socket(HOST, LP_PORT);
+            sockfd = connect_tcp_socket(HOST, LP_PORT);
 #endif /* UNIX_SOCKETS */
+            node = malloc(sizeof(struct solver_context_node));
+            node->tid = self;
+            node->sockfd = sockfd;
+            node->next = solver_context_head;
+            solver_context_head = node;
+        }
+        pthread_mutex_unlock(&solver_context_mutex);
     }
 
     h.type = MSG_INIT;
     h.len = N;
     payload = alloc_payload(&h);
-    if (!send_msg(lp_socket, &h, payload)) {
+    if (!send_msg(sockfd, &h, payload)) {
         fprintf(stderr, ""Couldn't connect to server\\n"");
         exit(1);
     }
     free_payload(&h, payload);
 
-    Ctx = lp_socket;
+    Ctx = sockfd;
 #endif /* STANDALONE */
 ").
 
@@ -235,6 +278,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
         vs_list = MR_list_tail(vs_list);
         as_list = MR_list_tail(as_list);
     }
+
     add_constraint(Ctx0, N, as_arr, vs_arr, Cmp, Bnd);
 
     GC_FREE(vs_arr);

@@ -30,13 +30,12 @@ static inline int connect_unix_socket(const char *path)
 {
   const int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
   struct sockaddr_un server_addr;
-  size_t len;
 
   server_addr.sun_family = AF_UNIX;
   strcpy(server_addr.sun_path, path);
-  len = sizeof(server_addr.sun_family) + strlen(server_addr.sun_path);
 
-  if (connect(sockfd, (struct sockaddr *) &server_addr, len) < 0) {
+  if (connect(sockfd, (struct sockaddr *) &server_addr,
+              sizeof(server_addr)) < 0) {
     fprintf(stderr, "Couldn't connect to server\n");
     exit(1);
   }
@@ -76,7 +75,6 @@ static inline int listen_unix_socket(const char *path)
 {
   const int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
   struct sockaddr_un server_addr;
-  size_t len;
 
   if (socket < 0) {
       fprintf(stderr, "Couldn't open socket\n");
@@ -85,9 +83,8 @@ static inline int listen_unix_socket(const char *path)
   server_addr.sun_family = AF_UNIX;
   strcpy(server_addr.sun_path, path);
   unlink(server_addr.sun_path);
-  len = sizeof(server_addr.sun_family) + strlen(server_addr.sun_path);
 
-  if (bind(sockfd, (struct sockaddr*) &server_addr, len) < 0) {
+  if (bind(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
       fprintf(stderr, "Couldn't bind socket\n");
       exit(1);
   }
@@ -109,7 +106,7 @@ static inline int listen_tcp_socket(uint16_t port)
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(port);
 
-  if (bind(sockfd, (struct sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
+  if (bind(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
       fprintf(stderr, "Couldn't bind socket\n");
       exit(1);
   }

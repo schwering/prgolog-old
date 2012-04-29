@@ -226,11 +226,11 @@ run_concurrently_thread(I, [V | Vs], P, !IO) :-
                          io::di, io::uo) is cc_multi.
 
 %run_concurrently(N, P, Rs, !IO) :- run_concurrently_par_conj(N, P, Rs).
-run_concurrently(N, P, Rs, !IO) :- run_sequentially(N, P, Rs).
-%run_concurrently(N, P, Rs, !IO) :-
-%    init_vars(N, Vs, !IO),
-%    run_concurrently_thread(N, Vs, P, !IO),
-%    take_vars(Vs, Rs, !IO).
+%run_concurrently(N, P, Rs, !IO) :- run_sequentially(N, P, Rs).
+run_concurrently(N, P, Rs, !IO) :-
+    init_vars(N, Vs, !IO),
+    run_concurrently_thread(N, Vs, P, !IO),
+    take_vars(Vs, Rs, !IO).
 
 %-----------------------------------------------------------------------------%
 

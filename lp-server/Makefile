@@ -102,7 +102,7 @@ coin-clp.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/c
 coin-clp.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/coin/ClpNode.hpp
 coin-clp.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/coin/CoinIndexedVector.hpp
 coin-clp.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/coin/CoinPackedVector.hpp
-lps.o: lp-msg.h lp-types.h coin-clp.h
+lps.o: lp-msg.h lp-types.h lp-sock.h coin-clp.h
 lps.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/coin/OsiClpSolverInterface.hpp
 lps.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/coin/ClpSimplex.hpp
 lps.o: /home/chs/Documents/Prolog/mercury/lp-server/coin-Osi/dist/include/coin/ClpModel.hpp
