@@ -12,7 +12,7 @@
 #include <strings.h>
 
 #include "lp-msg.h"
-#include "sock.h"
+#include "lp-sock.h"
 #include "coin-clp.h"
 
 //#define LOG               printf

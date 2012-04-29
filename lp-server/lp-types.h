@@ -2,7 +2,7 @@
  * File: lp-types.h.
  * Main author: schwering.
  *
- * Linear systems types.
+ * Linear systems type definitions.
  *
  * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */

@@ -148,10 +148,12 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 //#define STANDALONE
 #ifdef STANDALONE
     #include ""coin-clp.h""
+    typedef SolverContext* MercurySolverContext;
 #else
-    #include ""../lp-server/sock.h""
+    #include ""../lp-server/lp-sock.h""
     #include ""../lp-server/lp-msg.h""
     #define HOST ""localhost""
+    typedef int MercurySolverContext;
 #endif
 ").
 
@@ -161,8 +163,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
 :- type solver_context.
 
-:- type solver_context == int.
-%:- pragma foreign_type("C", solver_context, "SolverContext*").
+:- pragma foreign_type("C", solver_context, "MercurySolverContext").
 
 
 :- pred new_solver_context(int::in, solver_context::uo) is det.
@@ -173,16 +174,16 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 "
 #ifdef STANDALONE
     Ctx = new_solver_context(N);
-#else
+#else /* STANDALONE */
     Header h;
     void *payload;
 
     if (lp_socket == -1) {
 #ifdef UNIX_SOCKETS
         lp_socket = connect_unix_socket(UNIX_SOCKET_PATH);
-#else
+#else /* UNIX_SOCKETS */
         lp_socket = connect_tcp_socket(HOST, LP_PORT);
-#endif
+#endif /* UNIX_SOCKETS */
     }
 
     h.type = MSG_INIT;
@@ -195,7 +196,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     free_payload(&h, payload);
 
     Ctx = lp_socket;
-#endif
+#endif /* STANDALONE */
 ").
 
 
@@ -207,8 +208,8 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 "
 #ifdef STANDALONE
     finalize_solver_context(Ctx);
-#else
-#endif
+#else /* STANDALONE */
+#endif /* STANDALONE */
 ").
 
 
@@ -238,7 +239,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 
     GC_FREE(vs_arr);
     GC_FREE(as_arr);
-#else
+#else /* STANDALONE */
     const int sockfd = Ctx0;
     Header h;
     void *payload;
@@ -269,7 +270,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     }
 
     free_payload(&h, payload);
-#endif
+#endif /* STANDALONE */
     Ctx1 = Ctx0;
 ").
 
@@ -303,7 +304,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     }
     finalize_solver_context(&Ctx0);
     GC_FREE(var_values_arr);
-#else
+#else /* STANDALONE */
     const int sockfd = Ctx0;
     Header h;
     void *payload;
@@ -343,7 +344,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
                 __FILE__, __LINE__, (int) h.type);
     }
     free_payload(&h, payload);
-#endif
+#endif /* STANDALONE */
 
     Ctx1 = Ctx0;
 ").
