@@ -263,8 +263,8 @@ static inline bool recv_buf(int sockfd, void *buf, size_t len)
   char *ptr = (char *) buf;
   size_t done = 0;
   while (done < len) {
-    size_t s = read(sockfd, ptr + done, len - done);
-    if (s < 0) {
+    ssize_t s = recv(sockfd, ptr + done, len - done, 0);
+    if (s <= 0) {
       break;
     }
     done += s;
@@ -279,8 +279,8 @@ static inline bool send_buf(int sockfd, const void *buf, size_t len)
   const char *ptr = (const char *) buf;
   size_t done = 0;
   while (done < len) {
-    size_t s = write(sockfd, ptr + done, len - done);
-    if (s < 0) {
+    ssize_t s = send(sockfd, ptr + done, len - done, 0);
+    if (s <= 0) {
       break;
     }
     done += s;
@@ -291,7 +291,7 @@ static inline bool send_buf(int sockfd, const void *buf, size_t len)
 
 /* Receives the next message (header and payload) from sockfd.
  * Note: The message's payload is stored in the newly allocated *payload!
- * The caller needs to de-allocate this with free_payload()!. */
+ * The caller needs to de-allocate this with free_payload()! */
 static inline bool recv_msg(int sockfd, Header *h, void **payload)
 {
   void *payload_buf;

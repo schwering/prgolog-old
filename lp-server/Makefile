@@ -5,6 +5,7 @@ BODY_FILES = $(shell ls *.cc)
 SOURCE_FILES = $(HEADER_FILES) $(BODY_FILES)
 OBJECT_FILES = $(BODY_FILES:%.cc=%.o)
 
+CXXFLAGS = -Wall
 CPPFLAGS = -I$(COIN)/dist/include/coin
 LD	 = g++
 LDFLAGS	 = -Wl,--no-as-needed -Wl,-rpath=$(COIN)/dist/lib -L$(COIN)/dist/lib -lClp -lOsi -lOsiClp -lCoinUtils -lblas -lm -lpthread

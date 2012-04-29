@@ -149,9 +149,8 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 #ifdef STANDALONE
     #include ""coin-clp.h""
 #else
+    #include ""../lp-server/sock.h""
     #include ""../lp-server/lp-msg.h""
-    #include <netdb.h>
-    #include <sys/socket.h>
     #define HOST ""localhost""
 #endif
 ").
@@ -179,29 +178,11 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     void *payload;
 
     if (lp_socket == -1) {
-        int sockfd;
-        struct sockaddr_in server_addr;
-        struct hostent *server;
-
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd < 0) {
-            fprintf(stderr, ""Couldn't open socket\\n"");
-            exit(1);
-        }
-        server = gethostbyname(HOST);
-        if (server == NULL) {
-            fprintf(stderr, ""Couldn't resolve host %s\\n"", HOST);
-            exit(1);
-        }
-        bzero((char *) &server_addr, sizeof(server_addr));
-        server_addr.sin_family = AF_INET;
-        bcopy( server->h_addr, &server_addr.sin_addr.s_addr, server->h_length);
-        server_addr.sin_port = htons(LP_PORT);
-        if (connect(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
-            fprintf(stderr, ""Couldn't connect to server\\n"");
-            exit(1);
-        }
-        lp_socket = sockfd;
+#ifdef UNIX_SOCKETS
+        lp_socket = connect_unix_socket(UNIX_SOCKET_PATH);
+#else
+        lp_socket = connect_tcp_socket(HOST, LP_PORT);
+#endif
     }
 
     h.type = MSG_INIT;

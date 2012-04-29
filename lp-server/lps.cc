@@ -7,56 +7,16 @@
  * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
-#include <assert.h>
-#include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
 #include <strings.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 
 #include "lp-msg.h"
+#include "sock.h"
 #include "coin-clp.h"
 
 //#define LOG               printf
 #define LOG(fmt, ...)
-
-static int make_server_socket(uint16_t port)
-{
-  struct sockaddr_in server_addr;
-  int sockfd;
-
-  sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (socket < 0) {
-      fprintf(stderr, "Couldn't open socket\n");
-      exit(1);
-  }
-  bzero((char*) &server_addr, sizeof(server_addr));
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = INADDR_ANY;
-  server_addr.sin_port = htons(port);
-  if (bind(sockfd, (struct sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
-      fprintf(stderr, "Couldn't bind socket\n");
-      exit(1);
-  }
-  listen(sockfd, 5);
-  return sockfd;
-}
-
-
-static int accept_connection(int server_sockfd)
-{
-  int sockfd;
-  struct sockaddr_in client_addr;
-  socklen_t client_len = sizeof(client_addr);
-  sockfd = accept(server_sockfd, (struct sockaddr*) &client_addr, &client_len);
-  if (sockfd < 0) {
-    fprintf(stderr, "Couldn't accept connection\n");
-    exit(1);
-  }
-  return sockfd;
-}
-
 
 static void answer_solution(SolverContext& state, int sockfd)
 {
@@ -141,7 +101,7 @@ static void* session(void* args)
     LOG("receiving\n");
     if (!recv_msg(sockfd, &h, &payload)) {
       fprintf(stderr, "%s:%d: Couldn't read message\n", __FILE__, __LINE__);
-      exit(1);
+      break;
     }
     LOG("received\n");
     handle_msg(state, sockfd, &h, payload);
@@ -150,12 +110,17 @@ static void* session(void* args)
   if (state != NULL)
     delete state;
   close(sockfd);
+  return NULL;
 }
 
 
 int main(int argc, char* argv[])
 {
-  int server_sockfd = make_server_socket(LP_PORT);
+#ifdef UNIX_SOCKETS
+  int server_sockfd = listen_unix_socket(UNIX_SOCKET_PATH);
+#else
+  int server_sockfd = listen_tcp_socket(LP_PORT);
+#endif
   for (;;) {
     int sockfd = accept_connection(server_sockfd);
     LOG("accepted connection\n");

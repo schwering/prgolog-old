@@ -64,7 +64,7 @@ main(!IO) :-
     %online_planrecog(10, Vars, !IO),
     %wait_for_planrecog_finish(Vars, !IO),
     %Results = [],
-    planrecog(5, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(10, input_init_obs, input_next_obs, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
