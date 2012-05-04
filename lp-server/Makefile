@@ -19,11 +19,14 @@ all: $(COIN)/dist exe
 exe: $(OBJECT_FILES)
 	$(LD) $(LDFLAGS) -o lps $(OBJECT_FILES)
 
-$(COIN)/dist:
-	cd "$(COIN)"
-	./configure "--prefix=$(COIN)/dist"
-	make
-	make install
+$(COIN):
+	test -d "$(COIN)" || (svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$(COIN)" || exit 1)
+
+$(COIN)/dist: $(COIN)
+	cd "$(COIN)" ;\
+	./configure "--prefix=$(COIN)/dist" ;\
+	make ;\
+	make install ;\
 	cd ..
 
 depend: $(SOURCE_FILES)

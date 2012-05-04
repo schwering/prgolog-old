@@ -1,5 +1,5 @@
 MERCURY=/home/chs/Programs/mercury-compiler-11.07.1/dist
-COIN=../osi/coin-Osi-laeuft-mit-memory4-mercury-par_gc-durch-configure
+COIN=../osi/coin-Osi/dist
 
 all: memory3 memory4
 
