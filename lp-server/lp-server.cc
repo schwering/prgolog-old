@@ -18,6 +18,8 @@
 //#define LOG               printf
 #define LOG(fmt, ...)
 
+#define NCPUS 2
+
 static void answer_solution(SolverContext& state, int sockfd)
 {
   Header h;
@@ -132,6 +134,14 @@ int main(int argc, char* argv[])
     LOG("accepted connection %d\n", *sockfd);
     pthread_t thread;
     pthread_create(&thread, NULL, &session, sockfd);
+#if 0
+    const size_t cpu_set_size = CPU_ALLOC_SIZE(NCPUS);
+    cpu_set_t* cpu_set = CPU_ALLOC(NCPUS);
+    CPU_ZERO_S(cpu_set_size, cpu_set);
+    CPU_SET_S(0, cpu_set_size, cpu_set);
+    pthread_setaffinity_np(thread, cpu_set_size, cpu_set);
+    CPU_FREE(cpu_set);
+#endif
   }
   close(server_sockfd);
   return 0;

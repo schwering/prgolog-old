@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prs.m.
+% File: cars_server.m.
 % Main author: schwering.
 %
 % Plan recognition server. Accepts TCP connections on port 19123. The protocol
@@ -17,7 +17,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prs.
+:- module cars_server.
 
 :- interface.
 
@@ -203,11 +203,12 @@ accept_connections(ServerSocket, !IO) :-
     handle_connection(Socket, !IO),
     %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Vars, !IO),
-    wait_for_key(!IO),
+    %wait_for_key(!IO),
     finish_visual(!IO),
     %format("Plan recognition finished with confidence %.2f.\n",
     %       [f(confidence)], !IO),
     finalize_connection(Socket, !IO),
+    accept_connections(ServerSocket, !IO),
     true.% ( if Cont = yes then accept_connections(ServerSocket, !IO) else true ).
 
 
@@ -216,5 +217,5 @@ main(!IO) :-
     accept_connections(ServerSocket, !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module prs.
+:- end_module cars_server.
 %-----------------------------------------------------------------------------%

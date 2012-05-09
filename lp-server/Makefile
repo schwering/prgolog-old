@@ -1,5 +1,5 @@
 COIN = $(shell pwd)/coin-Osi
-GOAL = lps
+GOAL = lp_server
 HEADER_FILES = $(shell ls *.h)
 BODY_FILES = $(shell ls *.cc)
 SOURCE_FILES = $(HEADER_FILES) $(BODY_FILES)
@@ -18,7 +18,7 @@ DEPEND_FILE	= .depends
 all: $(COIN)/dist exe
 
 exe: $(OBJECT_FILES)
-	$(LD) $(LDFLAGS) -o lps $(OBJECT_FILES)
+	$(LD) $(LDFLAGS) -o $(GOAL) $(OBJECT_FILES)
 
 $(COIN):
 	test -d "$(COIN)" || (svn co https://projects.coin-or.org/svn/Osi/stable/0.102 "$(COIN)" || exit 1)
@@ -35,6 +35,7 @@ depend: $(SOURCE_FILES)
 
 clean:
 	rm -f *.o
+	rm -f $(GOAL)
 
 -include $(DEPEND_FILE)
 

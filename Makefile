@@ -5,6 +5,7 @@ all:
 	make -C maze
 	make -C cars-main
 	make -C cars-server
+	make -C lp-server
 
 clean:
 	make -C util clean
@@ -13,5 +14,6 @@ clean:
 	make -C maze clean
 	make -C cars-main clean
 	make -C cars-server clean
+	make -C lp-server clean
 	rm -rf lib
 

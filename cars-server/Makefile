@@ -1,4 +1,4 @@
-GOAL = prs
+GOAL = cars_server
 SOURCE_FILES = $(shell ls *.m)
 
 # XXX Why is prgolog needed???
