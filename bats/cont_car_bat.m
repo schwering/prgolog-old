@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: bat.m.
+% File: cont_car_bat.m.
 % Main author: schwering.
 %
 % Basic action theory (BAT) for driving with two simple actions, set_yaw and
@@ -13,7 +13,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module bat.
+:- module cont_car_bat.
 
 :- interface.
 
@@ -30,7 +30,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type agent_info ---> agent_info(mps, rad, m, m).
 :- type prim --->
         set_veloc(agent, mps, mps, maybe(random.supply),
                   maybe(vargen), list(constraint), time)
@@ -57,7 +56,9 @@
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(bat.prim, bat.stoch, bat.proc).
+:- instance bat(cont_car_bat.prim, cont_car_bat.stoch, cont_car_bat.proc).
+:- instance obs_bat(cont_car_bat.prim, cont_car_bat.stoch, cont_car_bat.proc).
+:- instance pr_bat(cont_car_bat.prim, cont_car_bat.stoch, cont_car_bat.proc).
 
 %-----------------------------------------------------------------------------%
 
@@ -101,10 +102,6 @@
 
 :- func reward(sit) = reward.
 :- mode reward(in) = out is det.
-
-%-----------------------------------------------------------------------------%
-
-:- func match_count(prog) = int.
 
 %-----------------------------------------------------------------------------%
 
@@ -459,18 +456,6 @@ reward(_, S) = reward(S).
 
 %-----------------------------------------------------------------------------%
 
-match_count(seq(P1, P2)) = match_count(P1) + match_count(P2).
-match_count(non_det(P1, P2)) = min(match_count(P1), match_count(P2)).
-match_count(conc(P1, P2)) = match_count(P1) + match_count(P2).
-match_count(star(_)) = 0.
-match_count(proc(_)) = 0.
-match_count(nil) = 0.
-match_count(pseudo_atom(complex(P))) = match_count(P).
-match_count(pseudo_atom(atom(A))) =
-    ( if A = prim(match(_, _, _, _)) then 1 else 0 ).
-
-%-----------------------------------------------------------------------------%
-
 proc(straight_left(Agent), P) :-
     P = atomic(
             b(set_yaw_st(Agent, left, deg2rad(0.0))) `;`
@@ -528,16 +513,24 @@ proc(overtake(Agent, Victim), P) :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(bat.prim, bat.stoch, bat.proc) where [
-    pred(poss/3) is bat.poss,
-    pred(random_outcome/3) is bat.random_outcome,
-    func(reward/2) is bat.reward,
-    func(lookahead/1) is bat.lookahead,
-    func(new_lookahead/2) is bat.new_lookahead,
-    pred(proc/2) is bat.proc
-].
+:- pred is_match_action(prim::in) is semidet.
 
-%-----------------------------------------------------------------------------%
+is_match_action(match(_, _, _, _)).
+
+
+:- func last_match(sit(prim)) = prim is semidet.
+
+last_match(do(A, S)) =
+    ( if cont_car_bat.is_match_action(A) then A else last_match(S) ).
+
+
+:- pred covered_by_match(sit(prim)::in) is semidet.
+
+covered_by_match(S) :-
+    match(_, _, _, T0) = last_match(S),
+    C = (start(S) `=` T0),
+    solve(vargen(S), [C] ++ constraints(S)).
+
 
 obs2ccformula({OT, A0, X0, Y0, A1, X1, Y1}) = {OT, OF} :-
     C = ( func(F) = constant(F) ),
@@ -557,5 +550,27 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
     {OT, _} = obs2ccformula(Obs).
 
 %-----------------------------------------------------------------------------%
-:- end_module bat.
+
+:- instance bat(prim, stoch, proc) where [
+    pred(poss/3) is cont_car_bat.poss,
+    pred(random_outcome/3) is cont_car_bat.random_outcome,
+    func(reward/2) is cont_car_bat.reward,
+    func(lookahead/1) is cont_car_bat.lookahead,
+    func(new_lookahead/2) is cont_car_bat.new_lookahead,
+    pred(proc/2) is cont_car_bat.proc
+].
+
+:- instance obs_bat(prim, stoch, proc) where [
+    pred(is_match_action/1) is cont_car_bat.is_match_action,
+    pred(covered_by_match/1) is cont_car_bat.covered_by_match,
+    func(obs_to_match/1) is cont_car_bat.obs2match
+].
+
+:- instance pr_bat(prim, stoch, proc) where [
+    seed_init_sit(I) = do(seed(I), s0),
+    init_env_sit(T, Map, S) = do(init_env(T, Map), S)
+].
+
+%-----------------------------------------------------------------------------%
+:- end_module cont_car_bat.
 %-----------------------------------------------------------------------------%

@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: bat.io_util.m.
+% File: cont_car_bat.io_util.m.
 % Main author: schwering.
 %
 % Some I/O-related utilities such as printing situation terms.
@@ -12,7 +12,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module bat.io_util.
+:- module cont_car_bat.io_util.
 
 :- interface.
 
@@ -311,5 +311,5 @@ draw_traces_incl_subsits(Map, S1 @ do(_, S), !IO) :-
     draw_trace(Map, S1, !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module bat.io_util.
+:- end_module cont_car_bat.io_util.
 %-----------------------------------------------------------------------------%

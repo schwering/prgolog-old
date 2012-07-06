@@ -38,6 +38,11 @@
 :- import_module string.
 :- import_module visual.
 
+:- import_module cont_car_bat.
+:- import_module prgolog.
+:- import_module prgolog.nice.
+:- import_module types.
+
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_code("C", "
@@ -195,11 +200,15 @@
 :- pred accept_connections(int::in, io::di, io::uo) is cc_multi.
 
 accept_connections(ServerSocket, !IO) :-
-    NSamples = 27,
+    % XXX number samples!
+    % reasonable value for dual core (one free core @ 2.2 GHz): 9
+    % reasonable value for core i7 (four free cores @ 3.2 GHz): 27
+    NSamples = 9,
+    Prog = p(cruise(a)) // p(overtake(b, a)) `with_type` prog(prim, stoch, proc),
     accept_connection(ServerSocket, Socket, !IO),
     reset_globals(!IO),
     init_visual(6, Areas, !IO),
-    online_planrecog(NSamples, Vars, visualize(Areas), !IO),
+    online_planrecog(NSamples, Vars, empty_handler, Prog, !IO),
     handle_connection(Socket, !IO),
     %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Vars, !IO),

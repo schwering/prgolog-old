@@ -88,26 +88,26 @@ len_t SolverContext::varcnt() const
 bool SolverContext::solve(num_t* obj_val, num_t* var_vals)
 {
   try {
-      solver.initialSolve();
-      bool optimal = solver.isProvenOptimal();
-      //solver.writeMps("problem");
-      if (optimal) {
-        if (obj_val) {
-          *obj_val = solver.getObjValue();
-        }
-        if (var_vals) {
-          memcpy(var_vals, solver.getColSolution(), nvars * sizeof(num_t));
-        }
-      } else {
-        if (obj_val) {
-          *obj_val = 0.0;
-        }
+    solver.initialSolve();
+    bool optimal = solver.isProvenOptimal();
+    //solver.writeMps("problem");
+    if (optimal) {
+      if (obj_val) {
+        *obj_val = solver.getObjValue();
       }
-      return optimal;
+      if (var_vals) {
+        memcpy(var_vals, solver.getColSolution(), nvars * sizeof(num_t));
+      }
+    } else {
+      if (obj_val) {
+        *obj_val = 0.0;
+      }
+    }
+    return optimal;
   } catch (const CoinError& e) {
-      fprintf(stderr, "CoinError: %s\n", e.message().c_str());
-      *obj_val = 0.0;
-      return false;
+    fprintf(stderr, "CoinError: %s\n", e.message().c_str());
+    *obj_val = 0.0;
+    return false;
   }
 }
 

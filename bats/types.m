@@ -16,6 +16,9 @@
 
 :- interface.
 
+:- import_module assoc_list.
+:- import_module prgolog.
+
 :- type agent ---> a ; b.
 :- type lane ---> left ; right.
 
@@ -27,11 +30,36 @@
 :- type m == float.
 :- type s == float.
 
+:- type agent_info ---> agent_info(mps, rad, m, m).
+
 :- type obs == {s, agent, m, m, agent, m, m}.
-:- func deg2rad(degree::in) = (rad::out) is det.
 
 %-----------------------------------------------------------------------------%
 
+:- typeclass obs_bat(A, B, P) <= bat(A, B, P) where [
+    pred is_match_action(A),
+    mode is_match_action(in) is semidet,
+
+    pred covered_by_match(sit(A)),
+    mode covered_by_match(in) is semidet,
+
+    func obs_to_match(obs) = A,
+    mode obs_to_match(in) = out is det
+].
+
+%-----------------------------------------------------------------------------%
+
+:- typeclass pr_bat(A, B, P) <= obs_bat(A, B, P) where [
+    func seed_init_sit(int) = sit(A),
+    mode seed_init_sit(in) = out is det,
+
+    func init_env_sit(s, assoc_list(agent, agent_info), sit(A)) = sit(A),
+    mode init_env_sit(in, in, in) = out is det
+].
+
+%-----------------------------------------------------------------------------%
+
+:- func deg2rad(degree::in) = (rad::out) is det.
 :- func rad2deg(rad::in) = (degree::out) is det.
 :- func kmh2ms(kmph::in) = (mps::out) is det.
 :- func ms2kmh(kmph::in) = (mps::out) is det.

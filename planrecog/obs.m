@@ -18,7 +18,7 @@
 :- interface.
 
 :- import_module assoc_list.
-:- import_module bat.
+:- import_module prgolog.
 :- import_module io.
 :- import_module types.
 
@@ -31,26 +31,30 @@
 :- type init_obs(T) == (pred(int, T)).
 :- inst init_obs == (pred(in, uo) is det).
 
-:- type next_obs(T) == (pred(obs_msg, sit, prog, T, T)).
+:- type next_obs(A, B, P, T) == (pred(obs_msg, sit(A), prog(A, B, P), T, T)).
 :- inst next_obs == (pred(out, in, in, di, uo) is det).
 
 %-----------------------------------------------------------------------------%
 
-:- func append_match(prog, prim) = prog is det.
+:- func append_match(prog(A, B, P), A) = prog(A, B, P) is det <= obs_bat(A, B, P).
 
-:- func remove_match_sequence(prog) = prog is semidet.
+:- func remove_match_sequence(prog(A, B, P)) = prog(A, B, P) is semidet <= obs_bat(A, B, P).
 
-:- func last_match(sit) = prim is semidet.
+:- func last_match(sit(A)) = A is semidet <= obs_bat(A, B, P).
 
-:- pred last_action_covered_by_match(sit::in) is semidet.
+:- pred last_action_covered_by_match(sit(A)::in) is semidet <= obs_bat(A, B, P).
 
-:- func append_obs(prog, obs) = prog is det.
+:- func append_obs(prog(A, B, P), obs) = prog(A, B, P) is det <= obs_bat(A, B, P).
+
+:- func match_count_in_prog(prog(A, B, P)) = int <= obs_bat(A, B, P).
+
+:- func match_count_in_sit(sit(A)) = int <= obs_bat(A, B, P).
 
 %-----------------------------------------------------------------------------%
 
 :- pred input_init_obs(int::in, int::uo) is det.
 
-:- pred input_next_obs(obs_msg::out, sit::in, prog::in,
+:- pred input_next_obs(obs_msg::out, sit(A)::in, prog(A, B, P)::in,
                        int::di, int::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -59,8 +63,8 @@
 
 :- pred global_init_obs(int::in, {int, int}::uo) is det.
 
-:- pred global_next_obs(obs_msg::out, sit::in, prog::in,
-                        {int, int}::di, {int, int}::uo) is det.
+:- pred global_next_obs(obs_msg::out, sit(A)::in, prog(A, B, P)::in,
+                        {int, int}::di, {int, int}::uo) is det <= obs_bat(A, B, P).
 
 :- pred mark_observation_end(io::di, io::uo) is det.
 
@@ -94,8 +98,8 @@ append_match(P, O) =
     ).
 
 
-:- func append_match_to_most_right(prog, prim) =
-                                   prog is semidet.
+:- func append_match_to_most_right(prog(A, B, P), A) =
+                                   prog(A, B, P) is semidet <= obs_bat(A, B, P).
 
 append_match_to_most_right(seq(P1, P2), M) =
     (   if      Q2 = append_match_to_most_right(P2, M)
@@ -112,7 +116,8 @@ append_match_to_most_right(conc(P1, P2), M) =
 append_match_to_most_right(star(P), M) =
     append_match_to_most_right(P, M).
 append_match_to_most_right(M0, M) = seq(M0, pseudo_atom(atom(prim(M)))) :-
-    M0 = pseudo_atom(atom(prim(match(_, _, _, _)))).
+    M0 = pseudo_atom(atom(prim(A))),
+    is_match_action(A).
 
 
 remove_match_sequence(conc(P1, P2)) = Q :-
@@ -123,7 +128,7 @@ remove_match_sequence(conc(P1, P2)) = Q :-
     else        false.
 
 
-:- pred only_match_actions(prog::in) is semidet.
+:- pred only_match_actions(prog(A, B, P)::in) is semidet <= obs_bat(A, B, P).
 
 only_match_actions(seq(P1, P2)) :-
     only_match_actions(P1),
@@ -136,21 +141,41 @@ only_match_actions(conc(P1, P2)) :-
     only_match_actions(P2).
 only_match_actions(star(P)) :-
     only_match_actions(P).
-only_match_actions(pseudo_atom(atom(prim(match(_, _, _, _))))).
+only_match_actions(pseudo_atom(atom(prim(A)))) :- is_match_action(A).
 only_match_actions(nil).
 
 
 last_match(do(A, S)) =
-    ( if A = match(_, _, _, _) then A else last_match(S) ).
+    ( if is_match_action(A) then A else last_match(S) ).
 
 
 last_action_covered_by_match(S) :-
-    match(_, _, _, T0) = last_match(S),
-    C = (start(S) `=` T0),
-    solve(vargen(S), [C] ++ constraints(S)).
+    covered_by_match(S).
+%    match(_, _, _, T0) = last_match(S),
+%    C = (start(S) `=` T0),
+%    solve(vargen(S), [C] ++ constraints(S)).
 
 
-append_obs(P, O) = append_match(P, obs2match(O)).
+append_obs(P, O) = append_match(P, obs_to_match(O)).
+
+
+match_count_in_prog(seq(P1, P2)) = match_count_in_prog(P1) + match_count_in_prog(P2).
+match_count_in_prog(non_det(P1, P2)) = min(match_count_in_prog(P1), match_count_in_prog(P2)).
+match_count_in_prog(conc(P1, P2)) = match_count_in_prog(P1) + match_count_in_prog(P2).
+match_count_in_prog(star(_)) = 0.
+match_count_in_prog(proc(_)) = 0.
+match_count_in_prog(nil) = 0.
+match_count_in_prog(pseudo_atom(complex(P))) = match_count_in_prog(P).
+match_count_in_prog(pseudo_atom(atom(C))) =
+    ( if C = prim(A), is_match_action(A) then 1 else 0 ).
+
+
+match_count_in_sit(s0) = 0.
+match_count_in_sit(do(A, S)) =
+    ( if is_match_action(A) then 1 else 0 ) + match_count_in_sit(S).
+
+%-----------------------------------------------------------------------------%
+
 
 %-----------------------------------------------------------------------------%
 
@@ -360,8 +385,8 @@ global_init_obs(I, {I1, 0}) :- copy(I, I1).
 
 
 global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
-    Done = floor_to_int(reward(S)),
-    ToBeDone = max(0, match_count(P) - bat.lookahead(S)),
+    Done = match_count_in_sit(S),
+    ToBeDone = max(0, match_count_in_prog(P) - lookahead(S)),
     global_next_obs_pure(I0, I1, ID, Done, ToBeDone,
                          Ok, Time, AgentS0, Veloc0, Rad0, X0, Y0,
                                    AgentS1, Veloc1, Rad1, X1, Y1),

@@ -1,11 +1,14 @@
 GOAL = cars
 SOURCE_FILES = $(shell ls *.m)
 
-EXE_MCFLAGS += --ml planrecog --ml prgolog --ml osi --ml util
+EXE_MCFLAGS += --ml planrecog --ml bats --ml prgolog --ml osi --ml util
 
 all: exe replay
 
-exe: *.m planrecog prgolog osi util
+exe: *.m bats planrecog prgolog osi util
+
+bats:
+	make -C ../bats
 
 planrecog:
 	make -C ../planrecog

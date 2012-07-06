@@ -15,6 +15,7 @@
 :- interface.
 
 :- import_module io.
+:- import_module cont_car_bat.
 :- import_module planrecog.
 
 %-----------------------------------------------------------------------------%
@@ -30,7 +31,7 @@
 
 :- pred finish_visual(io::di, io::uo) is det.
 
-:- pred visualize(areas::in, int::in, s_state::in, io::di, io::uo) is det.
+:- pred visualize(areas::in, int::in, s_state(prim, stoch, prog)::in, io::di, io::uo) is det.
 
 :- pred wait_for_key(io::di, io::uo) is det.
 
@@ -40,8 +41,7 @@
 :- implementation.
 
 :- import_module assoc_list.
-:- import_module bat.
-:- import_module bat.io_util.
+:- import_module cont_car_bat.io_util.
 :- import_module char.
 :- import_module curs.
 :- import_module curs.panel.

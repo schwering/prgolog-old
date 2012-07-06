@@ -28,8 +28,8 @@
 
 :- implementation.
 
-:- import_module bat.
-:- import_module bat.io_util.
+:- import_module cont_car_bat.
+:- import_module cont_car_bat.io_util.
 :- import_module int.
 :- import_module float.
 :- import_module list.
