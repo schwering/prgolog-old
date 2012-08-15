@@ -5,10 +5,7 @@ LIB_MCFLAGS += --ml prgolog
 
 all: lib
 
-lib: *.m prgolog
-
-prgolog:
-	make -C ../prgolog
+lib: mercury-depends *.m
 
 include ../Make.common
 

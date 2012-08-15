@@ -1,20 +1,11 @@
 GOAL = planrecog
 SOURCE_FILES = $(shell ls *.m *.h)
 
-LIB_MCFLAGS += --extra-library-header obs_types.h --ml prgolog --ml osi
+LIB_MCFLAGS += --extra-library-header obs_types.h --ml prgolog --ml bats
 
 all: lib
 
-lib: *.m bats osi prgolog
-
-bats:
-	make -C ../bats
-
-osi:
-	make -C ../osi
-
-prgolog:
-	make -C ../prgolog
+lib: mercury-depends *.m
 
 include ../Make.common
 

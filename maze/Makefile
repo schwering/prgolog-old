@@ -5,10 +5,7 @@ EXE_MCFLAGS += --ml prgolog
 
 all: exe
 
-exe: *.m prgolog
-
-prgolog:
-	make -C ../prgolog
+exe: mercury-depends *.m
 
 include ../Make.common
 

@@ -11,7 +11,7 @@ MMC = mmc
 
 # We install to the directory of Make.common.
 # Since the Makefiles are in sub-directories, we need to append `..'.
-INSTALL_PREFIX = $(call where-am-i)
+INSTALL_PREFIX = $(call where-am-i)/..
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
 LIB_FILE = $(LIB_DIR)/lib/$(GRADE)/lib$(GOAL).so
@@ -20,10 +20,17 @@ LIB_MCFLAGS += --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --linkage $(LI
 EXE_FILE = $(GOAL)
 EXE_MCFLAGS += --grade $(GRADE) --linkage $(LINKAGE) --mld $(LIB_DIR)
 
+DIRS = util osi prgolog maze bats planrecog cars-main cars-server lp-server
+
+
 
 lib: $(LIB_FILE)
 
 $(LIB_FILE): $(SOURCE_FILES)
+	@echo $(INSTALL_PREFIX)
+	@echo $(INSTALL_PREFIX)
+	@echo $(INSTALL_PREFIX)
+	@echo $(INSTALL_PREFIX)
 	$(MMC) --make $(LIB_MCFLAGS) lib$(GOAL).install
 
 
@@ -43,4 +50,6 @@ clean:
 	rm -f *.init
 	rm -f $(EXE_FILE)
 	rm -f $(LIB_FILE)
+
+include .mercury-depend
 

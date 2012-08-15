@@ -1,23 +1,13 @@
+DIRS = bats cars-main cars-server lp-server maze osi planrecog prgolog util visual
+MAINS = $(shell find $(DIRS) -maxdepth 1 -name \*.m -or -name \*.c -or -name \*.cc | xargs grep -l '\(^:- pred main\|int main\)' | sed -e 's/\/.\+$$//g' | uniq)
+
 all:
-	make -C util
-	make -C osi
-	make -C prgolog
-	make -C maze
-	make -C bats
-	make -C planrecog
-	make -C cars-main
-	make -C cars-server
-	make -C lp-server
+	$(foreach MAIN,$(MAINS), make -C $(MAIN); )
 
 clean:
-	make -C util clean
-	make -C osi clean
-	make -C prgolog clean
-	make -C maze clean
-	make -C bats clean
-	make -C planrecog clean
-	make -C cars-main clean
-	make -C cars-server clean
-	make -C lp-server clean
+	$(foreach MAIN,$(MAINS), make -C $(MAIN) clean; )
 	rm -rf lib
+
+depend:
+	./make-depends.sh $(DIRS)
 

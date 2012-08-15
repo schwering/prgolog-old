@@ -7,7 +7,7 @@ LIB_MCFLAGS = --extra-library-header coin-clp.h --ld-libflags -Wl,--no-as-needed
 
 all: lib
 
-lib: coin_or *.m coin-clp.o
+lib: mercury-depends coin_or *.m coin-clp.o
 
 coin_or:
 	./install_coin_osi.sh "$(COIN)" "$(MERCURY_SRC)" "$(MERCURY_INST)"

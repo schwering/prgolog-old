@@ -3,7 +3,7 @@ SOURCE_FILES = $(shell ls *.m)
 
 all: lib
 
-lib: *.m
+lib: mercury-depends *.m
 
 include ../Make.common
 

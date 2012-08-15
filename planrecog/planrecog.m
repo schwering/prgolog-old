@@ -16,7 +16,6 @@
 
 :- interface.
 
-:- import_module assoc_list.
 :- import_module io.
 :- import_module list.
 :- import_module obs.
