@@ -1,7 +1,7 @@
-GOAL = bats
-SOURCE_FILES = $(shell ls *.m)
+GOAL = prbat
+SOURCE_FILES = $(shell ls *.m *.h)
 
-LIB_MCFLAGS += --ml prgolog
+LIB_MCFLAGS += --extra-library-header obs_types.h --ml prgolog
 
 all: lib
 

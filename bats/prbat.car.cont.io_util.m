@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: cont_car_bat.io_util.m.
+% File: prbat.car.cont.io_util.m.
 % Main author: schwering.
 %
 % Some I/O-related utilities such as printing situation terms.
@@ -12,7 +12,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module cont_car_bat.io_util.
+:- module prbat.car.cont.io_util.
 
 :- interface.
 
@@ -72,7 +72,7 @@
                    io::di, io::uo) is det.
 
 :- pred draw_traces_incl_subsits(assoc_list(var, number)::in, sit::in,
-                   io::di, io::uo) is det.
+                                 io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -83,7 +83,6 @@
 :- import_module float.
 :- import_module require.
 :- import_module string.
-:- import_module types.
 
 %-----------------------------------------------------------------------------%
 
@@ -113,7 +112,7 @@ print_action(Stream, Map, eval(_, _, _, Time), !IO) :-
     T = eval_float(Map, Time),
     format(Stream, "eval(..., %f)",
            [f(T)], !IO).
-print_action(Stream, _, A @ init_env(_, _), !IO) :-
+print_action(Stream, _, A @ init_env(_), !IO) :-
     write(Stream, A, !IO).
 print_action(Stream, _, seed(Seed), !IO) :-
     format(Stream, "seed(%d)",
@@ -276,15 +275,15 @@ draw_trace(Map, S, !IO) :-
 
 draw_trace_2(Stream, Map, S, !IO) :-
     Agent = b,
-    (   if   S = do(A, S0), A \= init_env(_, _)
+    (   if   S = do(A, S0), A \= init_env(_)
         then draw_trace_2(Stream, Map, S0, !IO)
         else format(Stream, "time     xobs     yobs     xmod     ymod      xlo      ylo      xhi      yhi\n", [], !IO)
     ),
     (   (   if      S = do(match(Obs, _, _, _), _)
-            then    (   if      Obs = {_, Agent, X0, Y0, _, _, _}
+            then    (   if      Obs = obs(_, Agent, X0, Y0, _, _, _)
                         then    ObsX = format("%7.3f", [f(X0)]),
                                 ObsY = format("%7.3f", [f(Y0)])
-                        else if Obs = {_, _, _, _, Agent, X0, Y0}
+                        else if Obs = obs(_, _, _, _, Agent, X0, Y0)
                         then    ObsX = format("%7.3f", [f(X0)]),
                                 ObsY = format("%7.3f", [f(Y0)])
                         else    error("invalid observation does not contain driver")
@@ -311,5 +310,5 @@ draw_traces_incl_subsits(Map, S1 @ do(_, S), !IO) :-
     draw_trace(Map, S1, !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module cont_car_bat.io_util.
+:- end_module prbat.car.cont.io_util.
 %-----------------------------------------------------------------------------%

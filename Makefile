@@ -5,7 +5,7 @@ all:
 	$(foreach MAIN,$(MAINS), make -C $(MAIN); )
 
 clean:
-	$(foreach MAIN,$(MAINS), make -C $(MAIN) clean; )
+	$(foreach DIR,$(DIRS), make -C $(DIR) clean; )
 	rm -rf lib
 
 depend:

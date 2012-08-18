@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: cont_car_bat.m.
+% File: prbat.car.cont.m.
 % Main author: schwering.
 %
 % Basic action theory (BAT) for driving with two simple actions, set_yaw and
@@ -13,18 +13,17 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module cont_car_bat.
+:- module prbat.car.cont.
 
 :- interface.
 
-:- import_module assoc_list.
 :- import_module list.
 :- import_module maybe.
+:- import_module pair.
 :- import_module prgolog.
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- use_module random.
-:- import_module types.
 
 :- include_module io_util.
 
@@ -39,7 +38,7 @@
     %;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
     ;   match(obs, maybe(vargen), list(constraint), time)
     ;   eval(ccformula(prim), maybe(vargen), list(constraint), time)
-    ;   init_env(s, assoc_list(agent, agent_info))
+    ;   init_env(env)
     ;   seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
                 ;   set_yaw_st(agent, lane, rad).
@@ -56,9 +55,9 @@
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(cont_car_bat.prim, cont_car_bat.stoch, cont_car_bat.proc).
-:- instance obs_bat(cont_car_bat.prim, cont_car_bat.stoch, cont_car_bat.proc).
-:- instance pr_bat(cont_car_bat.prim, cont_car_bat.stoch, cont_car_bat.proc).
+:- instance bat(prim, stoch, proc).
+:- instance obs_bat(prim, stoch, proc, obs).
+:- instance pr_bat(prim, stoch, proc, obs, env).
 
 %-----------------------------------------------------------------------------%
 
@@ -106,12 +105,6 @@
 %-----------------------------------------------------------------------------%
 
 :- pred proc(proc::in, prog::out) is det.
-
-%-----------------------------------------------------------------------------%
-
-:- func obs2ccformula(obs::in) = ({s, ccformula(prim)}::out) is det.
-
-:- func obs2match(obs::in) = (prim::out) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -203,7 +196,7 @@ start(do(A, S)) = T :-
     ;   A = wait_for(_, _, _, T)
     ;   A = match(_, _, _, T)
     ;   A = eval(_, _, _, T)
-    ;   A = init_env(T0, _), T = constant(T0)
+    ;   A = init_env(env(T0, _)), T = constant(T0)
     ;   A = seed(_), T = start(S)
     ).
 
@@ -244,7 +237,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
     ;   A = wait_for(_, _, Cs, _)
     ;   A = match(_, _, Cs, _)
     ;   A = eval(_, _, Cs, _)
-    ;   A = init_env(_, _), Cs = []
+    ;   A = init_env(_), Cs = []
     ;   A = seed(_), Cs = []
     ).
 
@@ -252,7 +245,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 
 veloc(_, s0) = 0.0.
 veloc(Agent, do(A, S)) = Veloc :-
-    if      A = init_env(_, Map)
+    if      A = init_env(env(_, Map))
     then    agent_info(Veloc, _, _, _) = Map^det_elem(Agent)
     else if A = set_veloc(Agent, V0, _, _, _, _, _)
     then    Veloc = V0
@@ -262,7 +255,7 @@ veloc(Agent, do(A, S)) = Veloc :-
 
 yaw(_, s0) = 0.0.
 yaw(Agent, do(A, S)) = Rad :-
-    if      A = init_env(_, Map)
+    if      A = init_env(env(_, Map))
     then    agent_info(_, Rad, _, _) = Map^det_elem(Agent)
     else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
@@ -273,14 +266,15 @@ yaw(Agent, do(A, S)) = Rad :-
 x(_, s0) = ( func(_) = constant(0.0) ).
 %x(Agent, s0) = ( func(_) = constant(X) ) :- initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
-    if      A = init_env(_, Map)
+    if      A = init_env(env(_, Map))
     then    agent_info(_, _, X0, _) = Map^det_elem(Agent),
             X = ( func(_) = constant(X0) )
-    else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
-            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(Agent, S)
+    else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
+                Rad = yaw(Agent, S)
+            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0),
+                Veloc = veloc(Agent, S)
             )
-    then    X = ( func(T) = cos(Rad) * Veloc * (T - T0) +
-                            x(Agent, S)(T0) )
+    then    X = ( func(T) = cos(Rad) * Veloc * (T - T0) + x(Agent, S)(T0) )
     else    X = x(Agent, S).
 
 %-----------------------------------------------------------------------------%
@@ -288,14 +282,15 @@ x(Agent, do(A, S)) = X :-
 y(_, s0) = ( func(_) = constant(0.0) ).
 %y(Agent, s0) = ( func(_) = constant(Y) ) :- initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
-    if      A = init_env(_, Map)
+    if      A = init_env(env(_, Map))
     then    agent_info(_, _, _, Y0) = Map^det_elem(Agent),
             Y = ( func(_) = constant(Y0) )
-    else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0), Rad = yaw(Agent, S)
-            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0), Veloc = veloc(Agent, S)
+    else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
+                Rad = yaw(Agent, S)
+            ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0),
+                Veloc = veloc(Agent, S)
             )
-    then    Y = ( func(T) = sin(Rad) * Veloc * (T - T0) +
-                            y(Agent, S)(T0) )
+    then    Y = ( func(T) = sin(Rad) * Veloc * (T - T0) + y(Agent, S)(T0) )
     else    Y = y(Agent, S).
 
 %-----------------------------------------------------------------------------%
@@ -333,7 +328,8 @@ behind(Agent0, Agent1) = ( func(T, S) = [
 
 %-----------------------------------------------------------------------------%
 
-:- func filter_empty_cstrs(list(constraint)::in) = (list(constraint)::out) is det.
+:- func filter_empty_cstrs(list(constraint)::in) = (list(constraint)::out)
+    is det.
 
 filter_empty_cstrs(Cs) = negated_filter(holds_trivially, Cs).
 
@@ -521,7 +517,7 @@ is_match_action(match(_, _, _, _)).
 :- func last_match(sit(prim)) = prim is semidet.
 
 last_match(do(A, S)) =
-    ( if cont_car_bat.is_match_action(A) then A else last_match(S) ).
+    ( if is_match_action(A) then A else last_match(S) ).
 
 
 :- pred covered_by_match(sit(prim)::in) is semidet.
@@ -532,7 +528,9 @@ covered_by_match(S) :-
     solve(vargen(S), [C] ++ constraints(S)).
 
 
-obs2ccformula({OT, A0, X0, Y0, A1, X1, Y1}) = {OT, OF} :-
+:- func obs2ccformula(obs::in) = ({s, ccformula(prim)}::out) is det.
+
+obs2ccformula(obs(OT, A0, X0, Y0, A1, X1, Y1)) = {OT, OF} :-
     C = ( func(F) = constant(F) ),
     OF = ( func(T, S) = [
         C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T),
@@ -546,31 +544,33 @@ obs2ccformula({OT, A0, X0, Y0, A1, X1, Y1}) = {OT, OF} :-
     ] ).
 
 
+:- func obs2match(obs::in) = (prim::out) is det.
+
 obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
     {OT, _} = obs2ccformula(Obs).
 
 %-----------------------------------------------------------------------------%
 
 :- instance bat(prim, stoch, proc) where [
-    pred(poss/3) is cont_car_bat.poss,
-    pred(random_outcome/3) is cont_car_bat.random_outcome,
-    func(reward/2) is cont_car_bat.reward,
-    func(lookahead/1) is cont_car_bat.lookahead,
-    func(new_lookahead/2) is cont_car_bat.new_lookahead,
-    pred(proc/2) is cont_car_bat.proc
+    pred(poss/3) is cont.poss,
+    pred(random_outcome/3) is cont.random_outcome,
+    func(reward/2) is cont.reward,
+    func(lookahead/1) is cont.lookahead,
+    func(new_lookahead/2) is cont.new_lookahead,
+    pred(proc/2) is cont.proc
 ].
 
-:- instance obs_bat(prim, stoch, proc) where [
-    pred(is_match_action/1) is cont_car_bat.is_match_action,
-    pred(covered_by_match/1) is cont_car_bat.covered_by_match,
-    func(obs_to_match/1) is cont_car_bat.obs2match
+:- instance obs_bat(prim, stoch, proc, obs) where [
+    pred(is_obs/1) is cont.is_match_action,
+    pred(covered_by_obs/1) is cont.covered_by_match,
+    func(obs_to_action/1) is cont.obs2match
 ].
 
-:- instance pr_bat(prim, stoch, proc) where [
+:- instance pr_bat(prim, stoch, proc, obs, env) where [
     seed_init_sit(I) = do(seed(I), s0),
-    init_env_sit(T, Map, S) = do(init_env(T, Map), S)
+    init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
 ].
 
 %-----------------------------------------------------------------------------%
-:- end_module cont_car_bat.
+:- end_module prbat.car.cont.
 %-----------------------------------------------------------------------------%

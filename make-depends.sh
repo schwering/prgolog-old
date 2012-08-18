@@ -13,7 +13,9 @@ do
                 if [ "$DEP" != "" -a "$DEP" != "$DIR" -a "$(grep "$DEP" $DIR/$DEPEND_FILE)" == "" ]
                 then
                         echo "$DIR -> $DEP"
-                        echo "	make -C ../$DEP" >>$DIR/$DEPEND_FILE
+                        echo "	@echo \"$DIR -> $DEP\" >>../bla" >>$DIR/$DEPEND_FILE
+                        echo "	@make -C ../$DEP" >>$DIR/$DEPEND_FILE
+                        echo "	@echo \"$DIR -> $DEP done\" >>../bla" >>$DIR/$DEPEND_FILE
                         if [ -f "$DEP/$DEPEND_FILE" -a "$(grep $DIR "$DEP/$DEPEND_FILE" )" != "" ]
                         then
                                 echo "WARNING: direct circular dependency $DEP <-> $DIR" >&2

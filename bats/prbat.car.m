@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: types.m.
+% File: prbat.car.m.
 % Main author: schwering.
 %
 % Basic types used throughout the cars world.
@@ -12,7 +12,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module types.
+:- module prbat.car.
 
 :- interface.
 
@@ -31,31 +31,8 @@
 :- type s == float.
 
 :- type agent_info ---> agent_info(mps, rad, m, m).
-
-:- type obs == {s, agent, m, m, agent, m, m}.
-
-%-----------------------------------------------------------------------------%
-
-:- typeclass obs_bat(A, B, P) <= bat(A, B, P) where [
-    pred is_match_action(A),
-    mode is_match_action(in) is semidet,
-
-    pred covered_by_match(sit(A)),
-    mode covered_by_match(in) is semidet,
-
-    func obs_to_match(obs) = A,
-    mode obs_to_match(in) = out is det
-].
-
-%-----------------------------------------------------------------------------%
-
-:- typeclass pr_bat(A, B, P) <= obs_bat(A, B, P) where [
-    func seed_init_sit(int) = sit(A),
-    mode seed_init_sit(in) = out is det,
-
-    func init_env_sit(s, assoc_list(agent, agent_info), sit(A)) = sit(A),
-    mode init_env_sit(in, in, in) = out is det
-].
+:- type obs ---> obs(s, agent, m, m, agent, m, m).
+:- type env ---> env(s, assoc_list(agent, agent_info)).
 
 %-----------------------------------------------------------------------------%
 
@@ -74,6 +51,11 @@
 :- func string_to_agent(string) = agent is det.
 
 :- func lane_to_string(lane) = string is det.
+
+%-----------------------------------------------------------------------------%
+
+:- include_module cont.
+:- include_module obs.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -114,5 +96,5 @@ lane_to_string(left) = "left".
 lane_to_string(right) = "right".
 
 %-----------------------------------------------------------------------------%
-:- end_module types.
+:- end_module prbat.car.
 %-----------------------------------------------------------------------------%
