@@ -3,12 +3,7 @@ SOURCE_FILES = $(shell ls *.m)
 
 LIB_MCFLAGS = --ml osi
 
-all: lib
-
-lib: *.m osi
-
-osi:
-	make -C ../osi
+all: mercury-depends lib
 
 include ../Make.common
 

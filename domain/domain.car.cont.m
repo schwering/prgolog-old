@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prbat.car.cont.m.
+% File: domain.car.cont.m.
 % Main author: schwering.
 %
 % Basic action theory (BAT) for driving with two simple actions, set_yaw and
@@ -13,7 +13,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prbat.car.cont.
+:- module domain.car.cont.
 
 :- interface.
 
@@ -572,5 +572,5 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
 ].
 
 %-----------------------------------------------------------------------------%
-:- end_module prbat.car.cont.
+:- end_module domain.car.cont.
 %-----------------------------------------------------------------------------%

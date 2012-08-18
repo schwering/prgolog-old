@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prbat.obs_util.m.
+% File: domain.obs_util.m.
 % Main author: schwering.
 %
 % Generic types and operations for observations.
@@ -12,7 +12,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prbat.obs_util.
+:- module domain.obs_util.
 
 :- interface.
 
@@ -137,5 +137,5 @@ obs_count_in_sit(do(A, S)) =
     ( if is_obs(A) then 1 else 0 ) + obs_count_in_sit(S).
 
 %-----------------------------------------------------------------------------%
-:- end_module prbat.obs_util.
+:- end_module domain.obs_util.
 %-----------------------------------------------------------------------------%

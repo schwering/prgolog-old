@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prbat.car.obs.m.
+% File: domain.car.obs.m.
 % Main author: schwering.
 %
 % Types and operations for observations, particularly the generator that reads
@@ -13,28 +13,72 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prbat.car.obs.
+:- module domain.car.obs.
 
 :- interface.
 
+:- import_module domain.
+:- import_module domain.car.
 :- import_module prgolog.
 :- import_module io.
 
 %-----------------------------------------------------------------------------%
 
-:- type source.
-:- type stream_state.
+:- type obs_msg ---> init_msg(env)
+                ;    obs_msg(obs)
+                ;    end_of_obs.
 
-:- instance obs_source(obs, env, source, stream_state).
+:- type init_obs(T) == (pred(int, T)).
+:- inst init_obs == (pred(in, uo) is det).
 
-:- func source = source.
+:- type next_obs(A, B, P, T) == (pred(obs_msg, sit(A), prog(A, B, P), T, T)).
+:- inst next_obs == (pred(out, in, in, di, uo) is det).
+
+%-----------------------------------------------------------------------------%
+
+:- func remove_observation_sequence(prog(A, B, P)) = prog(A, B, P) is semidet
+    <= obs_bat(A, B, P, O).
+
+:- func last_observation(sit(A)) = A is semidet
+    <= obs_bat(A, B, P, O).
+
+:- pred last_action_covered_by_observation(sit(A)::in) is semidet
+    <= obs_bat(A, B, P, O).
+
+:- func append_observation(prog(A, B, P), O) = prog(A, B, P) is det
+    <= obs_bat(A, B, P, O).
+
+:- func observation_count_in_prog(prog(A, B, P)) = int
+    <= obs_bat(A, B, P, O).
+
+:- func observation_count_in_sit(sit(A)) = int
+    <= obs_bat(A, B, P, O).
 
 %-----------------------------------------------------------------------------%
 
 :- pred input_init_obs(int::in, int::uo) is det.
 
-:- pred input_next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A, B, P)::in,
+:- pred input_next_obs(obs_msg::out, sit(A)::in, prog(A, B, P)::in,
                        int::di, int::uo) is det.
+
+%-----------------------------------------------------------------------------%
+
+:- pred reset_globals(io::di, io::uo) is det.
+
+:- pred global_init_obs(int::in, {int, int}::uo) is det.
+
+:- pred global_next_obs(obs_msg::out, sit(A)::in, prog(A, B, P)::in,
+                        {int, int}::di, {int, int}::uo) is det
+    <= obs_bat(A, B, P, O).
+
+:- pred mark_observation_end(io::di, io::uo) is det.
+
+:- type activity --->   unused
+                    ;   working
+                    ;   finished
+                    ;   failed.
+
+:- pred update_state(int::in, activity::in, io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -46,15 +90,97 @@
 :- import_module int.
 :- import_module list.
 :- import_module pair.
-:- import_module prbat.obs_util.
 :- import_module prgolog.
 :- import_module prgolog.ccfluent.
 :- import_module solutions.
 
 %-----------------------------------------------------------------------------%
 
-:- type source ---> void.
-:- type stream_state ---> ss(stream, int).
+:- func append_observation_to_most_right(prog(A, B, P), A) = prog(A, B, P) is semidet
+    <= obs_bat(A, B, P, O).
+
+append_observation_to_most_right(seq(P1, P2), M) =
+    (   if      Q2 = append_observation_to_most_right(P2, M)
+        then    seq(P1, Q2)
+        else    append_observation_to_most_right(P1, M) ).
+append_observation_to_most_right(non_det(P1, P2), M) =
+    (   if      Q2 = append_observation_to_most_right(P2, M)
+        then    non_det(P1, Q2)
+        else    append_observation_to_most_right(P1, M) ).
+append_observation_to_most_right(conc(P1, P2), M) =
+    (   if      Q2 = append_observation_to_most_right(P2, M)
+        then    conc(P1, Q2)
+        else    append_observation_to_most_right(P1, M) ).
+append_observation_to_most_right(star(P), M) =
+    append_observation_to_most_right(P, M).
+append_observation_to_most_right(M0, M) = seq(M0, pseudo_atom(atom(prim(M)))) :-
+    M0 = pseudo_atom(atom(prim(A))),
+    is_observation(A).
+
+
+remove_observation_sequence(conc(P1, P2)) = Q :-
+    if          only_observation_actions(P2)
+    then        Q = P1
+    else if     only_observation_actions(P1)
+    then        Q = P2
+    else        false.
+
+
+:- pred only_observation_actions(prog(A, B, P)::in) is semidet
+    <= obs_bat(A, B, P, O).
+
+only_observation_actions(seq(P1, P2)) :-
+    only_observation_actions(P1),
+    only_observation_actions(P2).
+only_observation_actions(non_det(P1, P2)) :-
+    only_observation_actions(P1),
+    only_observation_actions(P2).
+only_observation_actions(conc(P1, P2)) :-
+    only_observation_actions(P1),
+    only_observation_actions(P2).
+only_observation_actions(star(P)) :-
+    only_observation_actions(P).
+only_observation_actions(pseudo_atom(atom(prim(A)))) :- is_observation(A).
+only_observation_actions(nil).
+
+
+last_observation(do(A, S)) =
+    ( if is_observation(A) then A else last_observation(S) ).
+
+
+last_action_covered_by_observation(S) :-
+    covered_by_observation(S).
+%    observation(_, _, _, T0) = last_observation(S),
+%    C = (start(S) `=` T0),
+%    solve(vargen(S), [C] ++ constraints(S)).
+
+
+append_observation(P, O) = P2 :-
+    A = observation_to_action(O),
+    (   if      P1 = append_observation_to_most_right(P, A)
+        then    P2 = P1
+        else    P2 = conc(P, pseudo_atom(atom(prim(A))))
+    ).
+
+
+
+observation_count_in_prog(seq(P1, P2)) = observation_count_in_prog(P1) + observation_count_in_prog(P2).
+observation_count_in_prog(non_det(P1, P2)) = min(observation_count_in_prog(P1), observation_count_in_prog(P2)).
+observation_count_in_prog(conc(P1, P2)) = observation_count_in_prog(P1) + observation_count_in_prog(P2).
+observation_count_in_prog(star(_)) = 0.
+observation_count_in_prog(proc(_)) = 0.
+observation_count_in_prog(nil) = 0.
+observation_count_in_prog(pseudo_atom(complex(P))) = observation_count_in_prog(P).
+observation_count_in_prog(pseudo_atom(atom(C))) =
+    ( if C = prim(A), is_observation(A) then 1 else 0 ).
+
+
+observation_count_in_sit(s0) = 0.
+observation_count_in_sit(do(A, S)) =
+    ( if is_observation(A) then 1 else 0 ) + observation_count_in_sit(S).
+
+%-----------------------------------------------------------------------------%
+
 
 %-----------------------------------------------------------------------------%
 
@@ -255,29 +381,18 @@ input_next_obs(ObsMsg, _, _, I0, I1) :-
 
 %-----------------------------------------------------------------------------%
 
-source = void.
-
-
-:- pred reset_obs_source(source::in, io::di, io::uo) is det.
-
-reset_obs_source(_, !IO) :-
+reset_globals(!IO) :-
     finalize_globals(!IO),
     initialize_globals(!IO).
 
 
-:- pred init_obs_stream(source::in, stream::in, stream_state::uo) is det.
-
-init_obs_stream(_, I, ss(I1, 0)) :- copy(I, I1).
+global_init_obs(I, {I1, 0}) :- copy(I, I1).
 
 
-:- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A, B, P)::in,
-                 stream_state::di, stream_state::uo)
-                 is det <= pr_bat(A, B, P, obs, env).
-
-next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
-    Done = obs_count_in_sit(S),
-    ToBeDone = max(0, obs_count_in_prog(P) - lookahead(S)),
-    next_obs_pure(I0, I1, ID, Done, ToBeDone,
+global_next_obs(ObsMsg, S, P, {ID, I0}, State1) :-
+    Done = observation_count_in_sit(S),
+    ToBeDone = max(0, observation_count_in_prog(P) - lookahead(S)),
+    global_next_obs_pure(I0, I1, ID, Done, ToBeDone,
                          Ok, Time, AgentS0, Veloc0, Rad0, X0, Y0,
                                    AgentS1, Veloc1, Rad1, X1, Y1),
     (
@@ -296,19 +411,17 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
         Ok = no,
         ObsMsg = end_of_obs
     ),
-    copy(ss(ID, I1), State1).
+    copy({ID, I1}, State1).
 
 
-:- pred next_obs_pure(
-    int::di, int::uo,
+:- pred global_next_obs_pure(int::di, int::uo,
     int::in, int::in, int::in,
     bool::out, float::out,
     string::out, float::out, float::out, float::out, float::out,
     string::out, float::out, float::out, float::out, float::out) is det.
 
 :- pragma foreign_proc("C",
-    next_obs_pure(
-        I0::di, I1::uo,
+    global_next_obs_pure(I0::di, I1::uo,
         ID::in, Done::in, ToBeDone::in,
         Ok::out, T::out,
         Agent0::out, Veloc0::out, Rad0::out, X0::out, Y0::out,
@@ -349,10 +462,8 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
 ").
 
 
-:- pred mark_obs_end(source::in, io::di, io::uo) is det.
-
 :- pragma foreign_proc("C",
-    mark_obs_end(_Src::in, IO0::di, IO1::uo),
+    mark_observation_end(IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
@@ -364,13 +475,10 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
 ").
 
 
-:- pred update_state(source::in, stream::in, activity::in, io::di, io::uo)
-    is det.
-
-update_state(_, ID, unused, !IO) :- update_state_2(ID, 0, !IO).
-update_state(_, ID, working, !IO) :- update_state_2(ID, 1, !IO).
-update_state(_, ID, finished, !IO) :- update_state_2(ID, 2, !IO).
-update_state(_, ID, failed, !IO) :- update_state_2(ID, 3, !IO).
+update_state(ID, unused, !IO) :- update_state_2(ID, 0, !IO).
+update_state(ID, working, !IO) :- update_state_2(ID, 1, !IO).
+update_state(ID, finished, !IO) :- update_state_2(ID, 2, !IO).
+update_state(ID, failed, !IO) :- update_state_2(ID, 3, !IO).
 
 
 :- pred update_state_2(int::in, int::in, io::di, io::uo) is det.
@@ -386,16 +494,7 @@ update_state(_, ID, failed, !IO) :- update_state_2(ID, 3, !IO).
     IO1 = IO0;
 ").
 
-%-----------------------------------------------------------------------------%
-
-:- instance obs_source(obs, env, source, stream_state) where [
-    pred(reset_obs_source/3) is obs.reset_obs_source,
-    pred(init_obs_stream/3) is obs.init_obs_stream,
-    pred(next_obs/5) is obs.next_obs,
-    pred(mark_obs_end/3) is obs.mark_obs_end,
-    pred(update_state/5) is obs.update_state
-].
 
 %-----------------------------------------------------------------------------%
-:- end_module prbat.car.obs.
+:- end_module domain.car.obs.
 %-----------------------------------------------------------------------------%

@@ -5,9 +5,7 @@ NCURSES = $(shell pwd)/$(NCURSES_NAME)
 
 LIB_MCFLAGS += --ml bats --ml prgolog --ml planrecog --ld-libflags -Wl,--no-as-needed -I${NCURSES}/include -L${NCURSES}/dist/lib -R${NCURSES}/dist/lib -lncurses -lpanel
 
-all: lib
-
-exe lib: mercury-depends ncurses *.m
+all: mercury-depends ncurses lib
 
 ncurses:
 	./install_ncurses.sh "$(NCURSES_NAME)" "$(MERCURY_SRC)" "$(MERCURY_INST)"

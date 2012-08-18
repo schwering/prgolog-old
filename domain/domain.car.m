@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prbat.car.m.
+% File: domain.car.m.
 % Main author: schwering.
 %
 % Basic types used throughout the cars world.
@@ -12,7 +12,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prbat.car.
+:- module domain.car.
 
 :- interface.
 
@@ -96,5 +96,5 @@ lane_to_string(left) = "left".
 lane_to_string(right) = "right".
 
 %-----------------------------------------------------------------------------%
-:- end_module prbat.car.
+:- end_module domain.car.
 %-----------------------------------------------------------------------------%

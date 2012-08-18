@@ -2,7 +2,7 @@
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 %
-% File: prbat.car.cont.io_util.m.
+% File: domain.car.cont.io_util.m.
 % Main author: schwering.
 %
 % Some I/O-related utilities such as printing situation terms.
@@ -12,7 +12,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- module prbat.car.cont.io_util.
+:- module domain.car.cont.io_util.
 
 :- interface.
 
@@ -310,5 +310,5 @@ draw_traces_incl_subsits(Map, S1 @ do(_, S), !IO) :-
     draw_trace(Map, S1, !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module prbat.car.cont.io_util.
+:- end_module domain.car.cont.io_util.
 %-----------------------------------------------------------------------------%

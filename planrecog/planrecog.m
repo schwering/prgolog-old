@@ -18,7 +18,7 @@
 
 :- import_module io.
 :- import_module list.
-:- import_module prbat.
+:- import_module domain.
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module thread.mvar.
@@ -60,9 +60,9 @@
 
 :- import_module bool.
 :- import_module int.
-:- import_module prbat.car.
-:- import_module prbat.car.obs.
-:- import_module prbat.obs_util.
+:- import_module domain.car.
+:- import_module domain.car.obs.
+:- import_module domain.obs_util.
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module thread.

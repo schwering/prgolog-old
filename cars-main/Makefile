@@ -1,11 +1,9 @@
 GOAL = cars
 SOURCE_FILES = $(shell ls *.m)
 
-EXE_MCFLAGS += --ml bats --ml planrecog --ml prgolog --ml util
+EXE_MCFLAGS += --ml domain --ml planrecog --ml prgolog --ml util
 
-all: exe replay
-
-exe: mercury-depends *.m
+all: mercury-depends exe replay
 
 include ../Make.common
 

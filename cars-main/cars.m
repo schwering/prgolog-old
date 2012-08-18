@@ -28,12 +28,12 @@
 
 :- implementation.
 
-:- import_module cont_car_bat.
-:- import_module cont_car_bat.io_util.
+:- import_module domain.car.obs.
+:- import_module domain.car.cont.
+:- import_module domain.car.io_util.
 :- import_module int.
 :- import_module float.
 :- import_module list.
-:- import_module obs.
 :- import_module planrecog.
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.

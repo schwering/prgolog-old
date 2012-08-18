@@ -38,7 +38,7 @@
 :- import_module string.
 :- import_module visual.
 
-:- import_module cont_car_bat.
+:- import_module domain.car.cont.
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module types.

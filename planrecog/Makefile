@@ -1,11 +1,9 @@
 GOAL = planrecog
 SOURCE_FILES = $(shell ls *.m)
 
-LIB_MCFLAGS += --ml prgolog --ml prbat
+LIB_MCFLAGS += --ml prgolog --ml domain
 
-all: lib
-
-lib: mercury-depends *.m
+all: mercury-depends lib
 
 include ../Make.common
 
