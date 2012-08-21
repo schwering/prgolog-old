@@ -9,5 +9,5 @@ clean:
 	rm -rf lib
 
 depend:
-	./make-depends.sh $(DIRS)
+	./make-depend.sh $(DIRS)
 

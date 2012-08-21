@@ -1,0 +1,53 @@
+This is an implementation of a Golog dialect called prGolog in Mercury.
+Contact schwering@kbsg.rwth-aachen.de for details.
+
+The folders:
+
+  prGolog
+    Contains the raw prGolog interpreter without support for continuous
+    which we move to the basic aciton theories since not all domains
+    need it. Domains need to implement the `bat' typeclass.
+  domain
+    Contains abstract interfaces (typeclasses `obs_bat', `pr_bat',
+    `obs_source') that need to be implemented by modules that either
+    implement a basic action theory for plan recognition or provide
+    access to observations, respectively.
+    It also contains the implementation of the car domain with
+    continuous change and time (implements `obs_bat' and `pr_bat') and
+    provides a consumer-producer-way of storing observations
+    (TODO: stuff from cars-server should be moved here)
+  planrecog
+    Using the aforementioned typeclasses `bat', `obs_bat', `pr_bat' and
+    `obs_source', the plan recognition system incrementally executes a
+    hypothesis program and merges incoming observations into the program
+    to provide an online way of plan recognition.
+  lp-server
+    Provides a simple stand-alone server for solving linear programs.
+    Communication (the objective, constraints, and solutions) is done
+    either via TCP or UNIX sockets. The solver is COIN Osi Clp.
+  osi
+    Provides facilities to solve linear systems of equations. The
+    underlying solver is Coin Osi Clp. It is either linked dynamically
+    or access via the lp-server.
+  cars-server
+    TODO
+  cars-main
+    TODO
+  util
+    Contains some general helper predicates and functions.
+
+Compile:
+ $ make depend
+ $ make
+
+
+See one of these papers for details on the theory:
+
+Christoph Schwering, Daniel Beck, Stefan Schiffer, Gerhard Lakemeyer
+Plan Recognition by Program Execution in Continuous Temporal Domains
+Proceedings of the 35th German Conference on Artificial Intelligence
+
+Christoph Schwering, Daniel Beck, Stefan Schiffer, Gerhard Lakemeyer
+Plan Recognition by Program Execution in Continuous Temporal Domains
+Proceedings of the 8th International Cognitive Robotics Workshop
+

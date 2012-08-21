@@ -5,6 +5,7 @@
 % File: domain.car.obs.m.
 % Main author: schwering.
 %
+% TODO description outdated
 % Types and operations for observations, particularly the generator that reads
 % from stdin.
 %

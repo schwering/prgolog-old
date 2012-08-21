@@ -15,7 +15,9 @@
 :- interface.
 
 :- import_module io.
-:- import_module cont_car_bat.
+:- import_module domain.
+:- import_module domain.car.
+:- import_module domain.car.cont.
 :- import_module planrecog.
 
 %-----------------------------------------------------------------------------%
@@ -31,7 +33,7 @@
 
 :- pred finish_visual(io::di, io::uo) is det.
 
-:- pred visualize(areas::in, int::in, s_state(prim, stoch, prog)::in, io::di, io::uo) is det.
+:- pred visualize(areas::in, int::in, s_state(prim, stoch, proc)::in, io::di, io::uo) is det.
 
 :- pred wait_for_key(io::di, io::uo) is det.
 
@@ -41,7 +43,7 @@
 :- implementation.
 
 :- import_module assoc_list.
-:- import_module cont_car_bat.io_util.
+:- import_module domain.car.cont.io_util.
 :- import_module char.
 :- import_module curs.
 :- import_module curs.panel.
@@ -52,7 +54,6 @@
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module types.
 :- import_module require.
 
 %-----------------------------------------------------------------------------%
@@ -86,10 +87,10 @@ right(Area) = left(Area) + cols(Area) - 1.
 
 get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
     (   if      S = do(match(Obs, _, _, _), _)
-        then    (   if      Obs = {_, Agent, X0, Y0, _, _, _}
+        then    (   if      Obs = obs(_, Agent, X0, Y0, _, _, _)
                     then    ObsX = X0,
                             ObsY = Y0
-                    else if Obs = {_, _, _, _, Agent, X0, Y0}
+                    else if Obs = obs(_, _, _, _, Agent, X0, Y0)
                     then    ObsX = X0,
                             ObsY = Y0
                     else    error("invalid observation does not contain driver")

@@ -42,12 +42,14 @@
 
 :- pred empty_handler(int::in, s_state(A, B, P)::in, io::di, io::uo) is det.
 
-:- pred online_planrecog(int::in, Source::in, list(mvar(s_state(A, B, P)))::out,
+:- pred online_planrecog(int::in,
+                         Source::in,
+                         list(mvar(s_state(A, B, P)))::out,
                          handler(A, B, P)::in(handler),
                          prog(A, B, P)::in,
                          io::di, io::uo) is cc_multi
                          <= (pr_bat(A, B, P, Obs, Env),
-                             obs_source(Obs, Env, Source, StreamState)).
+                             obs_source(Obs, Env, Source, _)).
 
 :- pred wait_for_planrecog_finish(Source::in, list(mvar(s_state(A, B, P)))::in,
                                   io::di, io::uo) is det
