@@ -1,4 +1,6 @@
 /*
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
  * File: coin-clp.cc.
  * Main author: schwering.
  *
@@ -9,8 +11,6 @@
  *
  * The body file is written in C++. Then, the body file is compiled with a C++
  * compiler and the object file can be linked by the Mercury compiler.
- *
- * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
 #include "coin-clp.h"

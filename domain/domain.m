@@ -1,13 +1,13 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: domain.m.
 % Main author: schwering.
 %
 % Extensions of the prGolog BAT typeclass for plan recognition.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

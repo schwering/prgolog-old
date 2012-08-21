@@ -1,8 +1,11 @@
 %-----------------------------------------------------------------------------%
 %vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
-% File: prgolog.ccfluent.m.  Main author: schwering.
+% File: prgolog.ccfluent.m.
+% Main author: schwering.
 %
 % Utilities for continuous fluents including constraint solving capabilities.
 %
@@ -21,8 +24,6 @@
 %
 % The variable-to-solution-map is stored in an assoc_list.  Variables with
 % value 0.0 are omitted in the list!
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

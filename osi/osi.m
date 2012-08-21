@@ -1,14 +1,14 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: osi.m.
 % Main author: schwering.
 %
 % Interface to OSI (Open Solver Interface), particularly to the COIN-OR CLP
 % solver.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 

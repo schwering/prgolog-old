@@ -1,5 +1,13 @@
 /* vim: ft=c ts=4 sw=4 et wm=0 tw=0
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
+ * File: replay.c
+ * Main author: schwering.
+ *
+ * Simulates a TORCS instance by emitting observations read from stdin or a
+ * file. It cares about the time periods between observations.
  */
+
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdbool.h>

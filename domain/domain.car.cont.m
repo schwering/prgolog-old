@@ -1,14 +1,14 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: domain.car.cont.m.
 % Main author: schwering.
 %
 % Basic action theory (BAT) for driving with two simple actions, set_yaw and
 % set_veloc that control the steering and speed of the vehicle.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

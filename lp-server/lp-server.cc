@@ -1,10 +1,10 @@
 /*
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
  * File: lps.cc
  * Main author: schwering.
  *
  * Linear systems solver server.
- *
- * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
 #include <string.h>

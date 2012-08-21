@@ -1,14 +1,13 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: domain.car.obs.m.
 % Main author: schwering.
 %
-% Types and operations for observations, particularly the generator that reads
-% from stdin.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Types and operations for observations in the car domain.
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

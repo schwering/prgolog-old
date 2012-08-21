@@ -1,6 +1,8 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: cars_server.m.
 % Main author: schwering.
@@ -11,8 +13,6 @@
 % (2) the server answers (syscall write) the state (struct state_message).
 % The communication parts are written in C. This probably makes the
 % serialization simpler.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

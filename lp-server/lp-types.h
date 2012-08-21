@@ -1,10 +1,10 @@
 /*
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
  * File: lp-types.h.
  * Main author: schwering.
  *
  * Linear systems type definitions.
- *
- * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
 #ifndef _LP_TYPES_H_

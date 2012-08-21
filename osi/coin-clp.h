@@ -1,12 +1,12 @@
 /*
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
  * File: coin-clp.h.
  * Main author: schwering.
  *
  * Wrapper of COIN-OR CLP OSI interface.
  *
  * See coin-clp.cc for details.
- *
- * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
 #ifndef _COIN_CLP_H_

@@ -1,6 +1,8 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: prgolog.nice.m.
 % Main author: schwering.
@@ -22,8 +24,6 @@
 % The function pick/3 isn't implemented yet, because I'm still thinking about
 % an elegant way to do this. This pick/3 would be a mere macro expansion
 % anyway.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

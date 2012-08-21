@@ -1,6 +1,8 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: prgolog.m.
 % Main author: schwering.
@@ -59,8 +61,6 @@
 % The type system makes the Mercury terms that represent Golog terms more
 % complex.  For more concise programs, one may use the nice syntax layer that
 % resides in the submodule prgolog.nice.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

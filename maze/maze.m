@@ -45,7 +45,7 @@
 %
 % [1] http://www.mercury.csse.unimelb.edu.au/
 %
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 
 :- module maze.
 

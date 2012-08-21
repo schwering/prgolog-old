@@ -1,6 +1,8 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
 %
 % File: prgolog.fluent.m.
 % Main author: schwering.
@@ -13,8 +15,6 @@
 %
 % As explained in the parent module, the fact that we use boolean formulas
 % instead of normal predicates is due to a technicality in Mercury.
-%
-% Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%

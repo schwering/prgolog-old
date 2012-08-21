@@ -1,4 +1,6 @@
 /*
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
  * File: lp-sock.h.
  * Main author: schwering.
  *
@@ -6,8 +8,6 @@
  * Provides functions for AF_UNIX and AF_INET sockets as we use them for the LP
  * server and client.
  * All functions are inline; there's no associated object file.
- *
- * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
 #ifndef _LP_SOCK_H_

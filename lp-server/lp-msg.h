@@ -1,12 +1,12 @@
 /*
+ * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+ *
  * File: lp-msg.h.
  * Main author: schwering.
  *
  * Functions for sending and receiving messages that closely correspond to the
  * methods from SolverContext defined in coin-clp.[h|cc].
  * All functions are inline; there's no associated object file.
- *
- * Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  */
 
 #ifndef _LP_MSG_H_
