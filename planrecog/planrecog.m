@@ -64,7 +64,6 @@
 :- import_module int.
 :- import_module domain.car.
 :- import_module domain.car.obs.
-:- import_module domain.obs_util.
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module thread.

@@ -36,6 +36,7 @@
 :- import_module domain.car.
 :- import_module domain.car.cont.
 :- import_module domain.car.obs.
+:- import_module domain.car.obs.torcs.
 :- import_module list.
 :- import_module planrecog.
 :- import_module prgolog.

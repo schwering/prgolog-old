@@ -43,5 +43,8 @@ clean:
 	rm -f $(EXE_FILE)
 	rm -f $(LIB_FILE)
 
+.mercury-depend:
+	make -C .. depend
+
 include .mercury-depend
 
