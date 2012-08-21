@@ -14,8 +14,7 @@ The folders:
     access to observations, respectively.
     It also contains the implementation of the car domain with
     continuous change and time (implements `obs_bat' and `pr_bat') and
-    provides a consumer-producer-way of storing observations
-    (TODO: stuff from cars-server should be moved here)
+    provides a consumer-producer-way of storing observations.
   planrecog
     Using the aforementioned typeclasses `bat', `obs_bat', `pr_bat' and
     `obs_source', the plan recognition system incrementally executes a
@@ -30,7 +29,8 @@ The folders:
     underlying solver is Coin Osi Clp. It is either linked dynamically
     or access via the lp-server.
   cars-server
-    TODO
+    Listens to a TCP socket, enqueues incoming observations and runs
+    plan recognition on these observations.
   cars-main
     TODO
   util

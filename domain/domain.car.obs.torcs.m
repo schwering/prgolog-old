@@ -8,6 +8,7 @@
 % Main author: schwering.
 %
 % Observation interface that reads observations for the car domain from stdin.
+% Observations are enqueued
 %
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -49,72 +50,97 @@
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_decl("C", "
+    #include ""car-obs-torcs-types.h""
+
+    /* Enqueues a new observation.
+     * This operation may block. */
+    void push_obs(const struct observation_record *obs);
+
+    /* Copies the number of working, finished and failed processes into msg. */
+    void init_message(struct planrecog_state *msg);
+
+    /* Computes the current approximated confidence of the plan recognition
+     * system. */
+    float confidence(void);
+").
+
+
+:- pragma foreign_code("C", "
     #include <assert.h>
     #include <pthread.h>
     #include <semaphore.h>
     #include <stdbool.h>
 
-    #include ""obs_types.h""
+    #define MAX_OBSERVATIONS    1000
+    #define MAX_PROCESSES       50
 
-    #define NRECORDS 1000
-    #define NSAMPLES 50
+    /* The greatest index that points to an initialized observation. */
+    int max_valid_observation;
 
-    extern struct record records[];
-    extern int max_valid_record;
+    /* The array of observations. */
+    struct observation_record observations[MAX_OBSERVATIONS];
 
-    extern struct sample_state state_samples[];
-
-    extern sem_t semaphores[];
-    extern pthread_mutex_t mutex;
-
-    void push_obs(const struct record *r);
-    void read_obs(void);
+    /* States of the sampling processes (number of executed and remaining
+     * observations.
+     * The semaphores are used for thread-safety. */
+    struct process_state process_states[MAX_PROCESSES];
+    sem_t semaphores[MAX_PROCESSES];
 ").
 
+%-----------------------------------------------------------------------------%
 
 :- pragma foreign_code("C", "
-    int max_valid_record;
-    struct record records[NRECORDS];
-    struct sample_state state_samples[NSAMPLES];
-    sem_t semaphores[NSAMPLES];
-    pthread_mutex_t mutex;
-").
-
-
-:- pragma foreign_code("C", "
-    void push_obs(const struct record *r)
+    void push_obs(const struct observation_record *obs)
     {
       int i;
-      assert(max_valid_record + 1 < NRECORDS);
-      memcpy(&records[max_valid_record + 1], r, sizeof(struct record));
-      ++max_valid_record;
-      for (i = 0; i < NSAMPLES; ++i) {
+      assert(max_valid_observation + 1 < MAX_OBSERVATIONS);
+      memcpy(&observations[max_valid_observation + 1], obs, sizeof(struct observation_record));
+      ++max_valid_observation;
+      for (i = 0; i < MAX_PROCESSES; ++i) {
         sem_post(&semaphores[i]);
       }
     }
+").
 
-    void read_obs(void)
-    {
-      for (;;) {
-        struct record r;
-        int i = scanf(
-                ""%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\\n"",
-                &r.t,
-                r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
-                r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1);
-        if (i == EOF) {
-          int j;
-          for (j = 0; i < NSAMPLES; ++i) {
-            sem_post(&semaphores[j]);
-          }
-          break;
-        } else if (i == 11) {
-          push_obs(&r);
+
+:- pragma foreign_code("C", "
+    void init_message(struct planrecog_state *msg) {
+        int i;
+        msg->working = 0;
+        msg->finished = 0;
+        msg->failed = 0;
+        for (i = 0; i < MAX_PROCESSES; ++i) {
+            switch (process_states[i].activity) {
+            case UNUSED:                    break;
+            case WORKING:  ++msg->working;  break;
+            case FINISHED: ++msg->finished; break;
+            case FAILED:   ++msg->failed;   break;
+            }
         }
-      }
     }
 ").
 
+
+:- pragma foreign_code("C", "
+    float confidence(void) {
+        int i;
+        float c = 0.0f;
+        int n = 0;
+        for (i = 0; i < MAX_PROCESSES; ++i) {
+            if (process_states[i].activity != UNUSED) {
+                if (process_states[i].activity != FAILED &&
+                    process_states[i].done + process_states[i].tbd != 0) {
+                    c += (double) (process_states[i].done) /
+                         (double) (process_states[i].done + process_states[i].tbd);
+                }
+                ++n;
+            }
+        }
+        return (n > 0) ? (float) c / (float) n : 0.0f;
+    }
+").
+
+%-----------------------------------------------------------------------------%
 
 :- initialize initialize_globals/2.
 
@@ -125,13 +151,12 @@
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
-    max_valid_record = -1;
-    memset(state_samples, 0, NSAMPLES * sizeof(struct sample_state));
-    memset(records, 0, NRECORDS * sizeof(struct record));
-    for (i = 0; i < NSAMPLES; ++i) {
+    max_valid_observation = -1;
+    memset(process_states, 0, MAX_PROCESSES * sizeof(struct process_state));
+    memset(observations, 0, MAX_OBSERVATIONS * sizeof(struct observation_record));
+    for (i = 0; i < MAX_PROCESSES; ++i) {
         sem_init(&semaphores[i], 0, 0);
     }
-    pthread_mutex_init(&mutex, NULL);
     IO1 = IO0;
 ").
 
@@ -145,10 +170,9 @@
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
-    for (i = 0; i < NSAMPLES; ++i) {
+    for (i = 0; i < MAX_PROCESSES; ++i) {
         sem_destroy(&semaphores[i]);
     }
-    pthread_mutex_destroy(&mutex);
     IO1 = IO0;
 ").
 
@@ -170,8 +194,8 @@ init_obs_stream(_, I, ss(I1, 0)) :- copy(I, I1).
 
 
 :- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A, B, P)::in,
-                 stream_state::di, stream_state::uo)
-                 is det <= pr_bat(A, B, P, obs, env).
+                 stream_state::di, stream_state::uo) is det
+                 <= pr_bat(A, B, P, obs, env).
 
 next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
     Done = obs_count_in_sit(S),
@@ -214,22 +238,22 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
         Agent1::out, Veloc1::out, Rad1::out, X1::out, Y1::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    assert(0 <= ID && ID < NSAMPLES);
-    state_samples[ID] = (struct sample_state) { Done, ToBeDone, WORKING };
+    assert(0 <= ID && ID < MAX_PROCESSES);
+    process_states[ID] = (struct process_state) { Done, ToBeDone, WORKING };
     sem_wait(&semaphores[ID]);
-    if (I0 <= max_valid_record) {
+    if (I0 <= max_valid_observation) {
         Ok = MR_YES;
-        T = (MR_Float) records[I0].t;
-        Agent0 = MR_make_string_const(records[I0].agent0);
-        Veloc0 = (MR_Float) records[I0].veloc0;
-        Rad0 = (MR_Float) records[I0].rad0;
-        X0 = (MR_Float) records[I0].x0;
-        Y0 = (MR_Float) records[I0].y0;
-        Agent1 = MR_make_string_const(records[I0].agent1);
-        Veloc1 = (MR_Float) records[I0].veloc1;
-        Rad1 = (MR_Float) records[I0].rad1;
-        X1 = (MR_Float) records[I0].x1;
-        Y1 = (MR_Float) records[I0].y1;
+        T = (MR_Float) observations[I0].t;
+        Agent0 = MR_make_string_const(observations[I0].agent0);
+        Veloc0 = (MR_Float) observations[I0].veloc0;
+        Rad0 = (MR_Float) observations[I0].rad0;
+        X0 = (MR_Float) observations[I0].x0;
+        Y0 = (MR_Float) observations[I0].y0;
+        Agent1 = MR_make_string_const(observations[I0].agent1);
+        Veloc1 = (MR_Float) observations[I0].veloc1;
+        Rad1 = (MR_Float) observations[I0].rad1;
+        X1 = (MR_Float) observations[I0].x1;
+        Y1 = (MR_Float) observations[I0].y1;
         I1 = I0 + 1;
     } else {
         Ok = MR_NO;
@@ -256,7 +280,7 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
 "
     int i;
     //printf(""BROADCASTING\\n"");
-    for (i = 0; i < NSAMPLES; ++i) {
+    for (i = 0; i < MAX_PROCESSES; ++i) {
         sem_post(&semaphores[i]);
     }
     IO1 = IO0;
@@ -278,10 +302,10 @@ update_state(_, ID, failed, !IO) :- update_state_2(ID, 3, !IO).
     update_state_2(ID::in, Activity::in, IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    if (Activity == 0) state_samples[ID].activity = UNUSED;
-    if (Activity == 1) state_samples[ID].activity = WORKING;
-    if (Activity == 2) state_samples[ID].activity = FINISHED;
-    if (Activity == 3) state_samples[ID].activity = FAILED;
+    if (Activity == 0) process_states[ID].activity = UNUSED;
+    if (Activity == 1) process_states[ID].activity = WORKING;
+    if (Activity == 2) process_states[ID].activity = FINISHED;
+    if (Activity == 3) process_states[ID].activity = FAILED;
     IO1 = IO0;
 ").
 
