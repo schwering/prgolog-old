@@ -33,8 +33,11 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred planrecog(int::in, Source::in, prog(A, B, P)::in,
-                  list(s_state(A, B, P))::out, io::di, io::uo) is cc_multi
+:- pred planrecog(int::in,
+                  Source::in,
+                  prog(A, B, P)::in,
+                  list(s_state(A, B, P))::out,
+                  io::di, io::uo) is cc_multi
                   <= (pr_bat(A, B, P, Obs, Env),
                       obs_source(Obs, Env, Source, _)).
 

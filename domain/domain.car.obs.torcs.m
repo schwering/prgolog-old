@@ -54,7 +54,7 @@
 
     /* Enqueues a new observation.
      * This operation may block. */
-    void push_obs(const struct observation_record *obs);
+    void domain__car__obs__torcs__push_obs(const struct observation_record *obs);
 
     /* Copies the number of working, finished and failed processes into msg. */
     void init_message(struct planrecog_state *msg);
@@ -67,30 +67,28 @@
 
 :- pragma foreign_code("C", "
     #include <assert.h>
-    #include <pthread.h>
     #include <semaphore.h>
-    #include <stdbool.h>
 
     #define MAX_OBSERVATIONS    1000
     #define MAX_PROCESSES       50
 
     /* The greatest index that points to an initialized observation. */
-    int max_valid_observation;
+    static int max_valid_observation;
 
     /* The array of observations. */
-    struct observation_record observations[MAX_OBSERVATIONS];
+    static struct observation_record observations[MAX_OBSERVATIONS];
 
     /* States of the sampling processes (number of executed and remaining
      * observations.
      * The semaphores are used for thread-safety. */
-    struct process_state process_states[MAX_PROCESSES];
-    sem_t semaphores[MAX_PROCESSES];
+    static struct process_state process_states[MAX_PROCESSES];
+    static sem_t semaphores[MAX_PROCESSES];
 ").
 
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_code("C", "
-    void push_obs(const struct observation_record *obs)
+    void domain__car__obs__torcs__push_obs(const struct observation_record *obs)
     {
       int i;
       assert(max_valid_observation + 1 < MAX_OBSERVATIONS);

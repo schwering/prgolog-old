@@ -8,6 +8,7 @@
 *.init
 .depends
 .mercury-depend
+.*.swp
 Mercury
 lib
 

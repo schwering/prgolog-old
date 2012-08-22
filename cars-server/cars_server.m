@@ -137,7 +137,7 @@
         if (ret != sizeof(obs)) {
             break;
         }
-        push_obs(&obs);
+        domain__car__obs__torcs__push_obs(&obs);
 
 //      printf(""%c\\t%10.5lf\\t"", 'O', obs.t);
 //      printf(""%5s\\t%10.5lf\\t%10.5lf\\t%10.5lf\\t%10.5lf"", obs.agent0, obs.veloc0, obs.rad0, obs.x0, obs.y0);

@@ -28,18 +28,21 @@
 
 :- implementation.
 
-:- import_module domain.car.obs.
+:- import_module domain.
+:- import_module domain.car.
 :- import_module domain.car.cont.
-:- import_module domain.car.io_util.
+:- import_module domain.car.cont.io_util.
+:- import_module domain.car.obs.
+:- import_module domain.car.obs.stdin.
 :- import_module int.
 :- import_module float.
 :- import_module list.
 :- import_module planrecog.
+:- import_module prgolog.
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
 :- import_module times.
-:- import_module types.
 %:- import_module table_statistics.
 
 %-----------------------------------------------------------------------------%
@@ -58,13 +61,14 @@
 
 main(!IO) :-
     times(Tms2, !IO),
-    Prog = p(cruise(a)) // p(overtake(b, a)),
+    Source = source,
+    Prog = (p(cruise(a)) // p(overtake(b, a))) `with_type` prog(prim, stoch, proc),
     %spawn((pred(IO0::di, IO1::uo) is cc_multi :- forward_obs(IO0, IO1)), !IO),
     %planrecog(10, global_init_obs, global_next_obs, Prog, Results, !IO),
     %online_planrecog(10, Vars, !IO),
     %wait_for_planrecog_finish(Vars, !IO),
     %Results = [],
-    planrecog(10, input_init_obs, input_next_obs, Prog, Results, !IO),
+    planrecog(10, Source, Prog, Results, !IO),
     times(Tms3, !IO),
     map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
         some [!SubIO] (
