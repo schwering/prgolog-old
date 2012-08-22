@@ -9,6 +9,14 @@
 %
 % Plan recognition-specific utilities.
 %
+% planrecog/6 spawns a given number of sampling processes and thus
+% approximates the probability that the given program explains the observations
+% emitted from the observation source. A pretty detailed result is given in the
+% form of list of s_state objects, one for each sample.
+%
+% online_planrecog/7 works similarly except that it calls a handler after each
+% step. Besides 
+%
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -43,7 +51,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred empty_handler(int::in, s_state(A, B, P)::in, io::di, io::uo) is det.
+:- pred empty_handler `with_type` handler(_, _, _).
+:- mode empty_handler `with_inst` handler.
 
 :- pred online_planrecog(int::in,
                          Source::in,
@@ -78,7 +87,8 @@
 :- inst logger == (pred(in, di, uo) is det).
 
 
-:- pred empty_logger(s_state(A, B, P)::in, io::di, io::uo) is det.
+:- pred empty_logger `with_type` logger(_, _, _).
+:- mode empty_logger `with_inst` logger.
 
 empty_logger(_, !IO).
 
@@ -159,7 +169,8 @@ merge_and_trans(s_state(conf(P, S), !.Phase),
 %-----------------------------------------------------------------------------%
 
 :- pred run_concurrently_par_conj(int::in,
-                                  pred(int, s_state(A, B, P))::in(pred(in, out) is det),
+                                  pred(int, s_state(A, B, P))
+                                    ::in(pred(in, out) is det),
                                   list(s_state(A, B, P))::out) is det.
 
 run_concurrently_par_conj(I, P, Rs) :-
@@ -252,7 +263,8 @@ run_concurrently(Source, N, P, Rs, !IO) :-
 pr_thread(Source, Prog, I, R) :-
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
     init_obs_stream(Source, I, ObsStreamState),
-    merge_and_trans_loop(Source, empty_logger, InitialState, R, ObsStreamState, _).
+    merge_and_trans_loop(Source, empty_logger, InitialState, R,
+                         ObsStreamState, _).
 
 
 planrecog(ThreadCount, Source, Prog, Results, !IO) :-

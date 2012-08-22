@@ -42,7 +42,7 @@
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module visual.
+:- use_module visual.
 
 %-----------------------------------------------------------------------------%
 
@@ -171,13 +171,13 @@ accept_connections(ServerSocket, !IO) :-
     accept_connection(ServerSocket, Socket, !IO),
     Source = source,
     reset_obs_source(Source, !IO),
-    init_visual(6, Areas, !IO),
-    online_planrecog(NSamples, Source, Vars, visualize(Areas), Prog, !IO),
+    visual.init(9, Areas, !IO),
+    online_planrecog(NSamples, Source, Vars, visual.visualize(Areas), Prog, !IO),
     handle_connection(Socket, !IO),
     %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Source, Vars, !IO),
-    %wait_for_key(!IO),
-    finish_visual(!IO),
+    %visual.wait_for_key(!IO),
+    visual.finish(!IO),
     %format("Plan recognition finished with confidence %.2f.\n",
     %       [f(confidence)], !IO),
     finalize_connection(Socket, !IO),

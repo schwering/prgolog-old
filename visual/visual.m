@@ -7,6 +7,13 @@
 % File: visual.m.
 % Main author: schwering.
 %
+% Provides a handler for the online plan recognition procedure that visualizes
+% a given sample of the plan recognition in the continuous car world.
+%
+% Visualization is done with ncurses.
+% A simple street is drawn, the two agents are displayed, and the sample's
+% phase (running, finished with failure, finished with success) is displayed.
+%
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
@@ -18,7 +25,7 @@
 :- import_module domain.
 :- import_module domain.car.
 :- import_module domain.car.cont.
-:- import_module planrecog.
+:- use_module planrecog.
 
 %-----------------------------------------------------------------------------%
 
@@ -29,11 +36,12 @@
 :- type area.
 :- type areas.
 
-:- pred init_visual(int::in, areas::out, io::di, io::uo) is det.
+:- pred init(int::in, areas::out, io::di, io::uo) is det.
 
-:- pred finish_visual(io::di, io::uo) is det.
+:- pred finish(io::di, io::uo) is det.
 
-:- pred visualize(areas::in, int::in, s_state(prim, stoch, proc)::in, io::di, io::uo) is det.
+:- pred visualize(areas) `with_type` planrecog.handler(prim, stoch, proc).
+:- mode visualize(in)    `with_inst` planrecog.handler.
 
 :- pred wait_for_key(io::di, io::uo) is det.
 
@@ -150,16 +158,16 @@ draw_center_line(Area, !IO) :-
     hline(to_int('-'), cols(Area) - 2, !IO).
 
 
-:- pred draw_phase(area::in, s_phase::in, io::di, io::uo) is det.
+:- pred draw_phase_name(area::in, planrecog.s_phase::in, io::di, io::uo) is det.
 
-draw_phase(Area, Phase, !IO) :-
-    (   Phase = running,   Str = "running",   Attr = fg_bg(yellow, black)
-    ;   Phase = finishing, Str = "finishing", Attr = fg_bg(yellow, black)
-    ;   Phase = finished,  Str = "finished",  Attr = fg_bg(green, black)
-    ;   Phase = failed,    Str = "failed",    Attr = fg_bg(red, black)
+draw_phase_name(Area, Phase, !IO) :-
+    (   Phase = planrecog.running,   S = "running",   Atr = fg_bg(yellow, black)
+    ;   Phase = planrecog.finishing, S = "finishing", Atr = fg_bg(yellow, black)
+    ;   Phase = planrecog.finished,  S = "finished",  Atr = fg_bg(green, black)
+    ;   Phase = planrecog.failed,    S = "failed",    Atr = fg_bg(red, black)
     ),
     move(top(Area) + 1, left(Area) + 1, !IO),
-    addstr(Attr, Str, !IO).
+    addstr(Atr, S, !IO).
 
 
 :- pred draw_time(area::in, s::in, io::di, io::uo) is det.
@@ -233,7 +241,7 @@ draw_sits_on_areas([_ | _], [], !IO) :-
     error("not enough areas for mapsits").
 
 
-init_visual(N, Areas, !IO) :-
+init(N, Areas, !IO) :-
     start(!IO),
     rows_cols(MaxRows, MaxCols, !IO),
     NStacks = 3,
@@ -246,17 +254,17 @@ init_visual(N, Areas, !IO) :-
     refresh(!IO).
 
 
-finish_visual(!IO) :-
+finish(!IO) :-
     stop(!IO).
 
 
 visualize(Areas, I, State, !IO) :-
     lock(!IO),
-    State = s_state(Conf, Phase),
+    State = planrecog.s_state(Conf, Phase),
     Conf = conf(_Prog, Sit),
     (   if      index1(Areas, I, Area)
         then    clear(Area, !IO),
-                draw_phase(Area, Phase, !IO),
+                draw_phase_name(Area, Phase, !IO),
                 (   if      solve(vargen(Sit), constraints(Sit), Map, _Val)
                     then    draw_sit({Map, Sit}, Area, !IO)
                     else    draw_null_sit(Area, !IO)
