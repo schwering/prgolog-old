@@ -8,9 +8,11 @@
 % Main author: schwering.
 %
 % Observation interface that reads observations for the car domain from stdin.
-% Observations are enqueued
 %
-%-----------------------------------------------------------------------------%
+% Internally, observations are read from stdin and then enqueued in an array for
+% subsequent access.
+% Reading observations is thread-safe.
+%
 %-----------------------------------------------------------------------------%
 
 :- module domain.car.obs.torcs.

@@ -11,7 +11,6 @@
 % set_veloc that control the steering and speed of the vehicle.
 %
 %-----------------------------------------------------------------------------%
-%-----------------------------------------------------------------------------%
 
 :- module domain.car.cont.
 
@@ -29,25 +28,25 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type prim --->
-        set_veloc(agent, mps, mps, maybe(random.supply),
-                  maybe(vargen), list(constraint), time)
-    ;   set_yaw(agent, lane, rad, rad, maybe(random.supply), maybe(vargen),
-                list(constraint), time)
-    ;   wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
-    %;   match(s, ccformula(prim), maybe(vargen), list(constraint), time)
-    ;   match(obs, maybe(vargen), list(constraint), time)
-    ;   eval(ccformula(prim), maybe(vargen), list(constraint), time)
-    ;   init_env(env)
-    ;   seed(int).
+:- type prim
+    --->    set_veloc(agent, mps, mps, maybe(random.supply),
+                      maybe(vargen), list(constraint), time)
+    ;       set_yaw(agent, lane, rad, rad, maybe(random.supply), maybe(vargen),
+                    list(constraint), time)
+    ;       wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
+    %;      match(s, ccformula(prim), maybe(vargen), list(constraint), time)
+    ;       match(obs, maybe(vargen), list(constraint), time)
+    ;       eval(ccformula(prim), maybe(vargen), list(constraint), time)
+    ;       init_env(env)
+    ;       seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
-                ;   set_yaw_st(agent, lane, rad).
+              ;     set_yaw_st(agent, lane, rad).
 :- type proc --->  straight_left(agent)
-                ;  straight_right(agent)
-                ;  left_lane_change(agent)
-                ;  right_lane_change(agent)
-                ;  cruise(agent)
-                ;  overtake(agent, agent).
+             ;     straight_right(agent)
+             ;     left_lane_change(agent)
+             ;     right_lane_change(agent)
+             ;     cruise(agent)
+             ;     overtake(agent, agent).
 
 :- type sit == sit(prim).
 :- type prog == prog(prim, stoch, proc).

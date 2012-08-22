@@ -10,7 +10,6 @@
 % Observation interface that reads observations for the car domain from stdin.
 %
 %-----------------------------------------------------------------------------%
-%-----------------------------------------------------------------------------%
 
 :- module domain.car.obs.stdin.
 
