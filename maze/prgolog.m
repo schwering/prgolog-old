@@ -131,9 +131,6 @@
 :- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
 :- mode do(in, in, out) is semidet.
 
-%-----------------------------------------------------------------------------%
-
-:- include_module ccfluent.
 :- include_module fluent.
 :- include_module nice.
 

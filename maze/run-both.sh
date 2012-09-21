@@ -1,5 +1,7 @@
 #/usr/bin/time -f "time=%e cpu=%P mem=%Mk swaps=%W ctxinvol=%c ctxvol=%w" ./maze >/dev/null
 
+MERCURY_INST=$(dirname $(which mmc))/..
+
 MERCURY_ENABLE_MEMOIZATION="sed --in-place -e 's/^.\+pragma memo(pos\/1/:- pragma memo(pos\/1/' maze.m"
 MERCURY_DISABLE_MEMOIZATION="sed --in-place -e 's/^.\+pragma memo(pos\/1/%:- pragma memo(pos\/1/' maze.m"
 
@@ -21,7 +23,7 @@ ECLIPSE_STANDALONE_UNVISITED="${STANDALONE_UNVISITED} maze.ecl"
 # Great blog.
 MERCURY_COMPILE="mmc --rebuild -O6 -H --infer-all --intermod-opt maze >/dev/null 2>/dev/null || (echo 'Compile error.' && exit)"
 MERCURY_COMPILE_JAVA="mmc --rebuild --java -O6 -H --infer-all --intermod-opt maze >/dev/null 2>/dev/null || (echo 'Compile error.' && exit)"
-MERCURY_RUN_JAVA="java -cp Mercury/classs/:/usr/local/mercury-11.07/lib/mercury/lib/java/mer_rt.jar:/usr/local/mercury-11.07/lib/mercury/lib/java/mer_std.jar jmercury.maze"
+MERCURY_RUN_JAVA="java -cp Mercury/classs/:${MERCURY_INST}/lib/mercury/lib/java/mer_rt.jar:${MERCURY_INST}/lib/mercury/lib/java/mer_std.jar jmercury.maze"
 
 for i in 3 10 15 20 30 40 50 60 70 80
 do

@@ -29,7 +29,7 @@
 
 :- export(main/0).
 
-room_size(70).
+room_size(80).
 room_height(X) :- room_size(X).
 room_width(X) :- room_size(X).
 
