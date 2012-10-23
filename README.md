@@ -19,10 +19,10 @@ which we move to the basic aciton theories since not all domains
 need it. Domains need to implement the `bat` typeclass.
 
 ### `domain`
-Contains abstract interfaces (typeclasses `obs_ba`, `pr_bat`,
-`obs_source`) that need to be implemented by modules that either
-implement a basic action theory for plan recognition or provide
-access to observations, respectively.
+Contains interfaces (typeclasses `obs_bat`, `pr_bat`, `obs_source`)
+that need to be implemented by modules that either implement a basic
+action theory for plan recognition or provide access to observations,
+respectively.
 It also contains the implementation of the car domain with
 continuous change and time (implements `obs_bat` and `pr_bat`) and
 provides a consumer-producer-way of storing observations.

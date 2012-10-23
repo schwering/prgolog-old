@@ -4,11 +4,12 @@
   <head>
   </head>
   <body>
-    <h1>Mercury Golog interpreter</h1>
+    <h1>Mercury Golog Interpreter Benchmark</h1>
     <p>Christoph Schwering (schwering at kbsg.rwth-aachen.de)</p>
 
     <p>
     This is about a Golog interpreter written in Mercury.
+    (More precisely, it's dialect of Golog.)
     <a href="http://www.cs.toronto.edu/cogrobo/main/systems/">Golog</a> is a
     <a href="http://en.wikipedia.org/wiki/Situation_calculus">situation
       calculus</a>-based action language.
@@ -20,12 +21,13 @@
     </p>
 
     <p>
-    The interpreter is implemented in the file <a href="prgolog.m"
-      style="font-weight: bold;">prgolog.m</a> and two helpers,
-    <a href="prgolog.nice.m" style="font-weight: bold;">prgolog.nice.m</a> for a
-    nicer syntax and <a href="prgolog.fluents.m"
-      style="font-weight: bold;">prgolog.fluents.m</a> for some convenience
-    functions for fluent formulas.
+    The interpreter is implemented in the file
+    <a href="prgolog.m" style="font-weight: bold;">prgolog.m</a>
+    and two helpers,
+    <a href="prgolog.nice.m" style="font-weight: bold;">prgolog.nice.m</a>
+    for a nicer syntax and
+    <a href="prgolog.fluent.m" style="font-weight: bold;">prgolog.fluent.m</a>
+    for some convenience functions for fluent formulas.
     <ul>
       <li> Nonderministic pick is NOT implemented. I'll probably go with the
       pick restricted to finite domains. </li>
@@ -38,8 +40,9 @@
       </ul>
       </li>
     </ul>
-    As example, I implemented a maze in <a href="maze.m" style="font-weight:
-      bold;">maze.m</a> consisting of four rooms, each of which as two doors.
+    As example, I implemented a maze in
+    <a href="maze.m" style="font-weight: bold;">maze.m</a>
+    consisting of four rooms, each of which as two doors.
     The agent wants to get from the top left to the bottom right.
     The agent's actions are deterministic (i.e., non-stochastic).
     </p>
@@ -147,10 +150,11 @@
     <h2>Benchmarks</h2>
 
     <p>
-    We compared our Mercury interpreter with an equivalent implementation in
-    ECLiPSe-CLP.
-    We tried both, naive and standalone <em>unvisited(P, S)</em>.
-    We not only tested Mercury's standard backend (binary code), but also its
+    I compared our Mercury interpreter with an equivalent implementation in
+    ECLiPSe-CLP (<a href="prgolog.ecl">prgolog.ecl</a>,
+    <a href="worlds.ecl">worlds.ecl</a>, <a href="maze.ecl">maze.ecl</a>).
+    I tried both, naive and standalone <em>unvisited(P, S)</em>.
+    I not only tested Mercury's standard backend (binary code), but also its
     Java backend.
     Finally we also tested the effect of <a
       href="http://en.wikipedia.org/wiki/Memoization">memoization</a> (aka
