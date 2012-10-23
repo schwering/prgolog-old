@@ -1,0 +1,256 @@
+%-----------------------------------------------------------------------------%
+% vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+%-----------------------------------------------------------------------------%
+% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+%-----------------------------------------------------------------------------%
+%
+% File: domain.car.rstc.m.
+% Main author: schwering.
+%
+% Basic action theory (BAT) for driving with two simple actions, set_yaw and
+% set_veloc that control the steering and speed of the vehicle.
+%
+%-----------------------------------------------------------------------------%
+
+:- module domain.car.rstc.
+
+:- interface.
+
+:- import_module prgolog.
+:- import_module prgolog.nice.
+
+%-----------------------------------------------------------------------------%
+
+:- type car ---> b ; c ; d.
+:- type prim
+    --->    wait(float)
+    ;       accel(car, float)
+    ;       lc(car, int).
+:- type stoch == int.
+:- type proc == int.
+
+:- type sit == sit(prim).
+:- type prog == prog(prim, stoch, proc).
+:- type conf == conf(prim, stoch, proc).
+
+%-----------------------------------------------------------------------------%
+
+%:- instance bat(prim, stoch, proc).
+%:- instance obs_bat(prim, stoch, proc, obs).
+%:- instance pr_bat(prim, stoch, proc, obs, env).
+
+%-----------------------------------------------------------------------------%
+
+:- pred ntg(car, car, float, sit).
+:- mode ntg(in, in, out, in) is semidet.
+
+:- pred ttc(car, car, float, sit).
+:- mode ttc(in, in, out, in) is semidet.
+
+:- func lane(car::in, sit::in) = (int::out) is det.
+:- func start(sit::in) = (float::out) is det.
+
+%-----------------------------------------------------------------------------%
+
+:- pred poss(prim::in, prim::out, sit::in) is semidet.
+
+%-----------------------------------------------------------------------------%
+
+%:- pred random_outcome(stoch::in, prim::out, sit::in) is det.
+
+%-----------------------------------------------------------------------------%
+
+%:- func lookahead(sit) = lookahead is det.
+
+%-----------------------------------------------------------------------------%
+
+%:- func reward(sit) = reward.
+%:- mode reward(in) = out is det.
+
+%-----------------------------------------------------------------------------%
+
+%:- pred proc(proc::in, prog::out) is det.
+
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
+
+:- implementation.
+
+:- import_module float.
+:- import_module int.
+:- import_module list.
+:- import_module math.
+:- import_module prgolog.nice.
+:- import_module solutions.
+
+%-----------------------------------------------------------------------------%
+
+:- func x(car) = (float).
+:- mode x(in) = (out) is det.
+:- mode x(out) = (out) is multi.
+
+x(b) = 1.0.
+x(c) = 5.0.
+x(d) = 1.0.
+
+:- func v(car) = (float).
+:- mode v(in) = (out) is det.
+:- mode v(out) = (out) is multi.
+
+v(b) = 3.0.
+v(c) = 2.0.
+v(d) = 1.0.
+
+:- pred car(car).
+:- mode car(in) is det.
+:- mode car(out) is multi.
+
+car(b).
+car(c).
+car(d).
+
+:- func ntg_via(car::in, car::in, sit::in) = (car::out) is semidet.
+
+ntg_via(B, D, S) = E :-
+    solutions((pred({Cost, C}::out) is nondet :-
+        car(C),
+        C \= B,
+        C \= D,
+        ttc(B, C, TTC_BC, S), TTC_BC \= 0.0,
+        ttc(C, D, TTC_CD, S), TTC_CD \= 0.0,
+        ntg(B, C, NTG_BC, S),
+        ntg(C, D, NTG_CD, S),
+        Cost = NTG_BC + NTG_CD + TTC_BC + TTC_CD
+    ), [FirstCandidate|Candidates]),
+    foldr((func({Cost0, C0}, {Cost1, C1}) = (
+        if      abs(Cost0) < abs(Cost1)
+        then    {Cost0, C0}
+        else    {Cost1, C1}
+    )), Candidates, FirstCandidate) = {_, E}.
+
+%-----------------------------------------------------------------------------%
+
+ntg(B, D, R, s0) :-
+    v(B) \= 0.0,
+    R = (x(D) - x(B)) / v(B).
+ntg(B, D, R, do(A, S)) :-
+    (   A = wait(T) ->
+        (   ttc(B, D, TTC_BD, S), TTC_BD \= 0.0 ->
+            ntg(B, D, NTG_BD, S),
+            R = NTG_BD - T * NTG_BD / TTC_BD
+        ;   C = ntg_via(B, D, S),
+            ttc(B, C, TTC_BC, S), TTC_BC \= 0.0,
+            ttc(C, D, TTC_CD, S), TTC_CD \= 0.0,
+            ntg(B, C, NTG_BC, S),
+            ntg(C, D, NTG_CD, S),
+            R1 = NTG_BC - T * NTG_BC / TTC_BC,
+            R2 = TTC_BC - T, R2 \= 0.0,
+            R3 = NTG_CD - T * NTG_CD / TTC_CD,
+            R = R1 + (1.0 - R1 / R2) * R3
+        )
+    ;   A = accel(B, Q), Q \= 0.0 ->
+        ntg(B, D, NTG_BD, S),
+        R = 1.0 / Q * NTG_BD
+    ;   A \= wait(_), A \= accel(B, _),
+        ntg(B, D, R, S)
+    ).
+
+%-----------------------------------------------------------------------------%
+
+ttc(B, D, R, s0) :-
+    v(B) - v(D) \= 0.0,
+    R = (x(D) - x(B)) / (v(B) - v(D)).
+ttc(B, D, R, do(A, S)) :-
+    (   A = wait(T) ->
+        ttc(B, D, TTC_BD, S),
+        R = TTC_BD - T
+    ;   A = accel(B, Q) ->
+        ntg(B, D, NTG_BD, S), NTG_BD \= 0.0,
+        ttc(B, D, TTC_BD, S), TTC_BD \= 0.0,
+        Q \= 1.0 - NTG_BD / TTC_BD,
+        R = 1.0 / ((Q - 1.0) * TTC_BD / NTG_BD + 1.0) * TTC_BD
+    ;   A = accel(D, Q) ->
+        ntg(B, D, NTG_BD, S), NTG_BD \= 0.0,
+        ttc(B, D, TTC_BD, S), TTC_BD \= 0.0,
+        Q \= 1.0 / (1.0 - NTG_BD / TTC_BD),
+        R = 1.0 / ((1.0 - Q) * TTC_BD / NTG_BD + Q) * TTC_BD
+    ;   A \= wait(_), A \= accel(B, _), A \= accel(D, _),
+        ttc(B, D, R, S)
+    ).
+
+%-----------------------------------------------------------------------------%
+
+lane(_, s0) = 0.
+lane(B, do(A, S)) = L :-
+    if      A = lc(B, L0)
+    then    L = L0
+    else    L = lane(B, S).
+
+%-----------------------------------------------------------------------------%
+
+start(s0) = 0.0.
+start(do(A, S)) = T :-
+    if      A = wait(D)
+    then    T = start(S) + D
+    else    T = start(S).
+
+%-----------------------------------------------------------------------------%
+
+poss(wait(T), wait(T), _) :- T > 0.0.
+
+poss(accel(B, Q), accel(B, Q), _) :- Q >= 0.0.
+
+poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
+
+%-----------------------------------------------------------------------------%
+
+%random_outcome(_, _, _) :- fail.
+
+%-----------------------------------------------------------------------------%
+
+%lookahead(_S) = 3.
+
+%-----------------------------------------------------------------------------%
+
+%:- func new_lookahead(lookahead, atom(prim, stoch)) = lookahead is det.
+
+%new_lookahead(H, _C) = H - 1.
+
+%-----------------------------------------------------------------------------%
+
+%reward(s0) = 0.0.
+%reward(do(_, S)) = reward(S).
+
+%-----------------------------------------------------------------------------%
+
+%proc(_, _) :- fail.
+
+%-----------------------------------------------------------------------------%
+
+/*
+:- instance bat(prim, stoch, proc) where [
+    pred(poss/3) is rstc.poss,
+    pred(random_outcome/3) is rstc.random_outcome,
+    func(reward/2) is rstc.reward,
+    func(lookahead/1) is rstc.lookahead,
+    func(new_lookahead/2) is rstc.new_lookahead,
+    pred(proc/2) is rstc.proc
+].
+*/
+
+/*
+:- instance obs_bat(prim, stoch, proc, obs) where [
+    pred(is_obs/1) is rstc.is_match_action,
+    pred(covered_by_obs/1) is rstc.covered_by_match,
+    func(obs_to_action/1) is rstc.obs2match
+].
+
+:- instance pr_bat(prim, stoch, proc, obs, env) where [
+    seed_init_sit(I) = do(seed(I), s0),
+    init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
+].
+*/
+
+%-----------------------------------------------------------------------------%
+:- end_module domain.car.rstc.
+%-----------------------------------------------------------------------------%
