@@ -21,11 +21,15 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type ntg == s.
+:- type ttc == s.
+
 :- type car ---> b ; c ; d.
 :- type prim
-    --->    wait(float)
+    --->    wait(s)
     ;       accel(car, float)
-    ;       lc(car, int).
+    ;       lc(car, int)
+    ;       sense(car, car, ntg, ttc).
 :- type stoch == int.
 :- type proc == int.
 
@@ -41,14 +45,14 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred ntg(car, car, float, sit).
+:- pred ntg(car, car, ntg, sit).
 :- mode ntg(in, in, out, in) is semidet.
 
-:- pred ttc(car, car, float, sit).
+:- pred ttc(car, car, ttc, sit).
 :- mode ttc(in, in, out, in) is semidet.
 
 :- func lane(car::in, sit::in) = (int::out) is det.
-:- func start(sit::in) = (float::out) is det.
+:- func start(sit::in) = (s::out) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -109,24 +113,25 @@ car(b).
 car(c).
 car(d).
 
-:- func ntg_via(car::in, car::in, sit::in) = (car::out) is semidet.
+%-----------------------------------------------------------------------------%
 
-ntg_via(B, D, S) = E :-
-    solutions((pred({Cost, C}::out) is nondet :-
-        car(C),
-        C \= B,
-        C \= D,
+:- func min({float, car}::in, {float, car}::in) = ({float, car}::out) is det.
+
+min(E1 @ {Cost1, _}, E2 @ {Cost2, _}) = ( if Cost1 < Cost2 then E1 else E2 ).
+
+
+:- func third_car_in_sight(car::in, car::in, sit::in) = (car::out) is semidet.
+
+third_car_in_sight(B, D, S) = E :-
+    Cars = solutions((pred(C::out) is nondet :- car(C), C \= B, C \= D)),
+    map((pred(C::in, {Cost, C}::out) is semidet :-
         ttc(B, C, TTC_BC, S), TTC_BC \= 0.0,
         ttc(C, D, TTC_CD, S), TTC_CD \= 0.0,
         ntg(B, C, NTG_BC, S),
         ntg(C, D, NTG_CD, S),
-        Cost = NTG_BC + NTG_CD + TTC_BC + TTC_CD
-    ), [FirstCandidate|Candidates]),
-    foldr((func({Cost0, C0}, {Cost1, C1}) = (
-        if      abs(Cost0) < abs(Cost1)
-        then    {Cost0, C0}
-        else    {Cost1, C1}
-    )), Candidates, FirstCandidate) = {_, E}.
+        Cost = abs(NTG_BC + NTG_CD + TTC_BC + TTC_CD)
+    ), Cars, [FirstCandidate|Candidates]),
+    {_, E} = foldr(min, Candidates, FirstCandidate).
 
 %-----------------------------------------------------------------------------%
 
@@ -134,24 +139,45 @@ ntg(B, D, R, s0) :-
     v(B) \= 0.0,
     R = (x(D) - x(B)) / v(B).
 ntg(B, D, R, do(A, S)) :-
-    (   A = wait(T) ->
-        (   ttc(B, D, TTC_BD, S), TTC_BD \= 0.0 ->
-            ntg(B, D, NTG_BD, S),
-            R = NTG_BD - T * NTG_BD / TTC_BD
-        ;   C = ntg_via(B, D, S),
-            ttc(B, C, TTC_BC, S), TTC_BC \= 0.0,
-            ttc(C, D, TTC_CD, S), TTC_CD \= 0.0,
-            ntg(B, C, NTG_BC, S),
-            ntg(C, D, NTG_CD, S),
-            R1 = NTG_BC - T * NTG_BC / TTC_BC,
-            R2 = TTC_BC - T, R2 \= 0.0,
-            R3 = NTG_CD - T * NTG_CD / TTC_CD,
-            R = R1 + (1.0 - R1 / R2) * R3
+    (
+        A = wait(T) ->
+        (   if
+                ttc(B, D, TTC_BD, S), TTC_BD \= 0.0
+            then
+                ntg(B, D, NTG_BD, S),
+                R = NTG_BD - T * NTG_BD / TTC_BD
+            else
+                C = third_car_in_sight(B, D, S),
+                ttc(B, C, TTC_BC, S), TTC_BC \= 0.0,
+                ttc(C, D, TTC_CD, S), TTC_CD \= 0.0,
+                ntg(B, C, NTG_BC, S),
+                ntg(C, D, NTG_CD, S),
+                R1 = NTG_BC - T * NTG_BC / TTC_BC,
+                R2 = TTC_BC - T, R2 \= 0.0,
+                R3 = NTG_CD - T * NTG_CD / TTC_CD,
+                R = R1 + (1.0 - R1 / R2) * R3
         )
-    ;   A = accel(B, Q), Q \= 0.0 ->
+    ;
+        A = accel(B, Q), Q \= 0.0 ->
         ntg(B, D, NTG_BD, S),
         R = 1.0 / Q * NTG_BD
-    ;   A \= wait(_), A \= accel(B, _),
+    ;
+        A = sense(B, D, NTG_BD, _) ->
+        R = NTG_BD
+    ;
+        A = sense(D, B, NTG_DB, TTC_DB) ->
+        NTG_DB \= TTC_DB,
+        R = -1.0 / (1.0 - NTG_DB / TTC_DB) * NTG_DB
+    /*  What to do when A = sense(_, _, _, _)?
+     *  We could try to to do it transitively, but that probably wouldn't be
+     *  intended if the preceding action was, e.g., sense(B, D, _, _).
+     *  I guess this is related to the problem of deciding on a NTG/TTC in
+     *  the presence of measuring inaccuracy. */
+    ;
+        A \= wait(_),
+        A \= accel(B, _),
+        A \= sense(B, _, _, _),
+        A \= sense(_, B, _, _),
         ntg(B, D, R, S)
     ).
 
@@ -161,20 +187,64 @@ ttc(B, D, R, s0) :-
     v(B) - v(D) \= 0.0,
     R = (x(D) - x(B)) / (v(B) - v(D)).
 ttc(B, D, R, do(A, S)) :-
-    (   A = wait(T) ->
+    (
+        A = wait(T) ->
         ttc(B, D, TTC_BD, S),
         R = TTC_BD - T
-    ;   A = accel(B, Q) ->
-        ntg(B, D, NTG_BD, S), NTG_BD \= 0.0,
-        ttc(B, D, TTC_BD, S), TTC_BD \= 0.0,
-        Q \= 1.0 - NTG_BD / TTC_BD,
-        R = 1.0 / ((Q - 1.0) * TTC_BD / NTG_BD + 1.0) * TTC_BD
-    ;   A = accel(D, Q) ->
-        ntg(B, D, NTG_BD, S), NTG_BD \= 0.0,
-        ttc(B, D, TTC_BD, S), TTC_BD \= 0.0,
-        Q \= 1.0 / (1.0 - NTG_BD / TTC_BD),
-        R = 1.0 / ((1.0 - Q) * TTC_BD / NTG_BD + Q) * TTC_BD
-    ;   A \= wait(_), A \= accel(B, _), A \= accel(D, _),
+    ;
+        A = accel(B, Q) ->
+        (   if
+                ntg(B, D, NTG_BD, S), NTG_BD \= 0.0,
+                ttc(B, D, TTC_BD, S), TTC_BD \= 0.0
+            then
+                (Q - 1.0) * TTC_BD / NTG_BD + 1.0 \= 0.0,
+                R = 1.0 / ((Q - 1.0) * TTC_BD / NTG_BD + 1.0) * TTC_BD
+            else
+                C = third_car_in_sight(B, D, S),
+                ntg(B, C, NTG_BC, S), NTG_BC \= 0.0,
+                ntg(C, D, NTG_CD, S), NTG_CD \= 0.0,
+                ttc(B, C, TTC_BC1, S), TTC_BC1 \= 0.0,
+                ttc(C, D, TTC_CD, S), TTC_CD \= 0.0,
+                (Q - 1.0) * TTC_BC1 / NTG_BC + 1.0 \= 0.0,
+                TTC_BC = 1.0 / ((Q - 1.0) * TTC_BC1 / NTG_BC + 1.0) * TTC_BC1,
+                R1 = (TTC_CD * NTG_BC) /
+                     (NTG_CD * TTC_BC + TTC_CD * NTG_BC - NTG_CD * NTG_BC),
+                R2 = (TTC_BC * NTG_CD - NTG_BC * NTG_CD) /
+                     (NTG_BC * TTC_CD + TTC_BC * NTG_CD - NTG_BC * NTG_CD),
+                R = R1 * TTC_BC + R2 * TTC_CD
+        )
+    ;
+        A = accel(D, Q) ->
+        (   if
+                ntg(B, D, NTG_BD, S), NTG_BD \= 0.0,
+                ttc(B, D, TTC_BD, S), TTC_BD \= 0.0
+            then
+                (1.0 - Q) * TTC_BD / NTG_BD + Q \= 0.0,
+                R = 1.0 / ((1.0 - Q) * TTC_BD / NTG_BD + Q) * TTC_BD
+            else
+                C = third_car_in_sight(B, D, S),
+                ntg(B, C, NTG_BC, S), NTG_BC \= 0.0,
+                ntg(C, D, NTG_CD1, S), NTG_CD1 \= 0.0,
+                ttc(B, C, TTC_BC, S), TTC_BC \= 0.0,
+                ttc(C, D, TTC_CD1, S), TTC_CD1 \= 0.0,
+                (1.0 - Q) * TTC_CD1 / NTG_CD1 + Q \= 0.0,
+                Q \= 0.0,
+                NTG_CD = 1.0 / Q * NTG_CD1,
+                TTC_CD = 1.0 / ((1.0 - Q) * TTC_CD1 / NTG_CD1 + Q) * TTC_CD1,
+                R1 = (TTC_CD * NTG_BC) /
+                     (NTG_CD * TTC_BC + TTC_CD * NTG_BC - NTG_CD * NTG_BC),
+                R2 = (TTC_BC * NTG_CD - NTG_BC * NTG_CD) /
+                     (NTG_BC * TTC_CD + TTC_BC * NTG_CD - NTG_BC * NTG_CD),
+                R = R1 * TTC_BC + R2 * TTC_CD
+        )
+    ;
+        A = sense(B, D, _, TTC_BD) ->
+        R = TTC_BD
+    ;
+        A = sense(D, B, _, TTC_DB) ->
+        R = TTC_DB
+    ;
+        A \= wait(_), A \= accel(B, _), A \= accel(D, _),
         ttc(B, D, R, S)
     ).
 

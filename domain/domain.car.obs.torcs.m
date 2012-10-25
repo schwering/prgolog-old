@@ -4,7 +4,7 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: domain.car.obs.m.
+% File: domain.car.obs.torcs.m.
 % Main author: schwering.
 %
 % Observation interface that reads observations for the car domain from stdin.
