@@ -166,7 +166,7 @@ accept_connections(ServerSocket, !IO) :-
     % reasonable value for dual core (one free core @ 2.2 GHz): 9
     % reasonable value for core i7 (four free cores @ 3.2 GHz): 27
     NSamples = 9,
-    Prog = (p(cruise(a)) // p(overtake(b, a))) `with_type` prog(prim, stoch, proc),
+    Prog = (p(cruise(b)) // p(overtake(c, b))) `with_type` prog(prim, stoch, proc),
     accept_connection(ServerSocket, Socket, !IO),
     Source = source,
     reset_obs_source(Source, !IO),

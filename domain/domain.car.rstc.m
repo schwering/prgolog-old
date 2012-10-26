@@ -234,8 +234,8 @@ start(do(A, S)) = T :-
 :- mode ntg_from_env(in, in, in) = out is semidet.
 
 ntg_from_env(B, D, env(_, Map)) = R :-
-    agent_info(VB, _, p(XB, _)) = Map^det_elem(B),
-    agent_info(_, _, p(XD, _)) = Map^det_elem(D),
+    info(VB, _, p(XB, _)) = Map^det_elem(B),
+    info(_, _, p(XD, _)) = Map^det_elem(D),
     R = (XD - XB) // VB.
 
 
@@ -243,15 +243,15 @@ ntg_from_env(B, D, env(_, Map)) = R :-
 :- mode ttc_from_env(in, in, in) = out is semidet.
 
 ttc_from_env(B, D, env(_, Map)) = R :-
-    agent_info(VB, _, p(XB, _)) = Map^det_elem(B),
-    agent_info(VD, _, p(XD, _)) = Map^det_elem(D),
+    info(VB, _, p(XB, _)) = Map^det_elem(B),
+    info(VD, _, p(XD, _)) = Map^det_elem(D),
     R = (XD - XB) // (VB - VD).
 
 
 :- func lane_from_env(agent, env) = lane is det.
 
 lane_from_env(B, env(_, Map)) = ( if Y < 0.0 then right else left ) :-
-    agent_info(_, _, p(_, Y)) = Map^det_elem(B).
+    info(_, _, p(_, Y)) = Map^det_elem(B).
 
 
 :- func start_from_env(env) = s is det.

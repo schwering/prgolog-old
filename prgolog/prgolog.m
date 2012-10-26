@@ -200,10 +200,12 @@ final(nil).
 
 next2(P, C, R) :-
     next(P, C1, R1),
-    (   C1 = complex(P1),
+    (
+        C1 = complex(P1),
         next2(P1, C, R0),
         R = seq(R0, R1)
-    ;   C1 = atom(C),
+    ;
+        C1 = atom(C),
         R = R1
     ).
 

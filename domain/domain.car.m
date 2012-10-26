@@ -30,9 +30,9 @@
 :- type s == float.
 
 :- type pos ---> p(x :: m, y :: m).
-:- type agent_info ---> agent_info(mps, rad, pos).
-:- type obs ---> obs(s, assoc_list(agent, pos)).
-:- type env ---> env(s, assoc_list(agent, agent_info)).
+:- type info ---> info(veloc :: mps, rad :: rad, pos :: pos).
+:- type env ---> env(s, assoc_list(agent, info)).
+:- type obs ---> obs(s, assoc_list(agent, info)).
 
 %-----------------------------------------------------------------------------%
 
@@ -48,7 +48,6 @@
 %-----------------------------------------------------------------------------%
 
 :- pred agent(agent).
-:- mode agent(in) is det.
 :- mode agent(out) is multi.
 
 :- func agent_to_string(agent) = string.

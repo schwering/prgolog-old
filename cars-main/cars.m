@@ -61,7 +61,7 @@
 main(!IO) :-
     times(Tms2, !IO),
     Source = source,
-    Prog = (p(cruise(a)) // p(overtake(b, a))) `with_type` prog(prim, stoch, proc),
+    Prog = (p(cruise(b)) // p(overtake(c, b))) `with_type` prog(prim, stoch, proc),
     %spawn((pred(IO0::di, IO1::uo) is cc_multi :- forward_obs(IO0, IO1)), !IO),
     %planrecog(10, global_init_obs, global_next_obs, Prog, Results, !IO),
     %online_planrecog(10, Vars, !IO),

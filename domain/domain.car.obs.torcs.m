@@ -53,6 +53,8 @@
 
 :- pragma foreign_decl("C", "
     #include ""car-obs-torcs-types.h""
+    #include <mercury_string.h>
+    #include <mercury_tags.h>
 
     /* Enqueues a new observation.
      * This operation may block. */
@@ -200,20 +202,12 @@ init_obs_stream(_, I, ss(I1, 0)) :- copy(I, I1).
 next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
     Done = obs_count_in_sit(S),
     ToBeDone = int.max(0, int.'-'(obs_count_in_prog(P), lookahead(S))),
-    next_obs_pure(I0, I1, ID, Done, ToBeDone,
-                         Ok, Time, AgentS0, Veloc0, Rad0, X0, Y0,
-                                   AgentS1, Veloc1, Rad1, X1, Y1),
+    next_obs(I0, I1, ID, Done, ToBeDone, Ok, Time, AgentInfoMap),
     (
         Ok = yes,
-        % XXX TODO adapt to handle multiple drivers or so
-        Agent0 = string_to_agent(AgentS0),
-        Agent1 = string_to_agent(AgentS1),
         (   if      I1 = 1
-            then    ObsMsg = init_msg(env(Time,
-                        [ pair(Agent0, agent_info(Veloc0, Rad0, X0, Y0))
-                        , pair(Agent1, agent_info(Veloc1, Rad1, X1, Y1))
-                        ]))
-            else    ObsMsg = obs_msg(obs(Time, Agent0, X0, Y0, Agent1, X1, Y1))
+            then    ObsMsg = init_msg(env(Time, AgentInfoMap))
+            else    ObsMsg = obs_msg(obs(Time, AgentInfoMap))
         )
     ;
         Ok = no,
@@ -222,52 +216,74 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
     copy(ss(ID, I1), State1).
 
 
+:- pred next_obs(
+    int::di, int::uo, int::in, int::in, int::in,
+    bool::out, float::out, assoc_list(agent, info)::out) is det.
+
+next_obs(I0, I1, ID, Done, ToBeDone, Ok, T, AgentInfoMap) :-
+    next_obs_pure(I0, I1, ID, Done, ToBeDone, Ok, T,
+                  AgentList, VelocList, RadList, XList, YList),
+    (   if      M = merge_lists(AgentList, VelocList, RadList, XList, YList)
+        then    AgentInfoMap = M
+        else    error("next_obs/8 failed")
+    ).
+
+
+:- func merge_lists(list(string), list(float), list(float), list(float),
+                    list(float)) = assoc_list(agent, info).
+:- mode merge_lists(in, in, in, in, in) = out is semidet.
+
+merge_lists([], [], [], [], []) = [].
+merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
+    P = string_to_agent(A) - info(V, R, p(X, Y)),
+    Ps = merge_lists(As, Vs, Rs, Xs, Ys).
+
+
 :- pred next_obs_pure(
     int::di, int::uo,
     int::in, int::in, int::in,
     bool::out, float::out,
-    string::out, float::out, float::out, float::out, float::out,
-    string::out, float::out, float::out, float::out, float::out) is det.
+    list(string)::out, list(float)::out, list(float)::out,
+                       list(float)::out, list(float)::out) is det.
 
 :- pragma foreign_proc("C",
     next_obs_pure(
         I0::di, I1::uo,
         ID::in, Done::in, ToBeDone::in,
         Ok::out, T::out,
-        Agent0::out, Veloc0::out, Rad0::out, X0::out, Y0::out,
-        Agent1::out, Veloc1::out, Rad1::out, X1::out, Y1::out),
+        AgentList::out, VelocList::out, RadList::out, XList::out, YList::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     assert(0 <= ID && ID < MAX_PROCESSES);
     process_states[ID] = (struct process_state) { Done, ToBeDone, WORKING };
     sem_wait(&semaphores[ID]);
     if (I0 <= max_valid_observation) {
+        int i;
         Ok = MR_YES;
         T = (MR_Float) observations[I0].t;
-        Agent0 = MR_make_string_const(observations[I0].agent0);
-        Veloc0 = (MR_Float) observations[I0].veloc0;
-        Rad0 = (MR_Float) observations[I0].rad0;
-        X0 = (MR_Float) observations[I0].x0;
-        Y0 = (MR_Float) observations[I0].y0;
-        Agent1 = MR_make_string_const(observations[I0].agent1);
-        Veloc1 = (MR_Float) observations[I0].veloc1;
-        Rad1 = (MR_Float) observations[I0].rad1;
-        X1 = (MR_Float) observations[I0].x1;
-        Y1 = (MR_Float) observations[I0].y1;
+        AgentList = MR_list_empty();
+        VelocList = MR_list_empty();
+        RadList   = MR_list_empty();
+        XList     = MR_list_empty();
+        YList     = MR_list_empty();
+        for (i = 0; i < observations[I0].n_agents; ++i) {
+            MR_String agent;
+            MR_make_aligned_string_copy(agent, observations[I0].info[i].agent);
+            AgentList = MR_string_list_cons((MR_Word) agent, AgentList);
+            VelocList = MR_list_cons(MR_float_to_word((MR_Float) observations[I0].info[i].veloc), VelocList);
+            RadList   = MR_list_cons(MR_float_to_word((MR_Float) observations[I0].info[i].rad),   RadList);
+            XList     = MR_list_cons(MR_float_to_word((MR_Float) observations[I0].info[i].x),     XList);
+            YList     = MR_list_cons(MR_float_to_word((MR_Float) observations[I0].info[i].y),     YList);
+        }
         I1 = I0 + 1;
     } else {
         Ok = MR_NO;
         T = (MR_Float) -1.0;
-        Agent0 = MR_make_string_const("""");
-        Veloc0 = (MR_Float) -1.0;
-        Rad0 = (MR_Float) -1.0;
-        X0 = (MR_Float) -1.0;
-        Y0 = (MR_Float) -1.0;
-        Agent1 = MR_make_string_const("""");
-        Veloc1 = (MR_Float) -1.0;
-        Rad1 = (MR_Float) -1.0;
-        X1 = (MR_Float) -1.0;
-        Y1 = (MR_Float) -1.0;
+        AgentList = MR_list_empty();
+        VelocList = MR_list_empty();
+        RadList   = MR_list_empty();
+        XList     = MR_list_empty();
+        YList     = MR_list_empty();
     }
 ").
 

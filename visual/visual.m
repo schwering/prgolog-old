@@ -61,6 +61,7 @@
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
+:- import_module solutions.
 :- import_module require.
 
 %-----------------------------------------------------------------------------%
@@ -94,12 +95,10 @@ right(Area) = left(Area) + cols(Area) - 1.
 
 get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
     (   if      S = do(match(Obs, _, _, _), _)
-        then    (   if      Obs = obs(_, Agent, X0, Y0, _, _, _)
-                    then    ObsX = X0,
-                            ObsY = Y0
-                    else if Obs = obs(_, _, _, _, Agent, X0, Y0)
-                    then    ObsX = X0,
-                            ObsY = Y0
+        then    (   if      Obs = obs(_, AgentInfoMap),
+                            Info = AgentInfoMap ^ elem(Agent)
+                    then    ObsX = x(pos(Info)),
+                            ObsY = y(pos(Info))
                     else    error("invalid observation does not contain driver")
                 )
         else    ObsX = -1.0, ObsY = -1.0
@@ -112,8 +111,9 @@ get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
 
 :- func agent_to_color(agent::in) = (colour::out) is det.
 
-agent_to_color(a) = red.
-agent_to_color(b) = blue.
+agent_to_color(b) = red.
+agent_to_color(c) = blue.
+agent_to_color(d) = green.
 
 
 :- pred border(area::in, io::di, io::uo) is det.
@@ -201,8 +201,7 @@ draw_data(MapSit, Area, Agent, !IO) :-
 
 draw_sit(MapSit, Area, !IO) :-
     draw_center_line(Area, !IO),
-    draw_data(MapSit, Area, a, !IO),
-    draw_data(MapSit, Area, b, !IO),
+    aggregate(agent, draw_data(MapSit, Area), !IO),
     border(Area, !IO).
 
 

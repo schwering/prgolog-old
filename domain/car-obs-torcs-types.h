@@ -17,22 +17,24 @@
 
 #define PORT 19123
 
-#define AGENTLEN  15
+#define AGENTLEN  7
+
+struct agent_info_record {
+  char agent[AGENTLEN+1]; /* name of agent */
+  double veloc;           /* velocity of agent */
+  double rad;             /* yaw of agent */
+  double x;               /* longitudinal position of agent */
+  double y;               /* lateral position of agent */
+};
+
+#define NAGENTS   5
 
 /* Represents an observation of two agents and their physical parameters at a
  * certain point in time. */
 struct observation_record {
-  double t;                 /* timestamp */
-  char agent0[AGENTLEN+1];  /* name of first agent */
-  double veloc0;            /* velocity of first agent */
-  double rad0;              /* yaw of first agent */
-  double x0;                /* longitudinal position of first agent */
-  double y0;                /* lateral position of first agent */
-  char agent1[AGENTLEN+1];  /* name of second agent */
-  double veloc1;            /* velocity of second agent */
-  double rad1;              /* yaw of second agent */
-  double x1;                /* longitudinal position of second agent */
-  double y1;                /* lateral position of second agent */
+  double t;       /* timestamp */
+  short n_agents; /* number of agents in this observation */
+  struct agent_info_record info[NAGENTS]; /* agent info */
 };
 
 /* Minor states a sample process can be in. */
