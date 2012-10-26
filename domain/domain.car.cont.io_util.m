@@ -273,18 +273,15 @@ draw_trace(Map, S, !IO) :-
 
 
 draw_trace_2(Stream, Map, S, !IO) :-
-    Agent = b,
+    Agent = b `with_type` agent,
     (   if   S = do(A, S0), A \= init_env(_)
         then draw_trace_2(Stream, Map, S0, !IO)
         else format(Stream, "time     xobs     yobs     xmod     ymod      xlo      ylo      xhi      yhi\n", [], !IO)
     ),
     (   (   if      S = do(match(Obs, _, _, _), _)
-            then    (   if      Obs = obs(_, Agent, X0, Y0, _, _, _)
-                        then    ObsX = format("%7.3f", [f(X0)]),
-                                ObsY = format("%7.3f", [f(Y0)])
-                        else if Obs = obs(_, _, _, _, Agent, X0, Y0)
-                        then    ObsX = format("%7.3f", [f(X0)]),
-                                ObsY = format("%7.3f", [f(Y0)])
+            then    (   if      Obs = obs(_, ObsMap), Pos = ObsMap^elem(Agent)
+                        then    ObsX = format("%7.3f", [f(x(Pos))]),
+                                ObsY = format("%7.3f", [f(y(Pos))])
                         else    error("invalid observation does not contain driver")
                     )
             else    ObsX = "    NaN", ObsY = "    NaN"

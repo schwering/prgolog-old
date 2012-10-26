@@ -245,7 +245,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 veloc(_, s0) = 0.0.
 veloc(Agent, do(A, S)) = Veloc :-
     if      A = init_env(env(_, Map))
-    then    agent_info(Veloc, _, _, _) = Map^det_elem(Agent)
+    then    agent_info(Veloc, _, _) = Map^det_elem(Agent)
     else if A = set_veloc(Agent, V0, _, _, _, _, _)
     then    Veloc = V0
     else    Veloc = veloc(Agent, S).
@@ -255,7 +255,7 @@ veloc(Agent, do(A, S)) = Veloc :-
 yaw(_, s0) = 0.0.
 yaw(Agent, do(A, S)) = Rad :-
     if      A = init_env(env(_, Map))
-    then    agent_info(_, Rad, _, _) = Map^det_elem(Agent)
+    then    agent_info(_, Rad, _) = Map^det_elem(Agent)
     else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
     else    Rad = yaw(Agent, S).
@@ -266,7 +266,7 @@ x(_, s0) = ( func(_) = constant(0.0) ).
 %x(Agent, s0) = ( func(_) = constant(X) ) :- initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
     if      A = init_env(env(_, Map))
-    then    agent_info(_, _, X0, _) = Map^det_elem(Agent),
+    then    agent_info(_, _, p(X0, _)) = Map^det_elem(Agent),
             X = ( func(_) = constant(X0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
                 Rad = yaw(Agent, S)
@@ -282,7 +282,7 @@ y(_, s0) = ( func(_) = constant(0.0) ).
 %y(Agent, s0) = ( func(_) = constant(Y) ) :- initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
     if      A = init_env(env(_, Map))
-    then    agent_info(_, _, _, Y0) = Map^det_elem(Agent),
+    then    agent_info(_, _, p(_, Y0)) = Map^det_elem(Agent),
             Y = ( func(_) = constant(Y0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
                 Rad = yaw(Agent, S)
@@ -529,18 +529,17 @@ covered_by_match(S) :-
 
 :- func obs2ccformula(obs::in) = ({s, ccformula(prim)}::out) is det.
 
-obs2ccformula(obs(OT, A0, X0, Y0, A1, X1, Y1)) = {OT, OF} :-
-    C = ( func(F) = constant(F) ),
-    OF = ( func(T, S) = [
-        C(X0 - x_tol(A0, S)) `=<` x(A0, S)(T),
-                                  x(A0, S)(T) `=<` C(X0 + x_tol(A0, S)),
-        C(Y0 - y_tol(A0, S)) `=<` y(A0, S)(T),
-                                  y(A0, S)(T) `=<` C(Y0 + y_tol(A0, S)),
-        C(X1 - x_tol(A1, S)) `=<` x(A1, S)(T),
-                                  x(A1, S)(T) `=<` C(X1 + x_tol(A1, S)),
-        C(Y1 - y_tol(A1, S)) `=<` y(A1, S)(T),
-                                  y(A1, S)(T) `=<` C(Y1 + y_tol(A1, S))
-    ] ).
+obs2ccformula(obs(OT, AgentPositions)) = {OT, OF} :-
+    OF = ( func(T, S) =
+        foldr(( func((Agent - Pos), Cs) = [C1, C2, C3, C4] ++ Cs :-
+            C1 = MinX `=<` x(Agent, S)(T), C2 = x(Agent, S)(T) `=<` MaxX,
+            C3 = MinY `=<` y(Agent, S)(T), C4 = y(Agent, S)(T) `=<` MaxY,
+            MinX = constant(x(Pos) - x_tol(Agent, S)),
+            MaxX = constant(x(Pos) + x_tol(Agent, S)),
+            MinY = constant(y(Pos) - y_tol(Agent, S)),
+            MaxY = constant(y(Pos) + y_tol(Agent, S))
+        ), AgentPositions, [])
+    ).
 
 
 :- func obs2match(obs::in) = (prim::out) is det.

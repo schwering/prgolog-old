@@ -18,7 +18,7 @@
 :- import_module assoc_list.
 :- import_module prgolog.
 
-:- type agent ---> a ; b.
+:- type agent ---> b ; c ; d.
 :- type lane ---> left ; right.
 
 :- type degree == float.
@@ -29,8 +29,9 @@
 :- type m == float.
 :- type s == float.
 
-:- type agent_info ---> agent_info(mps, rad, m, m).
-:- type obs ---> obs(s, agent, m, m, agent, m, m).
+:- type pos ---> p(x :: m, y :: m).
+:- type agent_info ---> agent_info(mps, rad, pos).
+:- type obs ---> obs(s, assoc_list(agent, pos)).
 :- type env ---> env(s, assoc_list(agent, agent_info)).
 
 %-----------------------------------------------------------------------------%
@@ -46,7 +47,14 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func agent_to_string(agent) = string is det.
+:- pred agent(agent).
+:- mode agent(in) is det.
+:- mode agent(out) is multi.
+
+:- func agent_to_string(agent) = string.
+:- mode agent_to_string(in) = out is det.
+:- mode agent_to_string(out) = in is semidet.
+
 :- func string_to_agent(string) = agent is det.
 
 :- func lane_to_string(lane) = string is det.
@@ -81,15 +89,19 @@ deg_max = deg_zero - 25.0.
 
 %-----------------------------------------------------------------------------%
 
-agent_to_string(a) = "a".
+agent(b).
+agent(c).
+agent(d).
+
 agent_to_string(b) = "b".
+agent_to_string(c) = "c".
+agent_to_string(d) = "d".
 
 string_to_agent(S) = A :-
-    if      S = agent_to_string(a)
-    then    A = a
-    else if S = agent_to_string(b)
-    then    A = b
-    else    error("string_to_agent/1: conversion failed for '" ++ S ++ "'").
+    (   if      S = agent_to_string(A0)
+        then    A = A0
+        else    error("string_to_agent/1: conversion failed for '" ++ S ++ "'")
+    ).
 
 
 lane_to_string(left) = "left".
