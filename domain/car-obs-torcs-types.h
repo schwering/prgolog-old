@@ -33,7 +33,7 @@ struct agent_info_record {
  * certain point in time. */
 struct observation_record {
   double t;       /* timestamp */
-  short n_agents; /* number of agents in this observation */
+  uint8_t n_agents; /* number of agents in this observation */
   struct agent_info_record info[NAGENTS]; /* agent info */
 };
 

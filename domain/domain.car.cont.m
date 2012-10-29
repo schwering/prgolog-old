@@ -244,8 +244,8 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 
 veloc(_, s0) = 0.0.
 veloc(Agent, do(A, S)) = Veloc :-
-    if      A = init_env(env(_, Map))
-    then    info(Veloc, _, _) = Map^det_elem(Agent)
+    if      A = init_env(env(_, Map)), info(V0, _, _) = Map^elem(Agent)
+    then    Veloc = V0
     else if A = set_veloc(Agent, V0, _, _, _, _, _)
     then    Veloc = V0
     else    Veloc = veloc(Agent, S).
@@ -254,8 +254,8 @@ veloc(Agent, do(A, S)) = Veloc :-
 
 yaw(_, s0) = 0.0.
 yaw(Agent, do(A, S)) = Rad :-
-    if      A = init_env(env(_, Map))
-    then    info(_, Rad, _) = Map^det_elem(Agent)
+    if      A = init_env(env(_, Map)), info(_, Rad0, _) = Map^elem(Agent)
+    then    Rad = Rad0
     else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
     else    Rad = yaw(Agent, S).
@@ -265,9 +265,8 @@ yaw(Agent, do(A, S)) = Rad :-
 x(_, s0) = ( func(_) = constant(0.0) ).
 %x(Agent, s0) = ( func(_) = constant(X) ) :- initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
-    if      A = init_env(env(_, Map))
-    then    info(_, _, p(X0, _)) = Map^det_elem(Agent),
-            X = ( func(_) = constant(X0) )
+    if      A = init_env(env(_, Map)), info(_, _, p(X0, _)) = Map^elem(Agent)
+    then    X = ( func(_) = constant(X0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
                 Rad = yaw(Agent, S)
             ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0),
@@ -281,9 +280,8 @@ x(Agent, do(A, S)) = X :-
 y(_, s0) = ( func(_) = constant(0.0) ).
 %y(Agent, s0) = ( func(_) = constant(Y) ) :- initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
-    if      A = init_env(env(_, Map))
-    then    info(_, _, p(_, Y0)) = Map^det_elem(Agent),
-            Y = ( func(_) = constant(Y0) )
+    if      A = init_env(env(_, Map)), info(_, _, p(_, Y0)) = Map^elem(Agent)
+    then    Y = ( func(_) = constant(Y0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
                 Rad = yaw(Agent, S)
             ;   A = set_yaw(Agent, _, Rad, _, _, _, _, T0),

@@ -94,13 +94,11 @@ right(Area) = left(Area) + cols(Area) - 1.
                  s::out, m::out, m::out, m::out, m::out) is det.
 
 get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
-    (   if      S = do(match(Obs, _, _, _), _)
-        then    (   if      Obs = obs(_, AgentInfoMap),
-                            Info = AgentInfoMap ^ elem(Agent)
-                    then    ObsX = x(pos(Info)),
-                            ObsY = y(pos(Info))
-                    else    error("invalid observation does not contain driver")
-                )
+    (   if      S = do(match(Obs, _, _, _), _),
+                Obs = obs(_, AgentInfoMap),
+                Info = AgentInfoMap^elem(Agent)
+        then    ObsX = x(pos(Info)),
+                ObsY = y(pos(Info))
         else    ObsX = -1.0, ObsY = -1.0
     ),
     E = ( func(T) = eval_float(Map, T) ),

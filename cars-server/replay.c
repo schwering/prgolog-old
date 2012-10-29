@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <obs_types.h>
+#include <car-obs-torcs-types.h>
 
 #define HOST "localhost"
 #define PORT 19123
@@ -50,13 +50,13 @@ static int make_socket(void)
     return sockfd;
 }
 
-static float min_conf(const struct state_message *msg)
+static float min_conf(const struct planrecog_state *msg)
 {
     return (double) (msg->finished) /
            (double) (msg->working + msg->finished + msg->working);
 }
 
-static float max_conf(const struct state_message *msg)
+static float max_conf(const struct planrecog_state *msg)
 {
     return (double) (msg->working + msg->finished) /
            (double) (msg->working + msg->finished + msg->working);
@@ -64,28 +64,80 @@ static float max_conf(const struct state_message *msg)
 
 static void klatschtgleich2(FILE *fp, int sockfd)
 {
-    struct record r;
-    struct state_message state;
+    struct observation_record r;
+    struct planrecog_state state;
     double t0 = -1.0;
     int ret;
 
     while (fscanf(fp, "%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\n",
                 &r.t,
-                r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
-                r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1) == 11) {
-        printf("%lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\n",
+                r.info[0].agent, &r.info[0].veloc, &r.info[0].rad, &r.info[0].x, &r.info[0].y,
+                r.info[1].agent, &r.info[1].veloc, &r.info[1].rad, &r.info[1].x, &r.info[1].y) == 11) {
+        printf("%lf '%s' %lf %lf %lf %lf '%s' %lf %lf %lf %lf\n",
                r.t,
-               r.agent0, r.veloc0, r.rad0, r.x0, r.y0,
-               r.agent1, r.veloc1, r.rad1, r.x1, r.y1);
+               r.info[0].agent, r.info[0].veloc, r.info[0].rad, r.info[0].x, r.info[0].y,
+               r.info[1].agent, r.info[1].veloc, r.info[1].rad, r.info[1].x, r.info[1].y);
+        r.n_agents = 2;
         if (t0 >= 0.0) {
             usleep((useconds_t) (1e6 * (r.t - t0)));
         }
         t0 = r.t;
         ret = write(sockfd, &r, sizeof(r));
         if (ret != sizeof(r)) {
-            fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(r));
+            fprintf(stderr, "Couldn't write %lu bytes\n", sizeof(r));
             exit(1);
         }
+        ret = read(sockfd, &state, sizeof(state));
+        if (ret != sizeof(state)) {
+            fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));
+            exit(1);
+        }
+        printf("%.2lf =< confidence =< %.2lf\n",
+                min_conf(&state), max_conf(&state));
+    }
+}
+
+static void klatschtgleich3(FILE *fp, int sockfd)
+{
+    struct planrecog_state state;
+    double t0 = -1.0;
+    int ret;
+
+    for (;;) {
+        struct observation_record r;
+        int i;
+
+        if (fscanf(fp, "%lf {\n", &r.t) != 1) {
+            break;
+        }
+        printf("%lf {\n", r.t);
+        for (i = 0; i < NAGENTS; ++i) {
+            struct agent_info_record *info = &r.info[i];
+            const int n = fscanf(fp, " %s %lf %lf %lf %lf\n", info->agent,
+                    &info->veloc, &info->rad, &info->x, &info->y);
+            if (n != 5) {
+                if (!(n == 1 && strcmp(info->agent, "}"))) {
+                    fprintf(stderr, "Input format is invalid "
+                            "(%d elements in line).", n);
+                }
+                break;
+            }
+            printf("    %s %lf %lf %lf %lf\n", info->agent, info->veloc,
+                    info->rad, info->x, info->y);
+        }
+        r.n_agents = i;
+
+        if (t0 >= 0.0) {
+            usleep((useconds_t) (1e6 * (r.t - t0)));
+        }
+        t0 = r.t;
+
+        ret = write(sockfd, &r, sizeof(r));
+        if (ret != sizeof(r)) {
+            fprintf(stderr, "Couldn't write %lu bytes\n", sizeof(r));
+            exit(1);
+        }
+
         ret = read(sockfd, &state, sizeof(state));
         if (ret != sizeof(state)) {
             fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));

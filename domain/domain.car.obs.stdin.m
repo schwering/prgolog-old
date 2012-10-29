@@ -183,7 +183,7 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
                         ""%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\\n"",
                         &r.t,
                         r.info[0].agent, &r.info[0].veloc, &r.info[0].rad, &r.info[0].x, &r.info[0].y,
-                        r.info[0].agent, &r.info[0].veloc, &r.info[0].rad, &r.info[0].x, &r.info[0].y);
+                        r.info[1].agent, &r.info[1].veloc, &r.info[1].rad, &r.info[1].x, &r.info[1].y);
                 if (i == EOF) {
                     Ok = MR_NO;
                     pthread_mutex_unlock(&mutex);
