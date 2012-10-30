@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <obs_types.h>
+#include <car-obs-torcs-types.h>
 
 #define HOST "localhost"
 #define PORT 19123
@@ -50,13 +50,13 @@ static int make_socket(void)
     return sockfd;
 }
 
-static float min_conf(const struct state_message *msg)
+static float min_conf(const struct planrecog_state *msg)
 {
     return (double) (msg->finished) /
            (double) (msg->working + msg->finished + msg->working);
 }
 
-static float max_conf(const struct state_message *msg)
+static float max_conf(const struct planrecog_state *msg)
 {
     return (double) (msg->working + msg->finished) /
            (double) (msg->working + msg->finished + msg->working);
@@ -64,8 +64,8 @@ static float max_conf(const struct state_message *msg)
 
 static void klatschtgleich2(FILE *fp, int sockfd)
 {
-    struct record r;
-    struct state_message state;
+    struct observation_record r;
+    struct planrecog_state state;
     double t0 = -1.0;
     int ret;
 
