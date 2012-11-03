@@ -11,6 +11,7 @@
 
 :- module util.
 
+:- import_module arithmetic.
 :- import_module pipe.
 :- import_module times.
 

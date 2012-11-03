@@ -16,56 +16,60 @@
 
 :- interface.
 
+:- import_module arithmetic.
 :- import_module prgolog.
 :- import_module prgolog.nice.
 
 %-----------------------------------------------------------------------------%
 
-:- type ntg == s.
-:- type ttc == s.
+:- type s(N) == N.
+:- type ntg(N) == s(N).
+:- type ttc(N) == s(N).
 
-:- type prim
-    --->    wait(s)
-    ;       accel(agent, float)
+:- type prim(N)
+    --->    wait(s(N))
+    ;       accel(agent, N)
     ;       lc(agent, lane)
-    ;       senseD(agent, agent, ntg, ttc)
+    ;       senseD(agent, agent, ntg(N), ttc(N))
     ;       senseL(agent, lane)
     ;       init_env(env)
     ;       match(obs).
-:- type stoch.
-:- type proc == int.
+:- type stoch(N).
+:- type proc(N) == int.
 
-:- type sit == sit(prim).
-:- type prog == prog(prim, stoch, proc).
-:- type conf == conf(prim, stoch, proc).
+:- type sit(N) == prgolog.sit(prim(N)).
+:- type prog(N) == prgolog.prog(prim(N), stoch(N), proc(N)).
+:- type conf(N) == prgolog.nice.conf(prim(N), stoch(N), proc(N)).
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(prim, stoch, proc).
+%:- instance bat(prim(N), stoch(N), proc(N)) <= arithmetic(N).
 %:- instance obs_bat(prim, stoch, proc, obs).
 %:- instance pr_bat(prim, stoch, proc, obs, env).
 
 %-----------------------------------------------------------------------------%
 
-:- func ntg(agent, agent, sit) = ntg.
+:- func ntg(agent, agent, rstc.sit(N)) = ntg(N) <= arithmetic(N).
 :- mode ntg(in, in, in) = out is semidet.
 
-:- func ttc(agent, agent, sit) = ttc.
+:- func ttc(agent, agent, rstc.sit(N)) = ttc(N) <= arithmetic(N).
 :- mode ttc(in, in, in) = out is semidet.
 
-:- func lane(agent::in, sit::in) = (lane::out) is det.
-:- func start(sit::in) = (s::out) is det.
+:- func lane(agent::in, rstc.sit(N)::in) = (lane::out) is det.
+
+:- func start(rstc.sit(N)::in) = (s(N)::out) is det <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
-:- pred poss(prim::in, prim::out, sit::in) is semidet.
+:- pred poss(prim(N)::in, prim(N)::out, rstc.sit(N)::in) is semidet
+    <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
 :- implementation.
 
-:- type stoch ---> void.
+:- type stoch(N) ---> void.
 
 :- import_module exception.
 :- import_module list.
@@ -75,26 +79,28 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func float // float = float.
+:- func N // N = N <= arithmetic(N).
 :- mode in // in = out is semidet.
 
-V // W = R :- W \= 0.0, R = float.'/'(V, W).
+V // W = R :- W \= zero, R = V / W.
 
 %-----------------------------------------------------------------------------%
 
-:- func min({float,agent}::in, {float,agent}::in) = ({float,agent}::out) is det.
+:- func min({N,agent}::in, {N,agent}::in) = ({N,agent}::out) is det <= arithmetic(N).
 
 min(E1 @ {Cost1, _}, E2 @ {Cost2, _}) = ( if Cost1 < Cost2 then E1 else E2 ).
 
 
-:- func transitive_car(agent::in,agent::in,sit::in) = (agent::out) is semidet.
+:- func transitive_car(agent::in, agent::in, rstc.sit(N)::in) = (agent::out)
+    is semidet <= arithmetic(N).
 
 transitive_car(B, D, S) = E :-
     Cars = solutions((pred(C::out) is nondet :- agent(C), C \= B, C \= D)),
     map((pred(C::in, {Cost, C}::out) is semidet :-
-        ttc(B, C, S) \= 0.0,
-        ttc(C, D, S) \= 0.0,
-        Cost = abs(ntg(B, C, S) + ntg(C, D, S) + ttc(B, C, S) + ttc(C, D, S))
+        ttc(B, C, S) \= zero,
+        ttc(C, D, S) \= zero,
+        Cost = abs(ntg(B, C, S) + ntg(C, D, S) +
+                   ttc(B, C, S) + ttc(C, D, S))
     ), Cars, [FirstCandidate | Candidates]),
     {_, E} = foldr(min, Candidates, FirstCandidate).
 
@@ -106,7 +112,7 @@ ntg(B, D, do(A, S)) = R :-
     (
         A = wait(T),
         (   if
-                ttc(B, D, S) \= 0.0
+                ttc(B, D, S) \= zero
             then
                 R = ntg(B, D, S) - T * ntg(B, D, S) // ttc(B, D, S)
             else
@@ -114,17 +120,17 @@ ntg(B, D, do(A, S)) = R :-
                 R1 = ntg(B, C, S) - T * ntg(B, C, S) // ttc(B, C, S),
                 R2 = ttc(B, C, S) - T,
                 R3 = ntg(C, D, S) - T * ntg(C, D, S) // ttc(C, D, S),
-                R = R1 + (1.0 - R1 // R2) * R3
+                R = R1 + (one - R1 // R2) * R3
         )
     ;
         A = accel(B, Q),
-        R = 1.0 // Q * ntg(B, D, S)
+        R = one // Q * ntg(B, D, S)
     ;
         A = senseD(B, D, NTG_BD, _),
         R = NTG_BD
     ;
         A = senseD(D, B, NTG_DB, TTC_DB),
-        R = -1.0 // (1.0 - NTG_DB // TTC_DB) * NTG_DB
+        R = -one // (one - NTG_DB // TTC_DB) * NTG_DB
     ;
         A = init_env(Env),
         R = ntg_from_env(B, D, Env)
@@ -148,16 +154,16 @@ ttc(B, D, do(A, S)) = R :-
     ;
         A = accel(B, Q),
         (   if
-                ntg(B, D, S) \= 0.0,
-                ttc(B, D, S) \= 0.0
+                ntg(B, D, S) \= zero,
+                ttc(B, D, S) \= zero
             then
-                Q \= 1.0 - ntg(B, D, S) // ttc(B, D, S),
-                R = 1.0 // ((Q - 1.0) * ttc(B, D, S) // ntg(B, D, S) + 1.0)
+                Q \= one - ntg(B, D, S) // ttc(B, D, S),
+                R = one // ((Q - one) * ttc(B, D, S) // ntg(B, D, S) + one)
                     * ttc(B, D, S)
             else
                 C = transitive_car(B, D, S),
-                Q \= 1.0 - ntg(B, C, S) // ttc(B, C, S),
-                TTC_BC = 1.0 // ((Q - 1.0) * ttc(B, C, S) // ntg(B, C, S) + 1.0)
+                Q \= one - ntg(B, C, S) // ttc(B, C, S),
+                TTC_BC = one // ((Q - one) * ttc(B, C, S) // ntg(B, C, S) + one)
                     * ttc(B, C, S),
                 R1 = (ttc(C, D, S) * ntg(B, C, S))
                     // (ntg(C, D, S) * TTC_BC + ttc(C, D, S) * ntg(B, C, S)
@@ -170,17 +176,17 @@ ttc(B, D, do(A, S)) = R :-
     ;
         A = accel(D, Q),
         (   if
-                ntg(B, D, S) \= 0.0,
-                ttc(B, D, S) \= 0.0
+                ntg(B, D, S) \= zero,
+                ttc(B, D, S) \= zero
             then
-                Q \= 1.0 // (1.0 - ntg(B, D, S) // ttc(B, D, S)),
-                R = 1.0 // ((1.0 - Q) * ttc(B, D, S) // ntg(B, D, S) + Q)
+                Q \= one // (one - ntg(B, D, S) // ttc(B, D, S)),
+                R = one // ((one - Q) * ttc(B, D, S) // ntg(B, D, S) + Q)
                     * ttc(B, D, S)
             else
                 C = transitive_car(B, D, S),
-                Q \= 1.0 // (1.0 - ntg(C, D, S) // ttc(C, D, S)),
-                NTG_CD = 1.0 // Q * ntg(C, D, S),
-                TTC_CD = 1.0 // ((1.0 - Q) * ttc(C, D, S) // ntg(C, D, S) + Q)
+                Q \= one // (one - ntg(C, D, S) // ttc(C, D, S)),
+                NTG_CD = one // Q * ntg(C, D, S),
+                TTC_CD = one // ((one - Q) * ttc(C, D, S) // ntg(C, D, S) + Q)
                     * ttc(C, D, S),
                 R1 = (TTC_CD * ntg(B, C, S))
                     // (NTG_CD * ttc(B, C, S) + TTC_CD * ntg(B, C, S)
@@ -221,36 +227,43 @@ lane(B, do(A, S)) = L :-
 
 %-----------------------------------------------------------------------------%
 
-start(s0) = 0.0.
+start(s0) = zero.
 start(do(A, S)) = T :-
     if      A = init_env(Env)
-    then    T = start_from_env(Env)
+    then    T = from_float(start_from_env(Env))
     else if A = wait(D)
     then    T = start(S) + D
     else    T = start(S).
 %-----------------------------------------------------------------------------%
 
-:- func ntg_from_env(agent, agent, env) = ntg.
+:- func ntg_from_env(agent, agent, env) = ntg(N) <= arithmetic(N).
 :- mode ntg_from_env(in, in, in) = out is semidet.
 
 ntg_from_env(B, D, env(_, Map)) = R :-
-    info(VB, _, p(XB, _)) = Map^det_elem(B),
-    info(_, _, p(XD, _)) = Map^det_elem(D),
+    info(FVB, _, PosB) = Map^det_elem(B),
+    info(_, _, PosD) = Map^det_elem(D),
+    XB = from_float(x(PosB)),
+    XD = from_float(x(PosD)),
+    VB = from_float(FVB),
     R = (XD - XB) // VB.
 
 
-:- func ttc_from_env(agent, agent, env) = ttc.
+:- func ttc_from_env(agent, agent, env) = ttc(N) <= arithmetic(N).
 :- mode ttc_from_env(in, in, in) = out is semidet.
 
 ttc_from_env(B, D, env(_, Map)) = R :-
-    info(VB, _, p(XB, _)) = Map^det_elem(B),
-    info(VD, _, p(XD, _)) = Map^det_elem(D),
+    info(FVB, _, PosB) = Map^det_elem(B),
+    info(FVD, _, PosD) = Map^det_elem(D),
+    XB = from_float(x(PosB)),
+    XD = from_float(x(PosD)),
+    VB = from_float(FVB),
+    VD = from_float(FVD),
     R = (XD - XB) // (VB - VD).
 
 
 :- func lane_from_env(agent, env) = lane is det.
 
-lane_from_env(B, env(_, Map)) = ( if Y < 0.0 then right else left ) :-
+lane_from_env(B, env(_, Map)) = ( if Y `float.'<'` 0.0 then right else left ) :-
     info(_, _, p(_, Y)) = Map^det_elem(B).
 
 
@@ -260,58 +273,59 @@ start_from_env(env(T, _)) = T.
 
 %-----------------------------------------------------------------------------%
 
-poss(A @ wait(T), A, _) :- T > 0.0.
+poss(A @ wait(T), A, _) :- T > zero.
 
-poss(A @ accel(_, Q), A, _) :- Q >= 0.0.
+poss(A @ accel(_, Q), A, _) :- Q >= zero.
 
 poss(A @ lc(B, L), A, S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
 
 %-----------------------------------------------------------------------------%
 
-:- pred random_outcome(stoch::in, prim::out, sit::in) is erroneous.
+:- pred random_outcome(stoch(N)::in, prim(N)::out, rstc.sit(N)::in)
+    is erroneous.
 
 random_outcome(_, _, _) :- throw("RSTC has no stochastic actions.").
 
 %-----------------------------------------------------------------------------%
 
-:- func lookahead(sit) = lookahead is det.
+:- func lookahead(rstc.sit(N)) = lookahead is det.
 
 lookahead(_S) = 3.
 
 %-----------------------------------------------------------------------------%
 
-:- func new_lookahead(lookahead, atom(prim, stoch)) = lookahead is det.
+:- func new_lookahead(lookahead, atom(prim(N), stoch(N))) = lookahead is det.
 
 new_lookahead(H, _C) = H - 1.
 
 %-----------------------------------------------------------------------------%
 
-:- func reward(sit) = reward.
+:- func reward(rstc.sit(N)) = reward.
 :- mode reward(in) = out is det.
 
 reward(s0) = 0.0.
 reward(do(_, S)) = reward(S).
 
-:- func reward(prog, sit) = reward.
+:- func reward(prog(N), rstc.sit(N)) = reward.
 :- mode reward(in, in) = out is det.
 
 reward(_, S) = reward(S).
 
 %-----------------------------------------------------------------------------%
 
-:- pred proc(proc::in, prog::out) is erroneous.
+:- pred proc(proc(N)::in, prog(N)::out) is erroneous.
 
 proc(_, _) :- throw("RSTC currently has no procedures").
 
 %-----------------------------------------------------------------------------%
 
-:- pred is_match_action(prim::in) is semidet.
+:- pred is_match_action(prim(N)::in) is semidet.
 
 is_match_action(match(_)).
 
 
-:- func last_match(sit(prim)) = prim is semidet.
+:- func last_match(rstc.sit(N)) = prim(N) is semidet.
 
 last_match(do(A, S)) =
     ( if is_match_action(A) then A else last_match(S) ).
@@ -351,7 +365,8 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(prim, stoch, proc) where [
+/*
+:- instance bat(prim(N), stoch(N), proc(N)) <= arithmetic(N) where [
     pred(poss/3) is rstc.poss,
     pred(random_outcome/3) is rstc.random_outcome,
     func(reward/2) is rstc.reward,
@@ -359,6 +374,7 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
     func(new_lookahead/2) is rstc.new_lookahead,
     pred(proc/2) is rstc.proc
 ].
+*/
 
 /*
 :- instance obs_bat(prim, stoch, proc, obs) where [

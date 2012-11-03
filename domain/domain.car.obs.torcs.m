@@ -61,7 +61,7 @@
     void domain__car__obs__torcs__push_obs(const struct observation_record *obs);
 
     /* Copies the number of working, finished and failed processes into msg. */
-    void init_message(struct planrecog_state *msg);
+    void domain__car__obs__torcs__init_msg(struct planrecog_state *msg);
 
     /* Computes the current approximated confidence of the plan recognition
      * system. */
@@ -106,7 +106,7 @@
 
 
 :- pragma foreign_code("C", "
-    void init_message(struct planrecog_state *msg) {
+    void domain__car__obs__torcs__init_msg(struct planrecog_state *msg) {
         int i;
         msg->working = 0;
         msg->finished = 0;

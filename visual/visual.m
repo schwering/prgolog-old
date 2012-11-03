@@ -24,6 +24,7 @@
 :- import_module domain.
 :- import_module domain.car.
 :- import_module domain.car.cont.
+:- import_module list.
 :- use_module planrecog.
 
 %-----------------------------------------------------------------------------%
@@ -33,11 +34,13 @@
 %-----------------------------------------------------------------------------%
 
 :- type area.
-:- type areas.
+:- type areas == list(area).
 
 :- pred init(int::in, areas::out, io::di, io::uo) is det.
 
 :- pred finish(io::di, io::uo) is det.
+
+:- pred clear(area::in, io::di, io::uo) is det.
 
 :- pred visualize(areas) `with_type` planrecog.handler(prim, stoch, proc).
 :- mode visualize(in)    `with_inst` planrecog.handler.
@@ -56,7 +59,6 @@
 :- import_module curs.panel.
 :- import_module float.
 :- import_module int.
-:- import_module list.
 :- import_module prgolog.
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
@@ -72,8 +74,6 @@
                        cols   :: int,
                        width  :: m,
                        length :: m).
-
-:- type areas == list(area).
 
 :- type mapsit == {assoc_list(var, number), sit(prim)}.
 
@@ -131,8 +131,6 @@ border(Area, !IO) :-
     %move(bottom(Area), right(Area), !IO), addch(normal, to_int('+'), !IO),
     true.
 
-
-:- pred clear(area::in, io::di, io::uo) is det.
 
 clear(Area, !IO) :- clear_2(Area, top(Area), cols(Area), !IO).
 
@@ -301,6 +299,9 @@ visualize(Areas, I, State, !IO) :-
 
 wait_for_key(!IO) :-
     getch(_, !IO).
+
+
+:- finalize stop/2.
 
 
 %:- pred curs_main(io::di, io::uo) is det.

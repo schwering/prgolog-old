@@ -64,8 +64,6 @@
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <unistd.h>
-
-    #define DEBUG printf
 ").
 
 
@@ -138,30 +136,20 @@
         }
         domain__car__obs__torcs__push_obs(&obs);
 
-//      printf(""%c\\t%10.5lf\\t"", 'O', obs.t);
-//      printf(""%5s\\t%10.5lf\\t%10.5lf\\t%10.5lf\\t%10.5lf"", obs.agent0, obs.veloc0, obs.rad0, obs.x0, obs.y0);
-//      printf(""%5s\\t%10.5lf\\t%10.5lf\\t%10.5lf\\t%10.5lf"", obs.agent1, obs.veloc1, obs.rad1, obs.x1, obs.y1);
-//      printf(""\\n"");
-
-//      DEBUG(""read observation %.2lf  (%s: %.2lf %.2lf %.2lf %.2lf; ""
-//                                     ""%s: %.2lf %.2lf %.2lf %.2lf)\\n"",
-//            obs.t, obs.agent0, obs.veloc0, obs.rad0, obs.x0, obs.y0,
-//                   obs.agent1, obs.veloc1, obs.rad1, obs.x1, obs.y1);
-
-        init_message(&msg);
+        domain__car__obs__torcs__init_msg(&msg);
         ret = write(Socket, &msg, sizeof(msg));
         if (ret != sizeof(msg)) {
             break;
         }
-//      DEBUG(""write confidence %f\\n"", confidence());
     }
     IO1 = IO0;
 ").
 
 
-:- pred accept_connections(int::in, io::di, io::uo) is cc_multi.
+:- pred accept_connections(int::in, visual.areas::in,
+                           io::di, io::uo) is cc_multi.
 
-accept_connections(ServerSocket, !IO) :-
+accept_connections(ServerSocket, Areas, !IO) :-
     % XXX number samples!
     % reasonable value for dual core (one free core @ 2.2 GHz): 9
     % reasonable value for core i7 (four free cores @ 3.2 GHz): 27
@@ -170,23 +158,23 @@ accept_connections(ServerSocket, !IO) :-
     accept_connection(ServerSocket, Socket, !IO),
     Source = source,
     reset_obs_source(Source, !IO),
-    visual.init(9, Areas, !IO),
-    online_planrecog(NSamples, Source, Vars, visual.visualize(Areas), Prog, !IO),
+    online_planrecog(NSamples, Source, Vars, empty_handler, Prog, !IO),
     handle_connection(Socket, !IO),
-    %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
+    format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Source, Vars, !IO),
     %visual.wait_for_key(!IO),
-    visual.finish(!IO),
-    %format("Plan recognition finished with confidence %.2f.\n",
-    %       [f(confidence)], !IO),
+    format("Plan recognition finished with confidence %.2f.\n",
+           [f(confidence)], !IO),
     finalize_connection(Socket, !IO),
-    accept_connections(ServerSocket, !IO),
+    accept_connections(ServerSocket, Areas, !IO),
     true.% ( if Cont = yes then accept_connections(ServerSocket, !IO) else true ).
 
 
 main(!IO) :-
     make_server_socket(ServerSocket, !IO),
-    accept_connections(ServerSocket, !IO).
+    visual.init(9, Areas, !IO),
+    accept_connections(ServerSocket, Areas, !IO),
+    visual.finish(!IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module cars_server.

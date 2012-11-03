@@ -96,12 +96,12 @@ main(!IO) :-
     (   if      Results \= []
         then    foldl((pred(s_state(_, R)::in, {N, M}::in, {N1, M1}::out) is det :-
                     if      R = finished
-                    then    N1 = N + 1, M1 = M + 1
-                    else    N1 = N,     M1 = M + 1
+                    then    N1 = int.'+'(N, 1), M1 = int.'+'(M, 1)
+                    else    N1 = N,             M1 = int.'+'(M, 1)
                 ), Results, {0, 0}, {Finished, Total}),
                 format("percentage = %d / %d = %.2f\n",
                        [i(Finished), i(Total),
-                        f(float(Finished) / float(Total))], !IO)
+                        f(float.'/'(float(Finished), float(Total)))], !IO)
         else    format("percentage = nan\n", [], !IO)
     ),
     format("usertime = %f\n", [f(usertime(Tms2, Tms3))], !IO),
