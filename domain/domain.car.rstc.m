@@ -35,17 +35,16 @@
     ;       init_env(env)
     ;       match(obs).
 :- type stoch(N).
-:- type proc(N) == int.
 
 :- type sit(N) == prgolog.sit(prim(N)).
-:- type prog(N) == prgolog.prog(prim(N), stoch(N), proc(N)).
-:- type conf(N) == prgolog.nice.conf(prim(N), stoch(N), proc(N)).
+:- type prog(N) == prgolog.prog(prim(N), stoch(N)).
+:- type conf(N) == prgolog.nice.conf(prim(N), stoch(N)).
 
 %-----------------------------------------------------------------------------%
 
-%:- instance bat(prim(N), stoch(N), proc(N)) <= arithmetic(N).
-%:- instance obs_bat(prim, stoch, proc, obs).
-%:- instance pr_bat(prim, stoch, proc, obs, env).
+%:- instance bat(prim(N), stoch(N)) <= arithmetic(N).
+%:- instance obs_bat(prim, stoch, obs).
+%:- instance pr_bat(prim, stoch, obs, env).
 
 %-----------------------------------------------------------------------------%
 
@@ -82,11 +81,11 @@
 :- func N // N = N <= arithmetic(N).
 :- mode in // in = out is semidet.
 
-V // W = R :- W \= zero, R = V / W.
+V // W = R :- W \= zero, R = unchecked_quotient(V, W).
 
 %-----------------------------------------------------------------------------%
 
-:- func min({N,agent}::in, {N,agent}::in) = ({N,agent}::out) is det <= arithmetic(N).
+:- func min({N, agent}, {N, agent}) = ({N, agent}) <= arithmetic(N).
 
 min(E1 @ {Cost1, _}, E2 @ {Cost2, _}) = ( if Cost1 < Cost2 then E1 else E2 ).
 
@@ -311,12 +310,6 @@ reward(do(_, S)) = reward(S).
 :- mode reward(in, in) = out is det.
 
 reward(_, S) = reward(S).
-
-%-----------------------------------------------------------------------------%
-
-:- pred proc(proc(N)::in, prog(N)::out) is erroneous.
-
-proc(_, _) :- throw("RSTC currently has no procedures").
 
 %-----------------------------------------------------------------------------%
 

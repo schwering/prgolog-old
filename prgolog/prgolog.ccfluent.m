@@ -1,5 +1,5 @@
 %-----------------------------------------------------------------------------%
-%vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+% vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
@@ -70,23 +70,16 @@
 :- func variable(var) = aterm.
 :- mode variable(in) = out is det.
 
+:- func - aterm = aterm.
+:- func + aterm = aterm.
+
 :- func number * aterm = aterm.
-:- mode in * in = out is det.
-
 :- func aterm + aterm = aterm.
-:- mode in + in = out is det.
-
 :- func aterm - aterm = aterm.
-:- mode in - in = out is det.
 
-:- func aterm `=<` aterm = constraint.
-:- mode in `=<` in = out is det.
-
-:- func aterm `>=` aterm = constraint.
-:- mode in `>=` in = out is det.
-
-:- func aterm `=` aterm = constraint.
-:- mode in `=` in = out is det.
+:- func (aterm =< aterm) = constraint.
+:- func (aterm >= aterm) = constraint.
+:- func (aterm =  aterm) = constraint.
 
 :- pred holds_trivially(constraint::in) is semidet.
 
@@ -166,6 +159,13 @@ _ * [] = [].
 C0 * [const(C1) | Ts] = [const(C0*C1) | C0 * Ts].
 C0 * [mult(C1, V) | Ts] = [mult(C0*C1, V) | C0 * Ts].
 
++ T = T.
+
+- T = map((func(Summand) = Summand1 :-
+        (   Summand = const(C),   Summand1 = const(-1.0 * C)
+        ;   Summand = mult(C, V), Summand1 = mult(-1.0 * C, V))
+    ), T).
+
 T1 + T2 = T1 ++ T2.
 
 T1 - T2 = T1 ++ T3 :-
@@ -202,11 +202,11 @@ aggregate_2([C @ (V - A) | Cs]) =
     ).
 
 
-T1 `=<` T2 = osi.construct_constraint(Sum1, osi.(=<), -Constant) :-
+(T1 =< T2) = osi.construct_constraint(Sum1, osi.(=<), -Constant) :-
     split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
-T1 `=`  T2 = osi.construct_constraint(Sum1, osi.(=),  -Constant) :-
+(T1 =  T2) = osi.construct_constraint(Sum1, osi.(=),  -Constant) :-
     split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
-T1 `>=` T2 = osi.construct_constraint(Sum1, osi.(>=), -Constant) :-
+(T1 >= T2) = osi.construct_constraint(Sum1, osi.(>=), -Constant) :-
     split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
 
 

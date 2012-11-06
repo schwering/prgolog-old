@@ -85,50 +85,49 @@
     ;       stoch(B)
     ;       test(relfluent(A)).
 
-:- type pseudo_atom(A, B, P)
+:- type pseudo_atom(A, B)
     --->    atom(atom(A, B))
-    ;       complex(prog(A, B, P)).
+    ;       complex(prog(A, B)).
 
-:- type prog(A, B, P)
-    --->    seq(prog(A, B, P), prog(A, B, P))
-    ;       non_det(prog(A, B, P), prog(A, B, P))
-    ;       conc(prog(A, B, P), prog(A, B, P))
-    ;       star(prog(A, B, P))
-    ;       proc(P)
-    ;       pseudo_atom(pseudo_atom(A, B, P))
+:- type proc(A, B) == ((func) = prog(A, B)).
+
+:- type prog(A, B)
+    --->    seq(prog(A, B), prog(A, B))
+    ;       non_det(prog(A, B), prog(A, B))
+    ;       conc(prog(A, B), prog(A, B))
+    ;       star(prog(A, B))
+    ;       proc(proc(A, B))
+    ;       pseudo_atom(pseudo_atom(A, B))
     ;       nil.
 
 %-----------------------------------------------------------------------------%
 
-:- typeclass bat(A, B, P) <= ((A -> B), (A, B -> P)) where [
+:- typeclass bat(A, B) <= (A -> B) where [
     pred poss(A, A, sit(A)),
     mode poss(in, out, in) is semidet,
 
     pred random_outcome(B, A, sit(A)),
     mode random_outcome(in, out, in) is det,
 
-    func reward(prog(A, B, P), sit(A)) = reward,
+    func reward(prog(A, B), sit(A)) = reward,
     mode reward(in, in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
     mode lookahead(in) = out is det,
 
     func new_lookahead(lookahead, atom(A, B)) = lookahead,
-    mode new_lookahead(in, in) = out is det,
-
-    pred proc(P, prog(A, B, P)),
-    mode proc(in, out) is det
+    mode new_lookahead(in, in) = out is det
 ].
 
 %-----------------------------------------------------------------------------%
 
-:- pred trans(prog(A, B, P), sit(A), prog(A, B, P), sit(A)) <= bat(A, B, P).
+:- pred trans(prog(A, B), sit(A), prog(A, B), sit(A)) <= bat(A, B).
 :- mode trans(in, in, out, out) is semidet.
 
-:- pred final(prog(A, B, P), sit(A)) <= bat(A, B, P).
+:- pred final(prog(A, B), sit(A)) <= bat(A, B).
 :- mode final(in, in) is semidet.
 
-:- pred do(prog(A, B, P), sit(A), sit(A)) <= bat(A, B, P).
+:- pred do(prog(A, B), sit(A), sit(A)) <= bat(A, B).
 :- mode do(in, in, out) is semidet.
 
 %-----------------------------------------------------------------------------%
@@ -149,8 +148,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred next(prog(A, B, P), pseudo_atom(A, B, P), prog(A, B, P))
-    <= bat(A, B, P).
+:- pred next(prog(A, B), pseudo_atom(A, B), prog(A, B))
+    <= bat(A, B).
 :- mode next(in, out, out) is nondet.
 :- mode next(in, in, in) is semidet.
 
@@ -167,7 +166,7 @@ next(star(P), C, R) :-
     next(P, C, R1),
     R = seq(R1, star(P)).
 next(proc(N), C, R) :-
-    proc(N, P),
+    P = apply(N),
     next(P, C, R).
 next(pseudo_atom(C), C, R) :-
     R = nil.
@@ -176,7 +175,7 @@ next(nil, _, _) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred final(prog(A, B, P)) <= bat(A, B, P).
+:- pred final(prog(A, B)) <= bat(A, B).
 :- mode final(in) is semidet.
 
 final(seq(P1, P2)) :-
@@ -195,7 +194,7 @@ final(nil).
 
 %-----------------------------------------------------------------------------%
 
-:- pred next2(prog(A, B, P), atom(A, B), prog(A, B, P)) <= bat(A, B, P).
+:- pred next2(prog(A, B), atom(A, B), prog(A, B)) <= bat(A, B).
 :- mode next2(in, out, out) is nondet.
 
 next2(P, C, R) :-
@@ -211,7 +210,7 @@ next2(P, C, R) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B, P).
+:- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B).
 :- mode trans_atom(in, in, out) is semidet.
 
 trans_atom(prim(A), S, S1) :-
@@ -236,8 +235,7 @@ trans_atom(test(T), S, S) :-
 max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
 
 
-:- func value(prog(A, B, P), sit(A), lookahead) =
-    {reward, lookahead} <= bat(A, B, P).
+:- func value(prog(A, B), sit(A), lookahead) = {reward, lookahead} <= bat(A, B).
 :- mode value(in, in, in) = out is det.
 
 value(P, S, L) = {V, N} :-
@@ -255,19 +253,18 @@ value(P, S, L) = {V, N} :-
 
 %-----------------------------------------------------------------------------%
 
-:- type decomp(A, B, P) ---> decomp(atom(A, B), prog(A, B, P)).
-:- type cand(A, B, P) ---> cand(decomp(A, B, P), value :: {reward, lookahead}).
+:- type decomp(A, B) ---> decomp(atom(A, B), prog(A, B)).
+:- type cand(A, B) ---> cand(decomp(A, B), value :: {reward, lookahead}).
 
 
-:- func new_cand(sit(A), decomp(A, B, P)) = cand(A, B, P) <= bat(A, B, P).
+:- func new_cand(sit(A), decomp(A, B)) = cand(A, B) <= bat(A, B).
 :- mode new_cand(in, in) = out is det.
 
 new_cand(S, decomp(C, R)) = cand(decomp(C, R), {V, N}) :-
     {V, N} = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
 
 
-:- func fold(sit(A), decomp(A, B, P), cand(A, B, P)) = cand(A, B, P)
-    <= bat(A, B, P).
+:- func fold(sit(A), decomp(A, B), cand(A, B)) = cand(A, B) <= bat(A, B).
 :- mode fold(in, in, in) = out is det.
 
 fold(S, D, Y) = ( if X = new_cand(S, D), value(X) > value(Y) then X else Y ).

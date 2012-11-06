@@ -20,7 +20,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- typeclass obs_bat(A, B, P, Obs) <= ((A, B, P -> Obs), bat(A, B, P)) where [
+:- typeclass obs_bat(A, B, Obs) <= ((A, B -> Obs), bat(A, B)) where [
     pred is_obs(A),
     mode is_obs(in) is semidet,
 
@@ -33,10 +33,10 @@
 
 %-----------------------------------------------------------------------------%
 
-:- typeclass pr_bat(A, B, P, Obs, Env)
-        <= ((A, B, P, Obs -> Env),
-            (Obs, Env -> A, B, P),
-            obs_bat(A, B, P, Obs)) where [
+:- typeclass pr_bat(A, B, Obs, Env)
+        <= ((A, B, Obs -> Env),
+            (Obs, Env -> A, B),
+            obs_bat(A, B, Obs)) where [
     func seed_init_sit(int) = sit(A),
     mode seed_init_sit(in) = out is det,
 
@@ -68,8 +68,8 @@
     pred init_obs_stream(Source, stream, StreamState),
     mode init_obs_stream(in, in, uo) is det,
 
-    pred next_obs(obs_msg(Obs, Env), sit(A), prog(A, B, P),
-                  StreamState, StreamState) <= pr_bat(A, B, P, Obs, Env),
+    pred next_obs(obs_msg(Obs, Env), sit(A), prog(A, B),
+                  StreamState, StreamState) <= pr_bat(A, B, Obs, Env),
     mode next_obs(out, in, in, di, uo) is det,
 
     pred mark_obs_end(Source, io, io),

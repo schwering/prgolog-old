@@ -20,23 +20,23 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func remove_obs_sequence(prog(A, B, P)) = prog(A, B, P) is semidet
-    <= obs_bat(A, B, P, O).
+:- func remove_obs_sequence(prog(A, B)) = prog(A, B) is semidet
+    <= obs_bat(A, B, O).
 
 :- func last_obs(sit(A)) = A is semidet
-    <= obs_bat(A, B, P, O).
+    <= obs_bat(A, B, O).
 
 :- pred last_action_covered_by_obs(sit(A)::in) is semidet
-    <= obs_bat(A, B, P, O).
+    <= obs_bat(A, B, O).
 
-:- func append_obs(prog(A, B, P), O) = prog(A, B, P) is det
-    <= obs_bat(A, B, P, O).
+:- func append_obs(prog(A, B), O) = prog(A, B) is det
+    <= obs_bat(A, B, O).
 
-:- func obs_count_in_prog(prog(A, B, P)) = int
-    <= obs_bat(A, B, P, O).
+:- func obs_count_in_prog(prog(A, B)) = int
+    <= obs_bat(A, B, O).
 
 :- func obs_count_in_sit(sit(A)) = int
-    <= obs_bat(A, B, P, O).
+    <= obs_bat(A, B, O).
 
 %-----------------------------------------------------------------------------%
 
@@ -59,8 +59,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func append_obs_to_most_right(prog(A, B, P), A) = prog(A, B, P) is semidet
-    <= obs_bat(A, B, P, O).
+:- func append_obs_to_most_right(prog(A, B), A) = prog(A, B) is semidet
+    <= obs_bat(A, B, O).
 
 append_obs_to_most_right(seq(P1, P2), M) =
     (   if      Q2 = append_obs_to_most_right(P2, M)
@@ -89,8 +89,8 @@ remove_obs_sequence(conc(P1, P2)) = Q :-
     else        false.
 
 
-:- pred only_obs_actions(prog(A, B, P)::in) is semidet
-    <= obs_bat(A, B, P, O).
+:- pred only_obs_actions(prog(A, B)::in) is semidet
+    <= obs_bat(A, B, O).
 
 only_obs_actions(seq(P1, P2)) :-
     only_obs_actions(P1),

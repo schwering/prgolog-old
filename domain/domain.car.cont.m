@@ -41,22 +41,16 @@
     ;       seed(int).
 :- type stoch --->  set_veloc_st(agent, mps)
               ;     set_yaw_st(agent, lane, rad).
-:- type proc --->  straight_left(agent)
-             ;     straight_right(agent)
-             ;     left_lane_change(agent)
-             ;     right_lane_change(agent)
-             ;     cruise(agent)
-             ;     overtake(agent, agent).
-
+:- type proc == proc(prim, stoch).
 :- type sit == sit(prim).
-:- type prog == prog(prim, stoch, proc).
-:- type conf == conf(prim, stoch, proc).
+:- type prog == prog(prim, stoch).
+:- type conf == conf(prim, stoch).
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(prim, stoch, proc).
-:- instance obs_bat(prim, stoch, proc, obs).
-:- instance pr_bat(prim, stoch, proc, obs, env).
+:- instance bat(prim, stoch).
+:- instance obs_bat(prim, stoch, obs).
+:- instance pr_bat(prim, stoch, obs, env).
 
 %-----------------------------------------------------------------------------%
 
@@ -103,7 +97,12 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred proc(proc::in, prog::out) is det.
+:- func straight_left(agent) `with_type` proc.
+:- func straight_right(agent) `with_type` proc.
+:- func left_lane_change(agent) `with_type` proc.
+:- func right_lane_change(agent) `with_type` proc.
+:- func cruise(agent) `with_type` proc.
+:- func overtake(agent, agent) `with_type` proc.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -449,19 +448,19 @@ reward(_, S) = reward(S).
 
 %-----------------------------------------------------------------------------%
 
-proc(straight_left(Agent), P) :-
+straight_left(Agent) = P :-
     P = atomic(
             b(set_yaw_st(Agent, left, deg2rad(0.0))) `;`
             nil% a(eval(on_left_lane(Agent), no, [], notime))
         ).
 
-proc(straight_right(Agent), P) :-
+straight_right(Agent) = P :-
     P = atomic(
             b(set_yaw_st(Agent, right, deg2rad(0.0))) `;`
             nil% a(eval(on_right_lane(Agent), no, [], notime))
         ).
 
-proc(left_lane_change(Agent), P) :-
+left_lane_change(Agent) = P :-
     P = atomic(
             ( b(set_yaw_st(Agent, right, deg2rad(14.0))) or
               b(set_yaw_st(Agent, right, deg2rad(12.0))) or
@@ -470,9 +469,9 @@ proc(left_lane_change(Agent), P) :-
               b(set_yaw_st(Agent, right, deg2rad(6.0))) ) %`;`
             %a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
-        p(straight_left(Agent)).
+        p(((func) = straight_left(Agent))).
 
-proc(right_lane_change(Agent), P) :-
+right_lane_change(Agent) = P :-
     P = atomic(
             ( b(set_yaw_st(Agent, left, deg2rad(-14.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-12.0))) or
@@ -481,22 +480,22 @@ proc(right_lane_change(Agent), P) :-
               b(set_yaw_st(Agent, left, deg2rad(-6.0))) ) %`;`
             %a(eval(on_right_lane(Agent), no, [], notime))
         ) `;`
-        p(straight_right(Agent)).
+        p(((func) = straight_right(Agent))).
 
-proc(cruise(Agent), P) :-
-    P = p(straight_right(Agent)) `;`
+cruise(Agent) = P :-
+    P = p(((func) = straight_right(Agent))) `;`
         b(set_veloc_st(Agent, 15.09)).
 
-proc(overtake(Agent, Victim), P) :-
+overtake(Agent, Victim) = P :-
     P = a(eval(on_right_lane(Agent)
            and on_right_lane(Victim)
            and Agent `behind` Victim
         , no, [], notime)) `;`
-        p(straight_right(Agent)) `;`
+        p(((func) = straight_right(Agent))) `;`
         ((
-            p(left_lane_change(Agent)) `;`
+            p(((func) = left_lane_change(Agent))) `;`
             a(wait_for(Victim `behind` Agent, no, [], notime)) `;`
-            p(right_lane_change(Agent))
+            p(((func) = right_lane_change(Agent)))
         ) // (
             b(set_veloc_st(Agent, 20.8))
         )) `;`
@@ -547,22 +546,21 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(prim, stoch, proc) where [
+:- instance bat(prim, stoch) where [
     pred(poss/3) is cont.poss,
     pred(random_outcome/3) is cont.random_outcome,
     func(reward/2) is cont.reward,
     func(lookahead/1) is cont.lookahead,
-    func(new_lookahead/2) is cont.new_lookahead,
-    pred(proc/2) is cont.proc
+    func(new_lookahead/2) is cont.new_lookahead
 ].
 
-:- instance obs_bat(prim, stoch, proc, obs) where [
+:- instance obs_bat(prim, stoch, obs) where [
     pred(is_obs/1) is cont.is_match_action,
     pred(covered_by_obs/1) is cont.covered_by_match,
     func(obs_to_action/1) is cont.obs2match
 ].
 
-:- instance pr_bat(prim, stoch, proc, obs, env) where [
+:- instance pr_bat(prim, stoch, obs, env) where [
     seed_init_sit(I) = do(seed(I), s0),
     init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
 ].
