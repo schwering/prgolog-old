@@ -115,9 +115,9 @@ source = void.
 init_obs_stream(_, _, ss(0)).
 
 
-:- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A, B)::in,
+:- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A)::in,
                  stream_state::di, stream_state::uo) is det
-                 <= pr_bat(A, B, obs, env).
+                 <= pr_bat(A, obs, env).
 
 next_obs(ObsMsg, _, _, ss(I0), State1) :-
     next_obs2(I0, I1, Ok, Time, AgentInfoMap),

@@ -80,54 +80,52 @@
 :- type funfluent(A, R) == (func(sit(A)) = R).
 :- type relfluent(A) == funfluent(A, bool.bool).
 
-:- type atom(A, B)
+:- type proc(A) == ((func) = prog(A)).
+:- type stoch(A) == (func(sit(A)) = A).
+
+:- type atom(A)
     --->    prim(A)
-    ;       stoch(B)
+    ;       stoch(stoch(A))
     ;       test(relfluent(A)).
 
-:- type pseudo_atom(A, B)
-    --->    atom(atom(A, B))
-    ;       complex(prog(A, B)).
+:- type pseudo_atom(A)
+    --->    atom(atom(A))
+    ;       complex(prog(A)).
 
-:- type proc(A, B) == ((func) = prog(A, B)).
-
-:- type prog(A, B)
-    --->    seq(prog(A, B), prog(A, B))
-    ;       non_det(prog(A, B), prog(A, B))
-    ;       conc(prog(A, B), prog(A, B))
-    ;       star(prog(A, B))
-    ;       proc(proc(A, B))
-    ;       pseudo_atom(pseudo_atom(A, B))
+:- type prog(A)
+    --->    seq(prog(A), prog(A))
+    ;       non_det(prog(A), prog(A))
+    ;       conc(prog(A), prog(A))
+    ;       star(prog(A))
+    ;       proc(proc(A))
+    ;       pseudo_atom(pseudo_atom(A))
     ;       nil.
 
 %-----------------------------------------------------------------------------%
 
-:- typeclass bat(A, B) <= (A -> B) where [
+:- typeclass bat(A) where [
     pred poss(A, A, sit(A)),
     mode poss(in, out, in) is semidet,
 
-    pred random_outcome(B, A, sit(A)),
-    mode random_outcome(in, out, in) is det,
-
-    func reward(prog(A, B), sit(A)) = reward,
+    func reward(prog(A), sit(A)) = reward,
     mode reward(in, in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
     mode lookahead(in) = out is det,
 
-    func new_lookahead(lookahead, atom(A, B)) = lookahead,
+    func new_lookahead(lookahead, atom(A)) = lookahead,
     mode new_lookahead(in, in) = out is det
 ].
 
 %-----------------------------------------------------------------------------%
 
-:- pred trans(prog(A, B), sit(A), prog(A, B), sit(A)) <= bat(A, B).
+:- pred trans(prog(A), sit(A), prog(A), sit(A)) <= bat(A).
 :- mode trans(in, in, out, out) is semidet.
 
-:- pred final(prog(A, B), sit(A)) <= bat(A, B).
+:- pred final(prog(A), sit(A)) <= bat(A).
 :- mode final(in, in) is semidet.
 
-:- pred do(prog(A, B), sit(A), sit(A)) <= bat(A, B).
+:- pred do(prog(A), sit(A), sit(A)) <= bat(A).
 :- mode do(in, in, out) is semidet.
 
 %-----------------------------------------------------------------------------%
@@ -144,38 +142,40 @@
 :- import_module float.
 :- import_module int.
 :- import_module list.
+:- import_module maybe.
 :- import_module solutions.
 
 %-----------------------------------------------------------------------------%
 
-:- pred next(prog(A, B), pseudo_atom(A, B), prog(A, B))
-    <= bat(A, B).
-:- mode next(in, out, out) is nondet.
-:- mode next(in, in, in) is semidet.
-
-next(seq(P1, P2), C, R) :-
-    (   next(P1, C, R1), R = seq(R1, P2)
-    ;   next(P2, C, R), final(P1) ).
-next(non_det(P1, P2), C, R) :-
-    (   next(P1, C, R)
-    ;   next(P2, C, R) ).
-next(conc(P1, P2), C, R) :-
-    (   next(P1, C, R1), R = conc(R1, P2)
-    ;   next(P2, C, R2), R = conc(P1, R2) ).
-next(star(P), C, R) :-
-    next(P, C, R1),
-    R = seq(R1, star(P)).
-next(proc(N), C, R) :-
-    P = apply(N),
-    next(P, C, R).
-next(pseudo_atom(C), C, R) :-
-    R = nil.
-next(nil, _, _) :-
-    false.
+:- type pseudo_decomp(A) ---> pseudo_decomp(pseudo_atom(A), prog(A)).
+:- type decomp(A) ---> decomp(atom(A), prog(A)).
 
 %-----------------------------------------------------------------------------%
 
-:- pred final(prog(A, B)) <= bat(A, B).
+:- func next(prog(A)) = list(pseudo_decomp(A)) <= bat(A).
+:- mode next(in) = out is det.
+:- mode next(in) = in is semidet.
+
+next(seq(P1, P2)) =
+    ( if final(P1) then next(P2) else [] ) ++
+    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, P2)), next(P1)).
+next(non_det(P1, P2)) =
+    next(P1) ++ next(P2).
+next(conc(P1, P2)) =
+    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P2, R)), next(P1)) ++
+    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)), next(P2)).
+next(star(P)) =
+    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, star(P))), next(P)).
+next(proc(N)) =
+    next(apply(N)).
+next(pseudo_atom(C)) =
+    [pseudo_decomp(C, nil)].
+next(nil) =
+    [].
+
+%-----------------------------------------------------------------------------%
+
+:- pred final(prog(A)) <= bat(A).
 :- mode final(in) is semidet.
 
 final(seq(P1, P2)) :-
@@ -194,30 +194,29 @@ final(nil).
 
 %-----------------------------------------------------------------------------%
 
-:- pred next2(prog(A, B), atom(A, B), prog(A, B)) <= bat(A, B).
-:- mode next2(in, out, out) is nondet.
+:- func next2(prog(A)) = list(decomp(A)) <= bat(A).
+:- mode next2(in) = out is det.
+:- mode next2(in) = in is semidet.
 
-next2(P, C, R) :-
-    next(P, C1, R1),
-    (
-        C1 = complex(P1),
-        next2(P1, C, R0),
-        R = seq(R0, R1)
-    ;
-        C1 = atom(C),
-        R = R1
-    ).
+next2(P) =
+    foldl((func(pseudo_decomp(C, R), Ds1) = Ds ++ Ds1 :-
+        (   C = complex(P1),
+            Ds = map(func(decomp(C1, R1)) = decomp(C1, seq(R1, R)), next2(P1))
+        ;   C = atom(C1),
+            Ds = [decomp(C1, R)]
+        )
+    ), next(P), []).
 
 %-----------------------------------------------------------------------------%
 
-:- pred trans_atom(atom(A, B), sit(A), sit(A)) <= bat(A, B).
+:- pred trans_atom(atom(A), sit(A), sit(A)) <= bat(A).
 :- mode trans_atom(in, in, out) is semidet.
 
 trans_atom(prim(A), S, S1) :-
     poss(A, A1, S),
     S1 = do(A1, S).
 trans_atom(stoch(B), S, S1) :-
-    random_outcome(B, A, S),
+    A = B(S),
     trans_atom(prim(A), S, S1).
 trans_atom(test(T), S, S) :-
     T(S) = bool.yes.
@@ -235,50 +234,37 @@ trans_atom(test(T), S, S) :-
 max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
 
 
-:- func value(prog(A, B), sit(A), lookahead) = {reward, lookahead} <= bat(A, B).
+:- func value(prog(A), sit(A), lookahead) = {reward, lookahead} <= bat(A).
 :- mode value(in, in, in) = out is det.
 
 value(P, S, L) = {V, N} :-
     if      L > 0,
-            solutions((pred({V1, N1 + 1}::out) is nondet :-
-                next2(P, C1, R1),
-                trans_atom(C1, S, S1),
-                {V1, N1} = value(R1, S1, new_lookahead(L, C1))
-            ), Values),
-            Values \= [],
-            {V2, N2} = list.foldl(max, Values, {min, min_int}),
+            {V2, N2} = foldl((func(decomp(C, R), VN2) = VN3 is det :-
+                if      trans_atom(C, S, S1)
+                then    {V1, N1} = value(R, S1, new_lookahead(L, C)),
+                        VN3 = max({V1, N1 + 1}, VN2)
+                else    VN3 = VN2
+            ), next2(P), {min, min_int}),
+            {min, min_int} \= {V2, N2},
             ( final(P) => V2 > reward(P, S) )
     then    V = V2, N = N2
     else    V = reward(P, S), N = ( if final(P) then L else 0 ).
 
 %-----------------------------------------------------------------------------%
 
-:- type decomp(A, B) ---> decomp(atom(A, B), prog(A, B)).
-:- type cand(A, B) ---> cand(decomp(A, B), value :: {reward, lookahead}).
-
-
-:- func new_cand(sit(A), decomp(A, B)) = cand(A, B) <= bat(A, B).
-:- mode new_cand(in, in) = out is det.
-
-new_cand(S, decomp(C, R)) = cand(decomp(C, R), {V, N}) :-
-    {V, N} = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S)).
-
-
-:- func fold(sit(A), decomp(A, B), cand(A, B)) = cand(A, B) <= bat(A, B).
-:- mode fold(in, in, in) = out is det.
-
-fold(S, D, Y) = ( if X = new_cand(S, D), value(X) > value(Y) then X else Y ).
-
-
 trans(P, S, P1, S1) :-
-    solutions((pred(decomp(C, R)::out) is nondet :-
-        next2(P, C, R)
-    ), Ds),
+    Ds = next2(P),
     (   if      Ds = [D]
-        then    D = decomp(C1, P1)
-        else    Ds = [D | Ds0],
-                cand(decomp(C1, P1), _) =
-                    list.foldl(fold(S), Ds0, new_cand(S, D))
+        then    decomp(C1, P1) = D
+        else    {decomp(C1, P1), _} = foldl(func(D, VN) = Red(Map(D), VN),
+                    tail(Ds), Map(head(Ds))
+                ),
+                Map = (func(D @ decomp(C, R)) = {D, VN} is det :-
+                    VN = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S))
+                ),
+                Red = (func({D1, VN1}, {D2, VN2}) =
+                    ( if VN1 > VN2 then {D1, VN1} else {D2, VN2} )
+                )
     ),
     trans_atom(C1, S, S1).
 

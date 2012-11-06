@@ -33,36 +33,36 @@
 %-----------------------------------------------------------------------------%
 
 :- type s_phase ---> running ; finishing ; finished ; failed.
-:- type s_state(A, B, P) ---> s_state(conf(A, B, P), s_phase).
+:- type s_state(A) ---> s_state(conf(A), s_phase).
 
-:- type handler(A, B, P) == (pred(int, s_state(A, B, P), io, io)).
+:- type handler(A) == (pred(int, s_state(A), io, io)).
 :- inst handler == (pred(in, in, di, uo) is det).
 
 %-----------------------------------------------------------------------------%
 
 :- pred planrecog(int::in,
                   Source::in,
-                  prog(A, B, P)::in,
-                  list(s_state(A, B, P))::out,
+                  prog(A)::in,
+                  list(s_state(A))::out,
                   io::di, io::uo) is cc_multi
-                  <= (pr_bat(A, B, P, Obs, Env),
+                  <= (pr_bat(A, Obs, Env),
                       obs_source(Obs, Env, Source, _)).
 
 %-----------------------------------------------------------------------------%
 
-:- pred empty_handler `with_type` handler(_, _, _).
+:- pred empty_handler `with_type` handler(_).
 :- mode empty_handler `with_inst` handler.
 
 :- pred online_planrecog(int::in,
                          Source::in,
-                         list(mvar(s_state(A, B, P)))::out,
-                         handler(A, B, P)::in(handler),
-                         prog(A, B, P)::in,
+                         list(mvar(s_state(A)))::out,
+                         handler(A)::in(handler),
+                         prog(A)::in,
                          io::di, io::uo) is cc_multi
-                         <= (pr_bat(A, B, P, Obs, Env),
+                         <= (pr_bat(A, Obs, Env),
                              obs_source(Obs, Env, Source, _)).
 
-:- pred wait_for_planrecog_finish(Source::in, list(mvar(s_state(A, B, P)))::in,
+:- pred wait_for_planrecog_finish(Source::in, list(mvar(s_state(A)))::in,
                                   io::di, io::uo) is det
                                   <= obs_source(_, _, Source, _).
 
@@ -82,11 +82,11 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type logger(A, B, P) == (pred(s_state(A, B, P), io, io)).
+:- type logger(A) == (pred(s_state(A), io, io)).
 :- inst logger == (pred(in, di, uo) is det).
 
 
-:- pred empty_logger `with_type` logger(_, _, _).
+:- pred empty_logger `with_type` logger(_).
 :- mode empty_logger `with_inst` logger.
 
 empty_logger(_, !IO).
@@ -106,10 +106,10 @@ empty_handler(_, _, !IO).
 ").
 
 
-:- pred merge_and_trans_loop(Source::in, logger(A, B, P)::in(logger),
-                             s_state(A, B, P)::in, s_state(A, B, P)::out,
+:- pred merge_and_trans_loop(Source::in, logger(A)::in(logger),
+                             s_state(A)::in, s_state(A)::out,
                              ObsStreamState::di, ObsStreamState::uo) is det
-                         <= (pr_bat(A, B, P, Obs, Env),
+                         <= (pr_bat(A, Obs, Env),
                              obs_source(Obs, Env, Source, ObsStreamState)).
 
 merge_and_trans_loop(Source, Log, !State, !ObsStreamState) :-
@@ -123,11 +123,11 @@ merge_and_trans_loop(Source, Log, !State, !ObsStreamState) :-
     ).
 
 
-:- pred merge_and_trans(s_state(A, B, P)::in,
-                        s_state(A, B, P)::out,
+:- pred merge_and_trans(s_state(A)::in,
+                        s_state(A)::out,
                         ObsStreamState::di, ObsStreamState::uo,
                         bool::out) is det
-                        <= (pr_bat(A, B, P, Obs, Env),
+                        <= (pr_bat(A, Obs, Env),
                             obs_source(Obs, Env, _, ObsStreamState)).
 
 merge_and_trans(s_state(conf(P, S), !.Phase),
@@ -168,9 +168,9 @@ merge_and_trans(s_state(conf(P, S), !.Phase),
 %-----------------------------------------------------------------------------%
 
 :- pred run_concurrently_par_conj(int::in,
-                                  pred(int, s_state(A, B, P))
+                                  pred(int, s_state(A))
                                     ::in(pred(in, out) is det),
-                                  list(s_state(A, B, P))::out) is det.
+                                  list(s_state(A))::out) is det.
 
 run_concurrently_par_conj(I, P, Rs) :-
     (   if      I > 0
@@ -181,8 +181,8 @@ run_concurrently_par_conj(I, P, Rs) :-
 
 
 :- pred run_sequentially(int::in,
-                         pred(int, s_state(A, B, P))::in(pred(in, out) is det),
-                         list(s_state(A, B, P))::out) is det.
+                         pred(int, s_state(A))::in(pred(in, out) is det),
+                         list(s_state(A))::out) is det.
 
 run_sequentially(I, P, Rs) :-
     (   if      I > 0
@@ -211,8 +211,8 @@ take_vars([V | Vs], [R | Rs], !IO) :-
 
 
 :- pred run_concurrently_thread(Source::in, int::in,
-                                list(mvar(s_state(A, B, P)))::in,
-                                pred(int, s_state(A, B, P))::in(pred(in, out) is det),
+                                list(mvar(s_state(A)))::in,
+                                pred(int, s_state(A))::in(pred(in, out) is det),
                                 io::di, io::uo) is cc_multi
                                 <= obs_source(_, _, Source, _).
 
@@ -240,8 +240,8 @@ run_concurrently_thread(Source, I, [V | Vs], P, !IO) :-
 
 
 :- pred run_concurrently(Source::in, int::in,
-                         pred(int, s_state(A, B, P))::in(pred(in, out) is det),
-                         list(s_state(A, B, P))::out,
+                         pred(int, s_state(A))::in(pred(in, out) is det),
+                         list(s_state(A))::out,
                          io::di, io::uo) is cc_multi
                          <= obs_source(_, _, Source, _).
 
@@ -254,9 +254,9 @@ run_concurrently(Source, N, P, Rs, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred pr_thread(Source::in, prog(A, B, P)::in,
-                  int::in, s_state(A, B, P)::out) is det
-                  <= (pr_bat(A, B, P, Obs, Env),
+:- pred pr_thread(Source::in, prog(A)::in,
+                  int::in, s_state(A)::out) is det
+                  <= (pr_bat(A, Obs, Env),
                       obs_source(Obs, Env, Source, StreamState)).
 
 pr_thread(Source, Prog, I, R) :-
@@ -272,9 +272,9 @@ planrecog(ThreadCount, Source, Prog, Results, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred opr_thread(Source::in, handler(A, B, P)::in(handler), prog(A, B, P)::in,
-                   int::in, s_state(A, B, P)::out) is det
-                   <= (pr_bat(A, B, P, Obs, Env),
+:- pred opr_thread(Source::in, handler(A)::in(handler), prog(A)::in,
+                   int::in, s_state(A)::out) is det
+                   <= (pr_bat(A, Obs, Env),
                        obs_source(Obs, Env, Source, StreamState)).
 
 opr_thread(Source, Handler, Prog, I, R) :-

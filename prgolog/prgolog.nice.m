@@ -36,54 +36,54 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type conf(A, B) ---> conf(rest :: prog(A, B), sit :: sit(A)).
+:- type conf(A) ---> conf(rest :: prog(A), sit :: sit(A)).
 
-:- func init(prog(A, B)) = conf(A, B).
+:- func init(prog(A)) = conf(A).
 :- mode init(in) = out is det.
 
-:- pred trans(conf(A, B), conf(A, B)) <= bat(A, B).
+:- pred trans(conf(A), conf(A)) <= bat(A).
 :- mode trans(in, out) is semidet.
 
-:- pred final(conf(A, B)) <= bat(A, B).
+:- pred final(conf(A)) <= bat(A).
 :- mode final(in) is semidet.
 
-:- pred do(conf(A, B), sit(A)) <= bat(A, B).
+:- pred do(conf(A), sit(A)) <= bat(A).
 :- mode do(in, out) is semidet.
 
 %-----------------------------------------------------------------------------%
 
-:- func a(A) = prog(A, B) <= bat(A, B).
+:- func a(A) = prog(A) <= bat(A).
 :- mode a(in) = out is det.
 
-:- func b(B) = prog(A, B) <= bat(A, B).
+:- func b(stoch(A)) = prog(A) <= bat(A).
 :- mode b(in) = out is det.
 
-:- func t(relfluent(A)) = prog(A, B) <= bat(A, B).
+:- func t(relfluent(A)) = prog(A) <= bat(A).
 :- mode t(in) = out is det.
 
-:- func p(proc(A, B)) = prog(A, B) <= bat(A, B).
+:- func p(proc(A)) = prog(A) <= bat(A).
 :- mode p(in) = out is det.
 
-:- func prog(A, B) `;` prog(A, B) = prog(A, B) <= bat(A, B).
+:- func prog(A) `;` prog(A) = prog(A) <= bat(A).
 :- mode in `;` in = out is det.
 
-:- func prog(A, B) // prog(A, B) = prog(A, B) <= bat(A, B).
+:- func prog(A) // prog(A) = prog(A) <= bat(A).
 :- mode in // in = out is det.
 
-:- func (prog(A, B) or prog(A, B)) = prog(A, B) <= bat(A, B).
+:- func (prog(A) or prog(A)) = prog(A) <= bat(A).
 :- mode (in or in) = out is det.
 
-:- func atomic(prog(A, B)) = prog(A, B) <= bat(A, B).
+:- func atomic(prog(A)) = prog(A) <= bat(A).
 :- mode atomic(in) = out is det.
 
-:- func ifthen(relfluent(A), prog(A, B)) = prog(A, B) <= bat(A, B).
+:- func ifthen(relfluent(A), prog(A)) = prog(A) <= bat(A).
 :- mode ifthen(in, in) = out is det.
 
-:- func ifthenelse(relfluent(A), prog(A, B), prog(A, B)) = prog(A, B)
-   <= bat(A, B).
+:- func ifthenelse(relfluent(A), prog(A), prog(A)) = prog(A)
+   <= bat(A).
 :- mode ifthenelse(in, in, in) = out is det.
 
-:- func while(relfluent(A), prog(A, B)) = prog(A, B) <= bat(A, B).
+:- func while(relfluent(A), prog(A)) = prog(A) <= bat(A).
 :- mode while(in, in) = out is det.
 
 %-----------------------------------------------------------------------------%
@@ -93,14 +93,14 @@
     mode substitute(in, in, in(I)) = out(I) is det
 ].
 
-:- func pick(V, list(T), prog(A, B)) = prog(A, B)
-    <= (bat(A, B),
-        pickable(V, T, A), pickable(V, T, B),
+:- func pick(V, list(T), prog(A)) = prog(A)
+    <= (bat(A),
+        pickable(V, T, A),
         pickable(V, T, relfluent(A))).
 :- mode pick(in, in(non_empty_list), in) = out is det.
 :- mode pick(in, in, in) = out is semidet.
 
-:- func pick2(term.var(T), list(T), prog(A, B)) = prog(A, B) <= bat(A, B).
+:- func pick2(term.var(T), list(T), prog(A)) = prog(A) <= bat(A).
 :- mode pick2(in, in(non_empty_list), in) = out is det.
 :- mode pick2(in, in, in) = out is semidet.
 
@@ -137,7 +137,7 @@ while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
 
 %-----------------------------------------------------------------------------%
 
-:- func subst(term.var(T), T, prog(A, B)) = prog(A, B) <= bat(A, B).
+:- func subst(term.var(T), T, prog(A)) = prog(A) <= bat(A).
 :- mode subst(in, in, in) = out is det.
 
 subst(V, T, P) = P1 :-
@@ -161,9 +161,9 @@ pick(V, [T|Ts], P) = P1 :-
     else    P1 = replace(V, T, P).
 
 
-:- func replace(V, T, prog(A, B)) = prog(A, B)
-    <= (bat(A, B),
-        pickable(V, T, A), pickable(V, T, B),
+:- func replace(V, T, prog(A)) = prog(A)
+    <= (bat(A),
+        pickable(V, T, A),
         pickable(V, T, relfluent(A))).
 :- mode replace(in, in, in) = out is det.
 
@@ -175,7 +175,7 @@ replace(V, T, proc(P)) = proc(P). %%% XXX proc(substitute(V, T, P)).
 replace(V, T, pseudo_atom(atom(prim(A)))) =
     pseudo_atom(atom(prim(substitute(V, T, A)))).
 replace(V, T, pseudo_atom(atom(stoch(B)))) =
-    pseudo_atom(atom(stoch(substitute(V, T, B)))).
+    pseudo_atom(atom(stoch(B))). %%% XXX pseudo_atom(atom(stoch(substitute(V, T, B)))).
 replace(V, T, pseudo_atom(atom(test(G)))) =
     pseudo_atom(atom(test(substitute(V, T, G)))).
 replace(V, T, pseudo_atom(complex(P))) =

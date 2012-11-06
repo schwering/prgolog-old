@@ -39,18 +39,17 @@
     ;       eval(ccformula(prim), maybe(vargen), list(constraint), time)
     ;       init_env(env)
     ;       seed(int).
-:- type stoch --->  set_veloc_st(agent, mps)
-              ;     set_yaw_st(agent, lane, rad).
-:- type proc == proc(prim, stoch).
+:- type stoch == stoch(prim).
+:- type proc == proc(prim).
 :- type sit == sit(prim).
-:- type prog == prog(prim, stoch).
-:- type conf == conf(prim, stoch).
+:- type prog == prog(prim).
+:- type conf == conf(prim).
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(prim, stoch).
-:- instance obs_bat(prim, stoch, obs).
-:- instance pr_bat(prim, stoch, obs, env).
+:- instance bat(prim).
+:- instance obs_bat(prim, obs).
+:- instance pr_bat(prim, obs, env).
 
 %-----------------------------------------------------------------------------%
 
@@ -84,10 +83,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred random_outcome(stoch::in, prim::out, sit::in) is det.
-
-%-----------------------------------------------------------------------------%
-
 :- func lookahead(sit) = lookahead is det.
 
 %-----------------------------------------------------------------------------%
@@ -97,6 +92,10 @@
 
 %-----------------------------------------------------------------------------%
 
+:- func set_veloc_st(agent, mps) `with_type` stoch.
+:- func set_yaw_st(agent, lane, rad) `with_type` stoch.
+
+%-----------------------------------------------------------------------------%
 :- func straight_left(agent) `with_type` proc.
 :- func straight_right(agent) `with_type` proc.
 :- func left_lane_change(agent) `with_type` proc.
@@ -297,7 +296,6 @@ x_tol(Agent, do(A, S)) = Tol :-
     then    Tol = Tol0
     else    Tol = x_tol(Agent, S).
 
-
 %-----------------------------------------------------------------------------%
 
 y_tol(_, s0) = 0.0.
@@ -374,6 +372,38 @@ poss(eval(G, no, [], notime),
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1).
 
+poss(init_env(E),
+     init_env(E),
+     _).
+
+poss(seed(I),
+     seed(I),
+     _).
+
+%-----------------------------------------------------------------------------%
+
+lookahead(_S) = 3.
+
+%-----------------------------------------------------------------------------%
+
+:- func new_lookahead(lookahead, atom(prim)) = lookahead is det.
+
+new_lookahead(H, _C) = H - 1.
+
+%-----------------------------------------------------------------------------%
+
+reward(s0) = 0.0.
+reward(do(A, S)) =
+    (   if      A = match(_, _, _, _)
+        then    reward(S) + 1.0
+        else    reward(S)
+    ).
+
+:- func reward(prog, sit) = reward.
+:- mode reward(in, in) = out is det.
+
+reward(_, S) = reward(S).
+
 %-----------------------------------------------------------------------------%
 
 :- pred random_normal(float::out, float::out,
@@ -404,15 +434,16 @@ random_lognormal(Mu, Sigma, Y1, Y2, !RS) :-
     Y2 = pow(e, Mu + Sigma * X2).
 
 
-random_outcome(set_veloc_st(Agent, V),
-               set_veloc(Agent, V, Tol, yes(RS1), no, [], notime),
-               S) :-
+set_veloc_st(Agent, V, S) =
+  set_veloc(Agent, V, Tol, yes(RS1), no, [], notime) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
 
-random_outcome(set_yaw_st(Agent, Lane, Yaw),
-               set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime),
-               S) :-
+set_yaw_st(Agent, Lane, Yaw, S) =
+  set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime) :-
+    trace [io(!IO)] (
+        format("huhu\n", [], !IO)
+    ),
     (   if      Yaw = 0.0
         then    Mu = -0.7, Sigma = 0.7, TolMax = 2.0
         else    Mu = -0.2, Sigma = 1.0, TolMax = 2.5
@@ -420,31 +451,11 @@ random_outcome(set_yaw_st(Agent, Lane, Yaw),
     %Tol = min(0.5 + abs(Yaw) * 4.0, 2.5),
     RS0 = random_supply(S),
     random_lognormal(Mu, Sigma, _, Tol0, RS0, RS1),
-    Tol = min(Tol0, TolMax).
-
-%-----------------------------------------------------------------------------%
-
-lookahead(_S) = 3.
-
-%-----------------------------------------------------------------------------%
-
-:- func new_lookahead(lookahead, atom(prim, stoch)) = lookahead is det.
-
-new_lookahead(H, _C) = H - 1.
-
-%-----------------------------------------------------------------------------%
-
-reward(s0) = 0.0.
-reward(do(A, S)) =
-    (   if      A = match(_, _, _, _)
-        then    reward(S) + 1.0
-        else    reward(S)
+    Tol = min(Tol0, TolMax),
+    trace [io(!IO)] (
+        format("set_yaw(Agent, Lane, %f, %f, yes(RS1), no, [], notime)\n",
+               [f(Yaw), f(Tol)], !IO)
     ).
-
-:- func reward(prog, sit) = reward.
-:- mode reward(in, in) = out is det.
-
-reward(_, S) = reward(S).
 
 %-----------------------------------------------------------------------------%
 
@@ -487,10 +498,8 @@ cruise(Agent) = P :-
         b(set_veloc_st(Agent, 15.09)).
 
 overtake(Agent, Victim) = P :-
-    P = a(eval(on_right_lane(Agent)
-           and on_right_lane(Victim)
-           and Agent `behind` Victim
-        , no, [], notime)) `;`
+    P = a(eval(on_right_lane(Agent) and on_right_lane(Victim) and
+           Agent `behind` Victim, no, [], notime)) `;`
         p(((func) = straight_right(Agent))) `;`
         ((
             p(((func) = left_lane_change(Agent))) `;`
@@ -499,9 +508,8 @@ overtake(Agent, Victim) = P :-
         ) // (
             b(set_veloc_st(Agent, 20.8))
         )) `;`
-        a(eval(on_right_lane(Agent)
-           and Victim `behind` Agent
-        , no, [], notime)).
+        a(eval(on_right_lane(Agent) and Victim `behind` Agent,
+            no, [], notime)).
 
 %-----------------------------------------------------------------------------%
 
@@ -546,21 +554,20 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance bat(prim, stoch) where [
+:- instance bat(prim) where [
     pred(poss/3) is cont.poss,
-    pred(random_outcome/3) is cont.random_outcome,
     func(reward/2) is cont.reward,
     func(lookahead/1) is cont.lookahead,
     func(new_lookahead/2) is cont.new_lookahead
 ].
 
-:- instance obs_bat(prim, stoch, obs) where [
+:- instance obs_bat(prim, obs) where [
     pred(is_obs/1) is cont.is_match_action,
     pred(covered_by_obs/1) is cont.covered_by_match,
     func(obs_to_action/1) is cont.obs2match
 ].
 
-:- instance pr_bat(prim, stoch, obs, env) where [
+:- instance pr_bat(prim, obs, env) where [
     seed_init_sit(I) = do(seed(I), s0),
     init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
 ].

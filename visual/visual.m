@@ -42,7 +42,7 @@
 
 :- pred clear(area::in, io::di, io::uo) is det.
 
-:- pred visualize(areas) `with_type` planrecog.handler(prim, stoch, proc).
+:- pred visualize(areas) `with_type` planrecog.handler(prim).
 :- mode visualize(in)    `with_inst` planrecog.handler.
 
 :- pred wait_for_key(io::di, io::uo) is det.

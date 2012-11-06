@@ -58,10 +58,27 @@
     IO1 = IO0;
 ").
 
+:- import_module pair.
+
 main(!IO) :-
     times(Tms2, !IO),
     Source = source,
-    Prog = (p(cruise(b)) // p(overtake(c, b))) `with_type` prog(prim, stoch, proc),
+    Prog = (cruise(b) // overtake(c, b)) `with_type` prog(prim),
+/*
+    format("Starting\n", [], !IO),
+    ( if    do(a(seed(1)) `;`
+               a(init_env(env(5.594, [b - info(15.0, 0.0, p(34.0, -3.0)),
+                                      c - info(20.7, 0.0, p(6.3, -3.0))]))) `;`
+               b(set_yaw_st(b, right, deg2rad(0.0))) `;`
+               %cruise(b) `;`
+               ( overtake(c, b) ) `;`
+               nil
+            , s0, S)
+      then  format("Success\n", [], !IO), write(S, !IO), nl(!IO) else format("Failure\n", [], !IO) ),
+    format("Done\n", [], !IO),
+    true.
+/*
+*/
     %spawn((pred(IO0::di, IO1::uo) is cc_multi :- forward_obs(IO0, IO1)), !IO),
     %planrecog(10, global_init_obs, global_next_obs, Prog, Results, !IO),
     %online_planrecog(10, Vars, !IO),

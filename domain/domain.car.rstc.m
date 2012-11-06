@@ -34,17 +34,16 @@
     ;       senseL(agent, lane)
     ;       init_env(env)
     ;       match(obs).
-:- type stoch(N).
 
 :- type sit(N) == prgolog.sit(prim(N)).
-:- type prog(N) == prgolog.prog(prim(N), stoch(N)).
-:- type conf(N) == prgolog.nice.conf(prim(N), stoch(N)).
+:- type prog(N) == prgolog.prog(prim(N)).
+:- type conf(N) == prgolog.nice.conf(prim(N)).
 
 %-----------------------------------------------------------------------------%
 
-%:- instance bat(prim(N), stoch(N)) <= arithmetic(N).
-%:- instance obs_bat(prim, stoch, obs).
-%:- instance pr_bat(prim, stoch, obs, env).
+%:- instance bat(prim(N)) <= arithmetic(N).
+%:- instance obs_bat(prim, ).
+%:- instance pr_bat(prim, , env).
 
 %-----------------------------------------------------------------------------%
 
@@ -67,8 +66,6 @@
 %-----------------------------------------------------------------------------%
 
 :- implementation.
-
-:- type stoch(N) ---> void.
 
 :- import_module exception.
 :- import_module list.
@@ -281,20 +278,13 @@ poss(A @ lc(B, L), A, S) :- lane(B, S) = left <=> L = right.
 
 %-----------------------------------------------------------------------------%
 
-:- pred random_outcome(stoch(N)::in, prim(N)::out, rstc.sit(N)::in)
-    is erroneous.
-
-random_outcome(_, _, _) :- throw("RSTC has no stochastic actions.").
-
-%-----------------------------------------------------------------------------%
-
 :- func lookahead(rstc.sit(N)) = lookahead is det.
 
 lookahead(_S) = 3.
 
 %-----------------------------------------------------------------------------%
 
-:- func new_lookahead(lookahead, atom(prim(N), stoch(N))) = lookahead is det.
+:- func new_lookahead(lookahead, atom(prim(N))) = lookahead is det.
 
 new_lookahead(H, _C) = H - 1.
 
@@ -306,7 +296,7 @@ new_lookahead(H, _C) = H - 1.
 reward(s0) = 0.0.
 reward(do(_, S)) = reward(S).
 
-:- func reward(prog(N), rstc.sit(N)) = reward.
+:- func reward(rstc.prog(N), rstc.sit(N)) = reward.
 :- mode reward(in, in) = out is det.
 
 reward(_, S) = reward(S).
