@@ -57,13 +57,25 @@ register_test(Module, Pred, Test, !IO) :-
     set_tests(Tests1, !IO).
 */
 
+:- inst det_test_pred == (pred(di, uo) is det).
+:- inst multi_test_pred == (pred(di, uo) is multi).
+
+:- func ccm(test_pred) = test_pred.
+:- mode ccm(in(test_pred)) = out(test_pred) is det.
+:- mode ccm(in(det_test_pred)) = out(test_pred) is det.
+:- mode ccm(in(multi_test_pred)) = out(test_pred) is det.
+
+ccm(P) = ( pred(IO0::di, IO1::uo) is cc_multi :- P(IO0, IO1) ).
+
 :- pred get_tests(list(test)::out(list(test)), io::di, io::uo) is det.
 
 get_tests(Tests, !IO) :-
-    Tests = [ test("prgolog", "test_next", prgolog.test.test_next)
-            , test("prgolog", "test_next2", prgolog.test.test_next2)
-            , test("prgolog", "test_final", prgolog.test.test_final)
-            , test("prgolog", "test_value", prgolog.test.test_value)
+    Tests = [ test("prgolog", "test_next", ccm(prgolog.test.test_next))
+            , test("prgolog", "test_next2", ccm(prgolog.test.test_next2))
+            , test("prgolog", "test_final", ccm(prgolog.test.test_final))
+            , test("prgolog", "test_value", ccm(prgolog.test.test_value))
+            , test("prgolog", "test_trans_atom", ccm(prgolog.test.test_trans_atom))
+            , test("prgolog", "test_trans", ccm(prgolog.test.test_trans))
             ].
 
 %-----------------------------------------------------------------------------%
@@ -79,7 +91,7 @@ run_test(Test, !IO) :-
     ), Result, !IO),
     (   Result = succeeded(_)
     ;   Result = exception(Exc),
-        format("Caught exception in test %s / %s: ", [s(Mod), s(Name)], !IO),
+        format("!!! Exception in test %s / %s: ", [s(Mod), s(Name)], !IO),
         write(Exc, !IO),
         nl(!IO)
     ).

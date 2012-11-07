@@ -17,10 +17,12 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred test_next(io::di, io::uo) is cc_multi.
-:- pred test_next2(io::di, io::uo) is cc_multi.
-:- pred test_final(io::di, io::uo) is cc_multi.
-:- pred test_value(io::di, io::uo) is cc_multi.
+:- pred test_next(io::di, io::uo) is det.
+:- pred test_next2(io::di, io::uo) is det.
+:- pred test_final(io::di, io::uo) is det.
+:- pred test_value(io::di, io::uo) is det.
+:- pred test_trans_atom(io::di, io::uo) is det.
+:- pred test_trans(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -189,6 +191,35 @@ test_value(!IO) :-
         V = value(((a(b) `;` a(b) `;` a(b)) or a(e)) `with_type` prog(prim), s0, 100),
         E = {4.0, 100},
         ( if V = E then true else throw({E, V}) )
+    ),
+    some [V, E] (
+        V = value((a(e) or (a(b) `;` a(b) `;` a(b)) or a(d)) `with_type` prog(prim), s0, 100),
+        E = {4.0, 100},
+        ( if V = E then true else throw({E, V}) )
+    ),
+    some [V, E] (
+        V = value(((a(d) // a(e)) or star(a(b)) or a(d) or a(c)) `with_type` prog(prim), s0, 5),
+        E = {7.0, 5},
+        ( if V = E then true else throw({E, V}) )
+    ),
+    some [V, E] (
+        V = value((a(e) or star(a(b)) or a(d) or a(c)) `with_type` prog(prim), s0, 100),
+        E = {100.0, 100},
+        ( if V = E then true else throw({E, V}) )
+    ),
+    true.
+
+test_trans_atom(!IO) :-
+    some [A] (
+        A = prim(a) `with_type` atom(prim),
+        ( if trans_atom(A, s0, do(a, s0)) then true else throw(A) )
+    ),
+    true.
+
+test_trans(!IO) :-
+    some [P] (
+        P = a(a) `with_type` prog(prim),
+        ( if trans(P, s0, nil, do(a, s0)) then true else throw(P) )
     ),
     true.
 
