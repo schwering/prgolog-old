@@ -3,6 +3,7 @@
 # Mercury grade we want to compile to
 GRADE = hlc.par.gc
 LINKAGE = shared
+# LINKAGE = static
 
 # Name or path to the mercury compiler
 MERCURY_INST = $(shell dirname $(shell which mmc))/..
@@ -15,10 +16,10 @@ INSTALL_PREFIX = $(CURDIR)/..
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
 LIB_FILE = $(LIB_DIR)/lib/$(GRADE)/lib$(GOAL).so
-LIB_MCFLAGS += --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --linkage $(LINKAGE) --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR)
+LIB_MCFLAGS += --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --mercury-linkage $(LINKAGE) --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR)
 
 EXE_FILE = $(GOAL)
-EXE_MCFLAGS += --grade $(GRADE) --linkage $(LINKAGE) --mld $(LIB_DIR)
+EXE_MCFLAGS += --grade $(GRADE) --mercury-linkage $(LINKAGE) --mld $(LIB_DIR)
 
 lib: $(LIB_FILE)
 

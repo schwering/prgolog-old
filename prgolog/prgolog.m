@@ -137,7 +137,7 @@
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- implementation.
+:- include_module test. :- implementation.
 
 :- import_module float.
 :- import_module int.
@@ -223,9 +223,9 @@ trans_atom(test(T), S, S) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred '>'({reward, lookahead}::in, {reward, lookahead}::in) is semidet.
+:- pred ({reward, lookahead}::in) > ({reward, lookahead}::in) is semidet.
 
-'>'({V1, N1}, {V2, N2}) :- V1 > V2 ; V1 = V2, N1 > N2.
+{V1, N1} > {V2, N2} :- V1 > V2 ; V1 = V2, N1 > N2.
 
 
 :- func max({reward, lookahead}::in, {reward, lookahead}::in) =
