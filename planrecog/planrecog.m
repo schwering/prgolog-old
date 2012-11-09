@@ -254,10 +254,8 @@ run_concurrently(Source, N, P, Rs, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred pr_thread(Source::in, prog(A)::in,
-                  int::in, s_state(A)::out) is det
-                  <= (pr_bat(A, Obs, Env),
-                      obs_source(Obs, Env, Source, StreamState)).
+:- pred pr_thread(Source::in, prog(A)::in, int::in, s_state(A)::out) is det
+    <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
 pr_thread(Source, Prog, I, R) :-
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
@@ -272,10 +270,9 @@ planrecog(ThreadCount, Source, Prog, Results, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred opr_thread(Source::in, handler(A)::in(handler), prog(A)::in,
-                   int::in, s_state(A)::out) is det
-                   <= (pr_bat(A, Obs, Env),
-                       obs_source(Obs, Env, Source, StreamState)).
+:- pred opr_thread(Source::in, handler(A)::in(handler),
+                   prog(A)::in, int::in, s_state(A)::out) is det
+    <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
 opr_thread(Source, Handler, Prog, I, R) :-
     Log = (pred(S::in, IO0::di, IO1::uo) is det :-

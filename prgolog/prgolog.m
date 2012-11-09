@@ -81,11 +81,11 @@
 :- type relfluent(A) == funfluent(A, bool.bool).
 
 :- type proc(A) == ((func) = prog(A)).
-:- type stoch(A) == (func(sit(A)) = A).
+:- type primf(A) == (func(sit(A)) = A).
 
 :- type atom(A)
     --->    prim(A)
-    ;       stoch(stoch(A))
+    ;       primf(primf(A))
     ;       test(relfluent(A)).
 
 :- type pseudo_atom(A)
@@ -215,7 +215,7 @@ next2(P) =
 trans_atom(prim(A), S, S1) :-
     poss(A, A1, S),
     S1 = do(A1, S).
-trans_atom(stoch(B), S, S1) :-
+trans_atom(primf(B), S, S1) :-
     A = B(S),
     trans_atom(prim(A), S, S1).
 trans_atom(test(T), S, S) :-

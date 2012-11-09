@@ -39,7 +39,7 @@
     ;       eval(ccformula(prim), maybe(vargen), list(constraint), time)
     ;       init_env(env)
     ;       seed(int).
-:- type stoch == stoch(prim).
+:- type primf == primf(prim).
 :- type proc == proc(prim).
 :- type sit == sit(prim).
 :- type prog == prog(prim).
@@ -92,8 +92,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func set_veloc_st(agent, mps) `with_type` stoch.
-:- func set_yaw_st(agent, lane, rad) `with_type` stoch.
+:- func set_veloc_st(agent, mps) `with_type` primf.
+:- func set_yaw_st(agent, lane, rad) `with_type` primf.
 
 %-----------------------------------------------------------------------------%
 :- func straight_left(agent) `with_type` proc.
@@ -290,7 +290,9 @@ y(Agent, do(A, S)) = Y :-
 
 %-----------------------------------------------------------------------------%
 
-x_tol(_, s0) = 0.0.
+x_tol(b, s0) = 0.0.
+x_tol(c, s0) = 0.0.
+x_tol(d, s0) = 0.0.
 x_tol(Agent, do(A, S)) = Tol :-
     if      A = set_veloc(Agent, _, Tol0, _, _, _, _)
     then    Tol = Tol0
@@ -355,6 +357,7 @@ poss(wait_for(G, no, [], notime),
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1).
 
+:- import_module domain.car.cont.io_util.
 poss(match(Obs, no, [], T),
      match(Obs, yes(VG), Cs0, T),
      S) :-
@@ -382,7 +385,7 @@ poss(seed(I),
 
 %-----------------------------------------------------------------------------%
 
-lookahead(_S) = 3.
+lookahead(_S) = 5.
 
 %-----------------------------------------------------------------------------%
 
@@ -441,21 +444,13 @@ set_veloc_st(Agent, V, S) =
 
 set_yaw_st(Agent, Lane, Yaw, S) =
   set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime) :-
-    trace [io(!IO)] (
-        format("huhu\n", [], !IO)
-    ),
     (   if      Yaw = 0.0
         then    Mu = -0.7, Sigma = 0.7, TolMax = 2.0
         else    Mu = -0.2, Sigma = 1.0, TolMax = 2.5
     ),
-    %Tol = min(0.5 + abs(Yaw) * 4.0, 2.5),
     RS0 = random_supply(S),
     random_lognormal(Mu, Sigma, _, Tol0, RS0, RS1),
-    Tol = min(Tol0, TolMax),
-    trace [io(!IO)] (
-        format("set_yaw(Agent, Lane, %f, %f, yes(RS1), no, [], notime)\n",
-               [f(Yaw), f(Tol)], !IO)
-    ).
+    Tol = 0.33 + min(Tol0, TolMax).
 
 %-----------------------------------------------------------------------------%
 
@@ -498,7 +493,10 @@ cruise(Agent) = P :-
         b(set_veloc_st(Agent, 15.09)).
 
 overtake(Agent, Victim) = P :-
-    P = a(eval(on_right_lane(Agent) and on_right_lane(Victim) and
+    P = b(set_veloc_st(Agent, 20.8)) `;` % Why do we need this stupid action?
+                                         % Without it, plan recognition fails.
+        b(set_yaw_st(Agent, right, 0.0)) `;`
+        a(eval(on_right_lane(Agent) and on_right_lane(Victim) and
            Agent `behind` Victim, no, [], notime)) `;`
         p(((func) = straight_right(Agent))) `;`
         ((
@@ -537,12 +535,10 @@ covered_by_match(S) :-
 obs2ccformula(obs(OT, AgentPositions)) = {OT, OF} :-
     OF = ( func(T, S) =
         foldr(( func((Agent - info(_, _, Pos)), Cs) = [C1, C2, C3, C4] ++ Cs :-
-            C1 = MinX `=<` x(Agent, S)(T), C2 = x(Agent, S)(T) `=<` MaxX,
-            C3 = MinY `=<` y(Agent, S)(T), C4 = y(Agent, S)(T) `=<` MaxY,
-            MinX = constant(x(Pos) - x_tol(Agent, S)),
-            MaxX = constant(x(Pos) + x_tol(Agent, S)),
-            MinY = constant(y(Pos) - y_tol(Agent, S)),
-            MaxY = constant(y(Pos) + y_tol(Agent, S))
+            C1 = constant(x(Pos) - x_tol(Agent, S)) `=<` x(Agent, S)(T),
+            C2 = constant(x(Pos) + x_tol(Agent, S)) `>=` x(Agent, S)(T),
+            C3 = constant(y(Pos) - y_tol(Agent, S)) `=<` y(Agent, S)(T),
+            C4 = constant(y(Pos) + y_tol(Agent, S)) `>=` y(Agent, S)(T)
         ), AgentPositions, [])
     ).
 

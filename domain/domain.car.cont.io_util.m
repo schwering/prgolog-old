@@ -17,15 +17,9 @@
 
 :- import_module assoc_list.
 :- import_module io.
-:- import_module list.
 :- import_module prgolog.
 :- import_module prgolog.ccfluent.
 :- import_module string.
-
-%-----------------------------------------------------------------------------%
-
-:- pred map0_io((pred(T1, io, io)::in(pred(in, di, uo) is det)),
-               list(T1)::in, io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -58,11 +52,11 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred print_sit_info(assoc_list(var, number)::in, sit::in,
+:- pred print_sit_info(assoc_list(var, number)::in, sit::in, agent::in,
                        io::di, io::uo) is det.
 
 :- pred print_sit_info(output_stream::in,
-                       assoc_list(var, number)::in, sit::in,
+                       assoc_list(var, number)::in, sit::in, agent::in,
                        io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -82,11 +76,6 @@
 :- import_module float.
 :- import_module require.
 :- import_module string.
-
-%-----------------------------------------------------------------------------%
-
-map0_io(_, [], !IO).
-map0_io(P, [X | Xs], !IO) :- P(X, !IO), map0_io(P, Xs, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -164,7 +153,7 @@ print_prog_2(Stream, Map, _, pseudo_atom(complex(P)), !IO) :-
     write_string(Stream, ")", !IO).
 print_prog_2(Stream, Map, _, pseudo_atom(atom(P)), !IO) :-
     (   P = prim(A), print_action(Stream, Map, A, !IO)
-    ;   P = stoch(B), write(Stream, B, !IO)
+    ;   P = primf(B), write(Stream, B, !IO)
     ;   P = test(_), write_string(Stream, "(...)?", !IO)
     ).
 print_prog_2(Stream, _, _, nil, !IO) :-
@@ -206,27 +195,29 @@ print_sit_with_info(Map, S, !IO) :-
 
 print_sit_with_info(Stream, Map, s0, !IO) :-
     write_string(Stream, "initial situation", !IO), nl(!IO),
-    print_sit_info(Stream, Map, s0, !IO),
+    print_sit_info(Stream, Map, s0, c, !IO),
     nl(Stream, !IO).
 print_sit_with_info(Stream, Map, S1 @ do(A, S), !IO) :-
     print_sit_with_info(Stream, Map, S, !IO),
     print_action(Stream, Map, A, !IO), nl(Stream, !IO),
-    print_sit_info(Stream, Map, S1, !IO),
+    print_sit_info(Stream, Map, S1, c, !IO),
     nl(Stream, !IO).
 
 %-----------------------------------------------------------------------------%
 
-print_sit_info(Map, S, !IO) :- print_sit_info(stdout_stream, Map, S, !IO).
+print_sit_info(Map, S, Agent, !IO) :-
+    print_sit_info(stdout_stream, Map, S, Agent, !IO).
 
-print_sit_info(Stream, Map, S, !IO) :-
+print_sit_info(Stream, Map, S, Agent, !IO) :-
     E = ( func(T) = eval_float(Map, T) ),
-    format(Stream, "veloc(b, S) = %.1f\n", [f(veloc(b, S))], !IO),
-    format(Stream, "yaw(b, S) = %.1f\n", [f(yaw(b, S))], !IO),
+    N = agent_to_string(Agent),
+    format(Stream, "veloc(%s, S) = %.1f\n", [s(N), f(veloc(Agent, S))], !IO),
+    format(Stream, "yaw(%s, S) = %.1f\n", [s(N), f(yaw(Agent, S))], !IO),
     format(Stream, "start(S) = %.1f\n", [f(E(start(S)))], !IO),
-    format(Stream, "x(b, S) = %.1f\n", [f(E(x(b, S)(start(S))))], !IO),
-    format(Stream, "y(b, S) = %.1f\n", [f(E(y(b, S)(start(S))))], !IO),
-    format(Stream, "x_tol(b, S) = %.1f\n", [f(x_tol(b, S))], !IO),
-    format(Stream, "y_tol(b, S) = %.1f\n", [f(y_tol(b, S))], !IO),
+    format(Stream, "x(%s, S) = %.1f\n", [s(N), f(E(x(Agent, S)(start(S))))], !IO),
+    format(Stream, "y(%s, S) = %.1f\n", [s(N), f(E(y(Agent, S)(start(S))))], !IO),
+    format(Stream, "x_tol(%s, S) = %.1f\n", [s(N), f(x_tol(Agent, S))], !IO),
+    format(Stream, "y_tol(%s, S) = %.1f\n", [s(N), f(y_tol(Agent, S))], !IO),
     format(Stream, "now(S) = %.1f\n", [f(E(now(S)(start(S))))], !IO),
     nl(Stream, !IO).
 

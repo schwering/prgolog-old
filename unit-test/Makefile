@@ -3,7 +3,9 @@ SOURCE_FILES = $(shell ls *.m)
 
 EXE_MCFLAGS += --ml prgolog
 
-all: enable-tests mercury-depends exe disable-tests
+#all: enable-tests mercury-depends exe disable-tests
+
+all: mercury-depends exe
 
 enable-tests:
 	./enable-tests.sh

@@ -196,15 +196,15 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
             pthread_mutex_unlock(&mutex);
         }
     }
+    AgentList = MR_list_empty();
+    VelocList = MR_list_empty();
+    RadList   = MR_list_empty();
+    XList     = MR_list_empty();
+    YList     = MR_list_empty();
     if (Ok == MR_YES) {
         int i;
         assert(I0 < MAX_OBSERVATIONS);
         T = (MR_Float) observations[I0].t;
-        AgentList = MR_list_empty();
-        VelocList = MR_list_empty();
-        RadList   = MR_list_empty();
-        XList     = MR_list_empty();
-        YList     = MR_list_empty();
         for (i = 0; i < observations[I0].n_agents; ++i) {
             MR_String agent;
             MR_make_aligned_string_copy(agent, observations[I0].info[i].agent);
@@ -214,16 +214,10 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
             XList     = MR_list_cons(MR_float_to_word((MR_Float) observations[I0].info[i].x),     XList);
             YList     = MR_list_cons(MR_float_to_word((MR_Float) observations[I0].info[i].y),     YList);
         }
-        I1 = I0 + 1;
     } else {
-        Ok = MR_NO;
         T = (MR_Float) -1.0;
-        AgentList = MR_list_empty();
-        VelocList = MR_list_empty();
-        RadList   = MR_list_empty();
-        XList     = MR_list_empty();
-        YList     = MR_list_empty();
     }
+    I1 = I0 + 1;
 ").
 
 %-----------------------------------------------------------------------------%

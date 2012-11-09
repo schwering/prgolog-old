@@ -55,7 +55,7 @@
 :- func a(A) = prog(A) <= bat(A).
 :- mode a(in) = out is det.
 
-:- func b(stoch(A)) = prog(A) <= bat(A).
+:- func b(primf(A)) = prog(A) <= bat(A).
 :- mode b(in) = out is det.
 
 :- func t(relfluent(A)) = prog(A) <= bat(A).
@@ -121,7 +121,7 @@ do(conf(P, S), S1) :- do(P, S, S1).
 %-----------------------------------------------------------------------------%
 
 a(A) = prgolog.pseudo_atom(prgolog.atom(prgolog.prim(A))).
-b(B) = prgolog.pseudo_atom(prgolog.atom(prgolog.stoch(B))).
+b(B) = prgolog.pseudo_atom(prgolog.atom(prgolog.primf(B))).
 t(T) = prgolog.pseudo_atom(prgolog.atom(prgolog.test(T))).
 p(P) = prgolog.proc(P).
 
@@ -174,8 +174,8 @@ replace(V, T, star(P)) = star(replace(V, T, P)).
 replace(V, T, proc(P)) = proc(P). %%% XXX proc(substitute(V, T, P)).
 replace(V, T, pseudo_atom(atom(prim(A)))) =
     pseudo_atom(atom(prim(substitute(V, T, A)))).
-replace(V, T, pseudo_atom(atom(stoch(B)))) =
-    pseudo_atom(atom(stoch(B))). %%% XXX pseudo_atom(atom(stoch(substitute(V, T, B)))).
+replace(V, T, pseudo_atom(atom(primf(B)))) =
+    pseudo_atom(atom(primf(B))). %%% XXX pseudo_atom(atom(primf(substitute(V, T, B)))).
 replace(V, T, pseudo_atom(atom(test(G)))) =
     pseudo_atom(atom(test(substitute(V, T, G)))).
 replace(V, T, pseudo_atom(complex(P))) =

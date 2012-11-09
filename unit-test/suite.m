@@ -76,6 +76,7 @@ get_tests(Tests, !IO) :-
             , test("prgolog", "test_value", ccm(prgolog.test.test_value))
             , test("prgolog", "test_trans_atom", ccm(prgolog.test.test_trans_atom))
             , test("prgolog", "test_trans", ccm(prgolog.test.test_trans))
+            , test("prgolog", "test_final2", ccm(prgolog.test.test_final2))
             ].
 
 %-----------------------------------------------------------------------------%

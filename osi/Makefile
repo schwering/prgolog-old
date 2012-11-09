@@ -4,7 +4,7 @@ SOURCE_FILES = $(shell ls *.m *.cc *.h)
 
 # For non-standalone OSI solver, activate the following lines:
 # --no-as-needed is for some reason needed on Rambo (gcc 4.6.1)
-LIB_MCFLAGS = --extra-library-header coin-clp.h --ld-libflags -Wl,--no-as-needed --link-object coin-clp.o -R${COIN}/dist/lib -L${COIN}/dist/lib -lClp -lOsi -lOsiClp -lCoinUtils -lblas -lm -lstdc++
+# LIB_MCFLAGS = --extra-library-header coin-clp.h --ld-libflags -Wl,--no-as-needed --link-object coin-clp.o -R${COIN}/dist/lib -L${COIN}/dist/lib -lClp -lOsi -lOsiClp -lCoinUtils -lblas -lm -lstdc++
 
 all: mercury-depends lib
 
