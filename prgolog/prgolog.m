@@ -162,8 +162,8 @@ next(seq(P1, P2)) =
 next(non_det(P1, P2)) =
     next(P1) ++ next(P2).
 next(conc(P1, P2)) =
-    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P2, R)), next(P1)) ++
-    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)), next(P2)).
+    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)), next(P2)) ++
+    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(R, P2)), next(P1)).
 next(star(P)) =
     map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, star(P))), next(P)).
 next(proc(N)) =
@@ -257,8 +257,7 @@ trans(P, S, P1, S1) :-
     (   if      Ds = [D]
         then    decomp(C1, P1) = D
         else    {decomp(C1, P1), _} = foldl(func(D, VN) = Red(Map(D), VN),
-                    tail(Ds), Map(head(Ds))
-                ),
+                    tail(Ds), Map(head(Ds))),
                 Map = (func(D @ decomp(C, R)) = {D, VN} is det :-
                     VN = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S))
                 ),

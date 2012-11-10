@@ -72,10 +72,10 @@ test_next(!IO) :-
     ,   { a(a) or a(b) or a(c),
         [Decomp(a, nil), Decomp(b, nil), Decomp(c, nil)] }
     ,   { a(a) // a(b),
-        [Decomp(a, a(b) // nil), Decomp(b, a(a) // nil)] }
+        [Decomp(b, a(a) // nil), Decomp(a, nil // a(b))] }
     ,   { (a(a) `;` a(b)) // (a(c) `;` a(d)),
-        [Decomp(a, (a(c) `;` a(d)) // (nil `;` a(b))),
-         Decomp(c, (a(a) `;` a(b)) // (nil `;` a(d)))] }
+        [Decomp(c, (a(a) `;` a(b)) // (nil `;` a(d))),
+         Decomp(a, (nil `;` a(b)) // (a(c) `;` a(d)))] }
     ,   { star(a(a) `;` a(b)),
         [Decomp(a, (nil `;` a(b)) `;` star(a(a) `;` a(b)))] }
     ] `with_type` list({prog(prim), _}),
@@ -108,12 +108,12 @@ test_next2(!IO) :-
     ,   { a(a) or a(b) or a(c),
         [Decomp(a, nil), Decomp(b, nil), Decomp(c, nil)] }
     ,   { a(a) // a(b),
-        [Decomp(a, a(b) // nil), Decomp(b, a(a) // nil)] }
+        [Decomp(a, nil // a(b)), Decomp(b, a(a) // nil)] }
     ,   { (a(a) `;` a(b)) // (a(c) `;` a(d)),
-        [Decomp(a, (a(c) `;` a(d)) // (nil `;` a(b))),
+        [Decomp(a, (nil `;` a(b)) // (a(c) `;` a(d))),
          Decomp(c, (a(a) `;` a(b)) // (nil `;` a(d)))] }
     ,   { atomic(a(a) `;` a(b)) // (a(c) `;` a(d)),
-        [Decomp(a, (nil `;` a(b)) `;` ((a(c) `;` a(d)) // nil)),
+        [Decomp(a, (nil `;` a(b)) `;` (nil // (a(c) `;` a(d)))),
          Decomp(c, atomic(a(a) `;` a(b)) // (nil `;` a(d)))] }
     ,   { star(a(a) `;` a(b)),
         [Decomp(a, (nil `;` a(b)) `;` star(a(a) `;` a(b)))] }
