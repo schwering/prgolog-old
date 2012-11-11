@@ -53,13 +53,13 @@ static int make_socket(void)
 static float min_conf(const struct planrecog_state *msg)
 {
     return (double) (msg->finished) /
-           (double) (msg->working + msg->finished + msg->working);
+           (double) (msg->working + msg->finished + msg->failed);
 }
 
 static float max_conf(const struct planrecog_state *msg)
 {
     return (double) (msg->working + msg->finished) /
-           (double) (msg->working + msg->finished + msg->working);
+           (double) (msg->working + msg->finished + msg->failed);
 }
 
 static void klatschtgleich2(FILE *fp, int sockfd)
