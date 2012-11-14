@@ -7,60 +7,79 @@
 % File: prgolog.m.
 % Main author: schwering.
 %
-% A simple Golog interpreter with decomposition semantics, stochastic actions,
-% and decision theory.
+% A simple Golog interpreter with a decision theory and transition semantics
+% based on program program decomposition.
 %
-% Conventions:
-% 1. A stands for primitive action
-% 2. B for stochastic action
-% 3. T for test condition or action
-% 4. P for procedures.
+% The basic ingredient to write and execute a Golog program, one needs to
+% define a basic action theory, short bat.  A bat consists of a type for
+% primitive actions, a precondition predicate poss/2, a function reward/2,
+% and a pair of functions lookahead/1 and new_lookahead/2.
 %
-% The user needs to define a type for primitive actions, stochastic actions
-% and procedures.  For these types, the type class bat must be implemented,
-% which together gives us everything we need of a basic action theory.  Note
-% that the lookahead must be positive and reward non-negative.
+% Programs and Execution:
 %
-% The core predicates are:
-% * next/2 to decompose a program into one next atomic action its remainder,
-% * next2/2 to resolve complex atomic actions,
-% * trans_atom/3 to execute primitive, stochastic (sampling), and test actions,
-% * trans/4 to pick one decomposition and execute its next step,
-% * final/2 decides whether or not a program is final,
-% * do/3 that executes a program until it's final.
+% At the lowest level, programs are constituted of primitive actions and test
+% actions which.  The latter are effect-less actions which are executable iff
+% the test condition holds.  Primitive and test actions can be arranged by
+% sequence operators, nondeterminstic branching, nondeterministic looping, and
+% concurrency by interleaving.  Furthermore, (sub-) programs in a concurrent
+% program can be marked as complex action which prevents interleaving.
 %
-% The interpreter features sequence, recursive procedure calls,
-% nondeterministic branch, nondeterministic loop, concurrency through
-% nondeterministic interleaving, sequence, test actions, primitive actions,
-% stochastic actions, and atomic complex actions.  Nondeterminism is resolved
-% by choosing the alternative that maximizes a reward after a lookahead
-% lookahead defined in the BAT.
+% Traditional constructs like if-then-else and while-loops can be created with
+% the prgolog.nice module.  It also provides a pick operator which basically
+% expands to a nondeterministic branch, one for each element in the domain
+% from which the value is picked.
 %
-% To implement fluent formulas in test actions, we exploit Mercury's
-% higher-order types.  Each fluent predicate is represented as a boolean
-% function that returns `yes' if the predicate holds in the given situation
-% and `no' otherwise.  The fact that we don't use higher-order predicate terms
-% is due to a technicality in Mercury: the inst of a higher-order predicate
-% term is determined by its mode, not by its type, while higher-order
-% functions have a default inst (see Section 8.3 (``Higher-order modes'') in
-% the Mercury LRM for details).  If we didn't go with boolean functions but
-% higher-order predicates instead, we would have to add inst definitions for
-% all types just to tell Mercury that relational fluents have the boring inst
-% `pred(in) is semidet'.  Further complication arises when we use higher-order
-% predicates like solutions and foldl which we need to wrap into anonymous
-% lambda expressions to get the modes right.  Some general helper predicates
-% and functions to construct fluents (and abstract from the aforementioned
-% technicality) are defined in the submodule prgolog.fluent.m.
+% Execution of a program builds up a situation term which is basically a
+% history of executed actions.
 %
-% The pick operator is not implemented.  It seems to be difficult to do so:
-% Higher-order terms apparently cannot contain unbound variables, and I don't
-% know how to inspect and modify terms.  I guess it is pretty difficult to
-% express this in the type system.  Maybe one needs the univ type and/or the
-% deconstruct module or so.
+% When the interpreter is asked to execute the next action of such a program
+% with the trans/4 predicate, it decomposes the program in all possible ways,
+% computes the reward/2 after lookahead/2 many steps and then opts for the
+% decomposition that promises the highest reward/2.
 %
-% The type system makes the Mercury terms that represent Golog terms more
-% complex.  For more concise programs, one may use the nice syntax layer that
-% resides in the submodule prgolog.nice.
+% A program is final/2 if execution may stop, for example because the remaining
+% program is a nondeterministic loop, and if further execution does not improve
+% the reward.
+%
+% Stochastic Actions:
+%
+% Nondeterminism in programs like the aforementioned branch and loop and also
+% concurrency represent choice points where the agent might decide what to do
+% and in fact does by opting for the reward-maxizing alternative.  Another kind
+% of nondeterminism arises when the outcome of actions is not for sure.  Such
+% actions are called stochastic.  When a stochastic action is executed, nature
+% picks a primitive outcome action at random which is then executed
+% deterministcally.
+%
+% Sampling of these stochastic actions can be easily implemented as folows.
+% Each stochastic function is implemented as unary higher-order function whose
+% single argument is a situation term and which returns a primitive action.
+% Right before execution, the interpreter evaluates this function for the
+% current situation and executes the returned primitive action.
+%
+% Procedure Calls:
+%
+% Calls of procedures are represented as nullary higher-order functions which
+% return the body of the procedure.  The program decomposition evalues these
+% functions and thus replaces the procedure call with the procedure body when
+% needed.
+%
+% Fluent Formulas:
+%
+% Each fluent formula is represented as a boolean function that returns `yes'
+% if the predicate holds in the given situation and `no' otherwise.  We don't
+% use higher-order predicate terms due to a technicality in Mercury: the inst
+% of a higher-order predicate term is determined by its mode, not by its type,
+% while higher-order functions have a default inst (see Section 8.3
+% (``Higher-order modes'') in the Mercury LRM for details).  If we didn't go
+% with boolean functions but higher-order predicates instead, we would have to
+% add inst definitions for all types just to tell Mercury that relational
+% fluents have the boring inst `pred(in) is semidet'.  Further complication
+% arises when we use higher-order predicates like solutions and foldl which we
+% need to wrap into anonymous lambda expressions to get the modes right.  Some
+% general helper predicates and functions to construct fluents (and abstract
+% from the aforementioned technicality) are defined in the submodule
+% prgolog.fluent.m.
 %
 %-----------------------------------------------------------------------------%
 
@@ -104,8 +123,8 @@
 %-----------------------------------------------------------------------------%
 
 :- typeclass bat(A) where [
-    pred poss(A, A, sit(A)),
-    mode poss(in, out, in) is semidet,
+    pred poss(A, sit(A)),
+    mode poss(in, in) is semidet,
 
     func reward(prog(A), sit(A)) = reward,
     mode reward(in, in) = out is det,
@@ -213,8 +232,8 @@ next2(P) =
 :- mode trans_atom(in, in, out) is semidet.
 
 trans_atom(prim(A), S, S1) :-
-    poss(A, A1, S),
-    S1 = do(A1, S).
+    poss(A, S),
+    S1 = do(A, S).
 trans_atom(primf(B), S, S1) :-
     A = B(S),
     trans_atom(prim(A), S, S1).

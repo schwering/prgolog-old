@@ -270,7 +270,7 @@ visualize(Areas, I, State, !IO) :-
     unlock(!IO).
 
 
-:- pragma foreign_code("C", "
+:- pragma foreign_decl("C", "
     static pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
 ").
 

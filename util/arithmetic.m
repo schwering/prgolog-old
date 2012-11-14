@@ -39,6 +39,7 @@
 ].
 
 :- instance arithmetic(float).
+:- instance arithmetic(rat.rat).
 :- instance arithmetic(rational.rational).
 %:- instance arithmetic(prgolog.ccfluent.aterm).
 

@@ -1,6 +1,6 @@
 #where-am-i = $(shell dirname $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)) | sed -e 's/^.\+\/\//\//g')
 
-# Mercury grade we want to compile to
+# Mercury grade we want to compile to (asm_fast leads to segfaults caused by addresses not mapped to objects)
 GRADE = hlc.par.gc
 LINKAGE = shared
 # LINKAGE = static

@@ -21,13 +21,16 @@
 %-----------------------------------------------------------------------------%
 
 :- typeclass obs_bat(A, Obs) <= ((A -> Obs), bat(A)) where [
-    pred is_obs(A),
-    mode is_obs(in) is semidet,
+    pred is_obs_action(A),
+    mode is_obs_action(in) is semidet,
+
+    pred is_obs_prog(pseudo_atom(A)),
+    mode is_obs_prog(in) is semidet,
 
     pred covered_by_obs(sit(A)),
     mode covered_by_obs(in) is semidet,
 
-    func obs_to_action(Obs) = A,
+    func obs_to_action(Obs) = pseudo_atom(A),
     mode obs_to_action(in) = out is det
 ].
 
@@ -65,12 +68,12 @@
     pred reset_obs_source(Source, io, io),
     mode reset_obs_source(in, di, uo) is det,
 
-    pred init_obs_stream(Source, stream, StreamState),
-    mode init_obs_stream(in, in, uo) is det,
+    pred init_obs_stream(Source, stream, StreamState, io, io),
+    mode init_obs_stream(in, in, uo, di, uo) is det,
 
     pred next_obs(obs_msg(Obs, Env), sit(A), prog(A),
-                  StreamState, StreamState) <= pr_bat(A, Obs, Env),
-    mode next_obs(out, in, in, di, uo) is det,
+                  StreamState, StreamState, io, io) <= pr_bat(A, Obs, Env),
+    mode next_obs(out, in, in, di, uo, di, uo) is det,
 
     pred mark_obs_end(Source, io, io),
     mode mark_obs_end(in, di, uo) is det,

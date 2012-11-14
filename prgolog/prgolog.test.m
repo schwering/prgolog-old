@@ -42,7 +42,7 @@
 :- type prim ---> a ; b ; c ; d ; e ; impossible.
 
 :- instance bat(prim) where [
-    poss(A, A, _) :- A \= impossible,
+    poss(A, _) :- A \= impossible,
     reward(_, s0) = 0.0,
     reward(P, do(A, S)) = R + reward(P, S) :-
         (   A = a, R = 0.0

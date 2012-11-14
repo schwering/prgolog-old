@@ -64,6 +64,7 @@
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <unistd.h>
+    #include ""car-obs-torcs-types.h""
 ").
 
 
@@ -156,8 +157,10 @@ accept_connections(ServerSocket, Areas, !IO) :-
     NSamples = 9,
     Prog = (cruise(b) // overtake(c, b)),% `with_type` prog(prim),
     accept_connection(ServerSocket, Socket, !IO),
+    %format("Accepted connection...\n", [], !IO),
     Source = source,
     reset_obs_source(Source, !IO),
+    %format("Reset source...\n", [], !IO),
     online_planrecog(NSamples, Source, Vars, visual.visualize(Areas), Prog, !IO),
     handle_connection(Socket, !IO),
     %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
@@ -174,7 +177,8 @@ main(!IO) :-
     make_server_socket(ServerSocket, !IO),
     visual.init(9, Areas, !IO),
     accept_connections(ServerSocket, Areas, !IO),
-    visual.finish(!IO).
+    visual.finish(!IO),
+    true.
 
 %-----------------------------------------------------------------------------%
 :- end_module cars_server.

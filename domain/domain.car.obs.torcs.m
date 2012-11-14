@@ -69,7 +69,7 @@
 ").
 
 
-:- pragma foreign_code("C", "
+:- pragma foreign_decl("C", "
     #include <assert.h>
     #include <semaphore.h>
 
@@ -190,19 +190,20 @@ reset_obs_source(_, !IO) :-
     initialize_globals(!IO).
 
 
-:- pred init_obs_stream(source::in, stream::in, stream_state::uo) is det.
+:- pred init_obs_stream(source::in, stream::in, stream_state::uo,
+                        io::di, io::uo) is det.
 
-init_obs_stream(_, I, ss(I1, 0)) :- copy(I, I1).
+init_obs_stream(_, I, ss(I1, 0), !IO) :- copy(I, I1).
 
 
 :- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A)::in,
-                 stream_state::di, stream_state::uo) is det
+                 stream_state::di, stream_state::uo, io::di, io::uo) is det
                  <= pr_bat(A, obs, env).
 
-next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
+next_obs(ObsMsg, S, P, ss(ID, I0), State1, !IO) :-
     Done = obs_count_in_sit(S),
     ToBeDone = int.max(0, int.'-'(obs_count_in_prog(P), lookahead(S))),
-    next_obs(I0, I1, ID, Done, ToBeDone, Ok, Time, AgentInfoMap),
+    next_obs(I0, I1, ID, Done, ToBeDone, Ok, Time, AgentInfoMap, !IO),
     (
         Ok = yes,
         (   if      I1 = 1
@@ -218,11 +219,12 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
 
 :- pred next_obs(
     int::di, int::uo, int::in, int::in, int::in,
-    bool::out, float::out, assoc_list(agent, info)::out) is det.
+    bool::out, float::out, assoc_list(agent, info)::out,
+    io::di, io::uo) is det.
 
-next_obs(I0, I1, ID, Done, ToBeDone, Ok, T, AgentInfoMap) :-
+next_obs(I0, I1, ID, Done, ToBeDone, Ok, T, AgentInfoMap, !IO) :-
     next_obs_pure(I0, I1, ID, Done, ToBeDone, Ok, T,
-                  AgentList, VelocList, RadList, XList, YList),
+                  AgentList, VelocList, RadList, XList, YList, !IO),
     (   if      M = merge_lists(AgentList, VelocList, RadList, XList, YList)
         then    AgentInfoMap = M
         else    error("next_obs/8 failed")
@@ -244,15 +246,17 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
     int::in, int::in, int::in,
     bool::out, float::out,
     list(string)::out, list(float)::out, list(float)::out,
-                       list(float)::out, list(float)::out) is det.
+                       list(float)::out, list(float)::out,
+    io::di, io::uo) is det.
 
 :- pragma foreign_proc("C",
     next_obs_pure(
         I0::di, I1::uo,
         ID::in, Done::in, ToBeDone::in,
         Ok::out, T::out,
-        AgentList::out, VelocList::out, RadList::out, XList::out, YList::out),
-    [will_not_call_mercury, promise_pure, thread_safe],
+        AgentList::out, VelocList::out, RadList::out, XList::out, YList::out,
+        IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe, tabled_for_io],
 "
     assert(0 <= ID && ID < MAX_PROCESSES);
     process_states[ID] = (struct process_state) { Done, ToBeDone, WORKING };
@@ -285,6 +289,7 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
         XList     = MR_list_empty();
         YList     = MR_list_empty();
     }
+    IO1 = IO0;
 ").
 
 
@@ -329,8 +334,8 @@ update_state(_, ID, failed, !IO) :- update_state_2(ID, 3, !IO).
 
 :- instance obs_source(obs, env, source, stream_state) where [
     pred(reset_obs_source/3) is torcs.reset_obs_source,
-    pred(init_obs_stream/3) is torcs.init_obs_stream,
-    pred(next_obs/5) is torcs.next_obs,
+    pred(init_obs_stream/5) is torcs.init_obs_stream,
+    pred(next_obs/7) is torcs.next_obs,
     pred(mark_obs_end/3) is torcs.mark_obs_end,
     pred(update_state/5) is torcs.update_state
 ].

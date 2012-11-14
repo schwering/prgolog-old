@@ -1,3 +1,5 @@
+#!/bin/bash
+
 DIR=$1
 MERCURY_SRC_DIR=$2
 MERCURY_BIN_DIR=$3
@@ -49,7 +51,7 @@ find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed -
 find . -name \*.h -or -name \*.c -or -name \*.hpp -or -name \*.cpp | xargs sed --in-place -e 's/\<strdup\>/GC_STRDUP/g'
 ./configure --prefix=$(pwd)/dist --without-cxx-binding --without-ada --without-manpages --without-tests --without-progs --with-shared || exit 1
 # Tell him to link GC and some other libraries (do we need them?)
-find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LIBS[\\t ]\\+=/BUILD_LIBS = -ldl -lpar_gc/g"
+find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LIBS[\\t ]\\+=/BUILD_LIBS = -lpar_gc -ldl -lpthread/g"
 find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LDFLAGS[\\t ]\\+=/BUILD_LDFLAGS = -L$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/lib/g"
 find . -name Makefile | xargs sed --in-place -e "s/^BUILD_LDFLAGS[\\t ]\\+=/BUILD_LDFLAGS = -Wl,-rpath=$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/lib/g"
 find . -name Makefile | xargs sed --in-place -e "s/^BUILD_CPPFLAGS[\\t ]\\+=/BUILD_CPPFLAGS = -I$(echo ${MERCURY_BIN_DIR} | sed -e 's/\//\\\//g')\\/lib\\/mercury\\/inc/g"
@@ -87,6 +89,10 @@ cat >include/mygc.h <<\EOF
 
 #ifndef strdup
 #define strdup(x) GC_STRDUP(x)
+#endif
+
+#ifndef dlopen
+#define dlopen(fn, flags) GC_dlopen(fn, flags)
 #endif
 
 

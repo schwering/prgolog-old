@@ -34,7 +34,7 @@
     ;       set_yaw(agent, lane, rad, rad, maybe(random.supply), maybe(vargen),
                     list(constraint), time)
     ;       wait_for(ccformula(prim), maybe(vargen), list(constraint), time)
-    %;      match(s, ccformula(prim), maybe(vargen), list(constraint), time)
+   %;       match(s, ccformula(prim), maybe(vargen), list(constraint), time)
     ;       match(obs, maybe(vargen), list(constraint), time)
     ;       eval(ccformula(prim), maybe(vargen), list(constraint), time)
     ;       init_env(env)
@@ -79,7 +79,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred poss(prim::in, prim::out, sit::in) is semidet.
+:- pred poss(prim::in, sit::in) is semidet.
 
 %-----------------------------------------------------------------------------%
 
@@ -330,58 +330,71 @@ behind(Agent0, Agent1) = ( func(T, S) = [
 filter_empty_cstrs(Cs) = negated_filter(holds_trivially, Cs).
 
 
-poss(set_veloc(Agent, V, Tol, RS, no, [], notime),
-     set_veloc(Agent, V, Tol, RS, yes(VG), Cs0, T),
-     S) :-
-    T = new_variable(vargen(S), VG),
-    Cs0 = filter_empty_cstrs([T `>=` start(S)]),
-    Cs1 = Cs0 ++ constraints(S),
-    solve(VG, Cs1).
+:- func set_veloc(agent, mps, mps, maybe(random.supply)) `with_type` primf.
 
-poss(set_yaw(Agent, Lane, Y, Tol, RS, no, [], notime),
-     set_yaw(Agent, Lane, Y, Tol, RS, yes(VG), Cs0, T),
-     S) :-
+set_veloc(Agent, V, Tol, RS, S) =
+  set_veloc(Agent, V, Tol, RS, yes(VG), Cs, T) :-
+    T = new_variable(vargen(S), VG),
+    Cs = filter_empty_cstrs([T `>=` start(S)]).
+
+
+:- func set_yaw(agent, lane, rad, rad, maybe(random.supply)) `with_type` primf.
+
+set_yaw(Agent, Lane, Y, Tol, RS, S) =
+  set_yaw(Agent, Lane, Y, Tol, RS, yes(VG), Cs, T) :-
     T = new_variable(vargen(S), VG),
     (   Lane = right, OnLane = on_right_lane(Agent)(T, S)
     ;   Lane = left,  OnLane = on_left_lane(Agent)(T, S)
     ),
-    Cs0 = filter_empty_cstrs([T `>=` start(S)] ++ OnLane),
-    Cs1 = Cs0 ++ constraints(S),
-    solve(VG, Cs1).
+    Cs = filter_empty_cstrs([T `>=` start(S)] ++ OnLane).
 
-poss(wait_for(G, no, [], notime),
-     wait_for(G, yes(VG), Cs0, T),
-     S) :-
+
+:- func wait_for(ccformula(prim)) `with_type` primf.
+
+wait_for(G, S) = wait_for(G, yes(VG), Cs, T) :-
     T = new_variable(vargen(S), VG),
-    Cs0 = filter_empty_cstrs([T `>=` start(S)] ++ G(T, S)),
-    Cs1 = Cs0 ++ constraints(S),
-    solve(VG, Cs1).
+    Cs = filter_empty_cstrs([T `>=` start(S)] ++ G(T, S)).
 
-:- import_module domain.car.cont.io_util.
-poss(match(Obs, no, [], T),
-     match(Obs, yes(VG), Cs0, T),
-     S) :-
+
+:- func match(obs, time) `with_type` primf.
+
+match(Obs, T, S) = match(Obs, yes(VG), Cs, T) :-
     VG = vargen(S),
     {_, OF} = obs2ccformula(Obs),
-    Cs0 = filter_empty_cstrs([T `>=` start(S), T `=` T] ++ OF(T, S)),
-    Cs1 = Cs0 ++ constraints(S),
-    solve(VG, Cs1).
+    Cs = filter_empty_cstrs([T `>=` start(S), T `=` T] ++ OF(T, S)).
 
-poss(eval(G, no, [], notime),
-     eval(G, yes(VG), Cs0, T),
-     S) :-
+
+:- func eval(ccformula(prim)) `with_type` primf.
+
+eval(G, S) = eval(G, yes(VG), Cs, T) :-
     T = new_variable(vargen(S), VG),
-    Cs0 = filter_empty_cstrs([T `=` start(S)] ++ G(T, S)),
+    Cs = filter_empty_cstrs([T `=` start(S)] ++ G(T, S)).
+
+%-----------------------------------------------------------------------------%
+
+poss(set_veloc(_, _, _, _, yes(VG), Cs0, _), S) :-
     Cs1 = Cs0 ++ constraints(S),
     solve(VG, Cs1).
 
-poss(init_env(E),
-     init_env(E),
-     _).
+poss(set_yaw(_, _, _, _, _, yes(VG), Cs0, _), S) :-
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1).
 
-poss(seed(I),
-     seed(I),
-     _).
+poss(wait_for(_, yes(VG), Cs0, _), S) :-
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1).
+
+poss(match(_, yes(VG), Cs0, _), S) :-
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1).
+
+poss(eval(_, yes(VG), Cs0, _), S) :-
+    Cs1 = Cs0 ++ constraints(S),
+    solve(VG, Cs1).
+
+poss(init_env(_), _).
+
+poss(seed(_), _).
 
 %-----------------------------------------------------------------------------%
 
@@ -438,12 +451,12 @@ random_lognormal(Mu, Sigma, Y1, Y2, !RS) :-
 
 
 set_veloc_st(Agent, V, S) =
-  set_veloc(Agent, V, Tol, yes(RS1), no, [], notime) :-
+  set_veloc(Agent, V, Tol, yes(RS1), S) :-
     RS0 = random_supply(S),
     random_lognormal(1.0, 1.0, Tol, _, RS0, RS1).
 
 set_yaw_st(Agent, Lane, Yaw, S) =
-  set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), no, [], notime) :-
+  set_yaw(Agent, Lane, Yaw, Tol, yes(RS1), S) :-
     (   if      Yaw = 0.0
         then    Mu = -0.7, Sigma = 0.7, TolMax = 2.0
         else    Mu = -0.2, Sigma = 1.0, TolMax = 2.5
@@ -457,13 +470,13 @@ set_yaw_st(Agent, Lane, Yaw, S) =
 straight_left(Agent) = P :-
     P = atomic(
             b(set_yaw_st(Agent, left, deg2rad(0.0))) `;`
-            nil% a(eval(on_left_lane(Agent), no, [], notime))
+            nil% a(eval(on_left_lane(Agent)))
         ).
 
 straight_right(Agent) = P :-
     P = atomic(
             b(set_yaw_st(Agent, right, deg2rad(0.0))) `;`
-            nil% a(eval(on_right_lane(Agent), no, [], notime))
+            nil% b(eval(on_right_lane(Agent)))
         ).
 
 left_lane_change(Agent) = P :-
@@ -473,7 +486,7 @@ left_lane_change(Agent) = P :-
               b(set_yaw_st(Agent, right, deg2rad(10.0))) or
               b(set_yaw_st(Agent, right, deg2rad(8.0))) or
               b(set_yaw_st(Agent, right, deg2rad(6.0))) ) %`;`
-            %a(eval(on_right_lane(Agent), no, [], notime))
+            %b(eval(on_right_lane(Agent)))
         ) `;`
         p(((func) = straight_left(Agent))).
 
@@ -484,7 +497,7 @@ right_lane_change(Agent) = P :-
               b(set_yaw_st(Agent, left, deg2rad(-10.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-8.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-6.0))) ) %`;`
-            %a(eval(on_right_lane(Agent), no, [], notime))
+            %b(eval(on_right_lane(Agent)))
         ) `;`
         p(((func) = straight_right(Agent))).
 
@@ -496,30 +509,32 @@ overtake(Agent, Victim) = P :-
     P = b(set_veloc_st(Agent, 20.8)) `;` % Why do we need this stupid action?
                                          % Without it, plan recognition fails.
         b(set_yaw_st(Agent, right, 0.0)) `;`
-        a(eval(on_right_lane(Agent) and on_right_lane(Victim) and
-           Agent `behind` Victim, no, [], notime)) `;`
+        b(eval(on_right_lane(Agent) and on_right_lane(Victim) and Agent `behind` Victim)) `;`
         p(((func) = straight_right(Agent))) `;`
         ((
             p(((func) = left_lane_change(Agent))) `;`
-            a(wait_for(Victim `behind` Agent, no, [], notime)) `;`
+            b(wait_for(Victim `behind` Agent)) `;`
             p(((func) = right_lane_change(Agent)))
         ) // (
             b(set_veloc_st(Agent, 20.8))
         )) `;`
-        a(eval(on_right_lane(Agent) and Victim `behind` Agent,
-            no, [], notime)).
+        b(eval(on_right_lane(Agent) and Victim `behind` Agent)).
 
 %-----------------------------------------------------------------------------%
 
-:- pred is_match_action(prim::in) is semidet.
+:- pred is_obs_action(prim::in) is semidet.
 
-is_match_action(match(_, _, _, _)).
+is_obs_action(match(_, _, _, _)).
+
+
+:- pred is_obs_prog(pseudo_atom(prim)::in) is semidet.
+
+is_obs_prog(atom(primf(AF))) :- cont.is_obs_action(AF(s0)).
 
 
 :- func last_match(sit(prim)) = prim is semidet.
 
-last_match(do(A, S)) =
-    ( if is_match_action(A) then A else last_match(S) ).
+last_match(do(A, S)) = ( if cont.is_obs_action(A) then A else last_match(S) ).
 
 
 :- pred covered_by_match(sit(prim)::in) is semidet.
@@ -543,22 +558,23 @@ obs2ccformula(obs(OT, AgentPositions)) = {OT, OF} :-
     ).
 
 
-:- func obs2match(obs::in) = (prim::out) is det.
+:- func obs2match(obs) = pseudo_atom(prim).
 
-obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
+obs2match(Obs) = atom(primf(match(Obs, constant(OT)))) :-
     {OT, _} = obs2ccformula(Obs).
 
 %-----------------------------------------------------------------------------%
 
 :- instance bat(prim) where [
-    pred(poss/3) is cont.poss,
+    pred(poss/2) is cont.poss,
     func(reward/2) is cont.reward,
     func(lookahead/1) is cont.lookahead,
     func(new_lookahead/2) is cont.new_lookahead
 ].
 
 :- instance obs_bat(prim, obs) where [
-    pred(is_obs/1) is cont.is_match_action,
+    pred(is_obs_action/1) is cont.is_obs_action,
+    pred(is_obs_prog/1) is cont.is_obs_prog,
     pred(covered_by_obs/1) is cont.covered_by_match,
     func(obs_to_action/1) is cont.obs2match
 ].

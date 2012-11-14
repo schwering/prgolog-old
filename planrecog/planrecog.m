@@ -59,12 +59,11 @@
                          handler(A)::in(handler),
                          prog(A)::in,
                          io::di, io::uo) is cc_multi
-                         <= (pr_bat(A, Obs, Env),
-                             obs_source(Obs, Env, Source, _)).
+    <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, _)).
 
 :- pred wait_for_planrecog_finish(Source::in, list(mvar(s_state(A)))::in,
                                   io::di, io::uo) is det
-                                  <= obs_source(_, _, Source, _).
+    <= obs_source(_, _, Source, _).
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -99,7 +98,7 @@ empty_handler(_, _, !IO).
 :- pred thread_id(int::out, io::di, io::uo) is det.
 
 :- pragma foreign_proc(c, thread_id(Id::out, IO0::di, IO::uo),
-            [will_not_call_mercury, thread_safe, promise_pure, tabled_for_io],
+    [will_not_call_mercury, thread_safe, promise_pure, tabled_for_io],
 "
     Id = (int) pthread_self();
     IO = IO0;
@@ -108,17 +107,15 @@ empty_handler(_, _, !IO).
 
 :- pred merge_and_trans_loop(Source::in, logger(A)::in(logger),
                              s_state(A)::in, s_state(A)::out,
-                             ObsStreamState::di, ObsStreamState::uo) is det
-                         <= (pr_bat(A, Obs, Env),
-                             obs_source(Obs, Env, Source, ObsStreamState)).
+                             ObsStreamState::di, ObsStreamState::uo,
+                             io::di, io::uo) is det
+    <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, ObsStreamState)).
 
-merge_and_trans_loop(Source, Log, !State, !ObsStreamState) :-
-    merge_and_trans(!State, !ObsStreamState, Cont),
-    trace [io(!IO)] (
-        Log(!.State, !IO)
-    ),
+merge_and_trans_loop(Source, Log, !State, !ObsStreamState, !IO) :-
+    merge_and_trans(!State, !ObsStreamState, Cont, !IO),
+    Log(!.State, !IO),
     (   if      Cont = yes
-        then    merge_and_trans_loop(Source, Log, !State, !ObsStreamState)
+        then    merge_and_trans_loop(Source, Log, !State, !ObsStreamState, !IO)
         else    true
     ).
 
@@ -126,20 +123,18 @@ merge_and_trans_loop(Source, Log, !State, !ObsStreamState) :-
 :- pred merge_and_trans(s_state(A)::in,
                         s_state(A)::out,
                         ObsStreamState::di, ObsStreamState::uo,
-                        bool::out) is det
-                        <= (pr_bat(A, Obs, Env),
-                            obs_source(Obs, Env, _, ObsStreamState)).
+                        bool::out,
+                        io::di, io::uo) is det
+    <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, _, ObsStreamState)).
 
-merge_and_trans(s_state(conf(P, S), !.Phase),
-                s_state(conf(P2, S2), !:Phase),
-                !ObsStreamState,
-                Continue) :-
+merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
+                !ObsStreamState, Continue, !IO) :-
     (   if
             !.Phase \= finishing,
             obs_count_in_prog(P) < lookahead(S)
         then
             Continue = yes,
-            next_obs(ObsMsg, S, P, !ObsStreamState),
+            next_obs(ObsMsg, S, P, !ObsStreamState, !IO),
             P2 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
             S2 = ( if ObsMsg = init_msg(E) then init_env_sit(E, S) else S ),
             !:Phase = ( if ObsMsg = end_of_obs then finishing else running )
@@ -212,7 +207,7 @@ take_vars([V | Vs], [R | Rs], !IO) :-
 
 :- pred run_concurrently_thread(Source::in, int::in,
                                 list(mvar(s_state(A)))::in,
-                                pred(int, s_state(A))::in(pred(in, out) is det),
+                                pred(int, s_state(A), io, io)::in(pred(in, out, di, uo) is det),
                                 io::di, io::uo) is cc_multi
                                 <= obs_source(_, _, Source, _).
 
@@ -221,7 +216,7 @@ run_concurrently_thread(Source, I, [V | Vs], P, !IO) :-
     spawn((pred(IO0::di, IO1::uo) is cc_multi :-
         some [!SubIO] (
             !:SubIO = IO0,
-            P(I, R),
+            P(I, R, !SubIO),
             R = s_state(_, Phase),
             %write(I, !SubIO),
             %write_string(" --> ", !SubIO),
@@ -240,7 +235,7 @@ run_concurrently_thread(Source, I, [V | Vs], P, !IO) :-
 
 
 :- pred run_concurrently(Source::in, int::in,
-                         pred(int, s_state(A))::in(pred(in, out) is det),
+                         pred(int, s_state(A), io, io)::in(pred(in, out, di, uo) is det),
                          list(s_state(A))::out,
                          io::di, io::uo) is cc_multi
                          <= obs_source(_, _, Source, _).
@@ -254,14 +249,15 @@ run_concurrently(Source, N, P, Rs, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred pr_thread(Source::in, prog(A)::in, int::in, s_state(A)::out) is det
+:- pred pr_thread(Source::in, prog(A)::in, int::in, s_state(A)::out,
+                  io::di, io::uo) is det
     <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
-pr_thread(Source, Prog, I, R) :-
+pr_thread(Source, Prog, I, R, !IO) :-
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
-    init_obs_stream(Source, I, ObsStreamState),
+    init_obs_stream(Source, I, ObsStreamState, !IO),
     merge_and_trans_loop(Source, empty_logger, InitialState, R,
-                         ObsStreamState, _).
+                         ObsStreamState, _, !IO).
 
 
 planrecog(ThreadCount, Source, Prog, Results, !IO) :-
@@ -271,16 +267,17 @@ planrecog(ThreadCount, Source, Prog, Results, !IO) :-
 %-----------------------------------------------------------------------------%
 
 :- pred opr_thread(Source::in, handler(A)::in(handler),
-                   prog(A)::in, int::in, s_state(A)::out) is det
+                   prog(A)::in, int::in, s_state(A)::out,
+                   io::di, io::uo) is det
     <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
-opr_thread(Source, Handler, Prog, I, R) :-
+opr_thread(Source, Handler, Prog, I, R, !IO) :-
     Log = (pred(S::in, IO0::di, IO1::uo) is det :-
         Handler(I, S, IO0, IO1)
     ),
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
-    init_obs_stream(Source, I, ObsStreamState),
-    merge_and_trans_loop(Source, Log, InitialState, R, ObsStreamState, _).
+    init_obs_stream(Source, I, ObsStreamState, !IO),
+    merge_and_trans_loop(Source, Log, InitialState, R, ObsStreamState, _, !IO).
 
 
 online_planrecog(ThreadCount, Source, Vars, Handler, Prog, !IO) :-
