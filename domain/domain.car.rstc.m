@@ -20,6 +20,8 @@
 :- import_module prgolog.
 :- import_module prgolog.nice.
 
+:- include_module fuzzy.
+
 %-----------------------------------------------------------------------------%
 
 :- type s(N) == N.
@@ -33,7 +35,8 @@
     ;       senseD(agent, agent, ntg(N), ttc(N))
     ;       senseL(agent, lane)
     ;       init_env(env)
-    ;       match(obs).
+    ;       match(obs)
+    ;       seed(int).
 
 :- type sit(N) == prgolog.sit(prim(N)).
 :- type prog(N) == prgolog.prog(prim(N)).
@@ -41,9 +44,9 @@
 
 %-----------------------------------------------------------------------------%
 
-%:- instance bat(prim(N)) <= arithmetic(N).
-%:- instance obs_bat(prim, ).
-%:- instance pr_bat(prim, , env).
+:- instance bat(prim(N)) <= arithmetic(N).
+:- instance obs_bat(prim(N), obs) <= arithmetic(N).
+:- instance pr_bat(prim(N), obs, env) <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
@@ -53,14 +56,30 @@
 :- func ttc(agent, agent, rstc.sit(N)) = ttc(N) <= arithmetic(N).
 :- mode ttc(in, in, in) = out is semidet.
 
-:- func lane(agent::in, rstc.sit(N)::in) = (lane::out) is det.
+:- func lane(agent, rstc.sit(N)) = lane.
 
-:- func start(rstc.sit(N)::in) = (s(N)::out) is det <= arithmetic(N).
+:- func start(rstc.sit(N)) = s(N) <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
-:- pred poss(prim(N)::in, prim(N)::out, rstc.sit(N)::in) is semidet
+:- func rel_v(agent, agent, rstc.sit(N)) = N <= arithmetic(N).
+:- mode rel_v(in, in, in) = out is semidet.
+
+:- pred opposite_direction(agent::in, agent::in, rstc.sit(N)::in) is semidet
     <= arithmetic(N).
+
+:- pred same_direction(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic(N).
+
+:- pred slower(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic(N).
+
+:- pred faster(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic(N).
+
+%-----------------------------------------------------------------------------%
+
+:- pred poss(prim(N)::in, rstc.sit(N)::in) is semidet <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -269,11 +288,23 @@ start_from_env(env(T, _)) = T.
 
 %-----------------------------------------------------------------------------%
 
-poss(A @ wait(T), A, _) :- T > zero.
+rel_v(C, B, S) = one - ntg(B, C, S) // ttc(B, C, S).
 
-poss(A @ accel(_, Q), A, _) :- Q >= zero.
+opposite_direction(B, C, S) :- rel_v(B, C, S) > zero.
 
-poss(A @ lc(B, L), A, S) :- lane(B, S) = left <=> L = right.
+same_direction(B, C, S) :- rel_v(B, C, S) < zero.
+
+slower(B, C, S) :- rel_v(B, C, S) > -one, rel_v(B, C, S) < one.
+
+faster(B, C, S) :- not slower(B, C, S).
+
+%-----------------------------------------------------------------------------%
+
+poss(wait(T), _) :- T > zero.
+
+poss(accel(_, Q), _) :- Q >= zero.
+
+poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
 
 %-----------------------------------------------------------------------------%
@@ -284,20 +315,13 @@ lookahead(_S) = 3.
 
 %-----------------------------------------------------------------------------%
 
-:- func new_lookahead(lookahead, atom(prim(N))) = lookahead is det.
-
-new_lookahead(H, _C) = H - 1.
-
-%-----------------------------------------------------------------------------%
-
 :- func reward(rstc.sit(N)) = reward.
-:- mode reward(in) = out is det.
 
 reward(s0) = 0.0.
-reward(do(_, S)) = reward(S).
+reward(do(A, S)) = ( if A = match(_) then 1.0 else 0.0 ) `float.'+'` reward(S).
+
 
 :- func reward(rstc.prog(N), rstc.sit(N)) = reward.
-:- mode reward(in, in) = out is det.
 
 reward(_, S) = reward(S).
 
@@ -310,8 +334,7 @@ is_match_action(match(_)).
 
 :- func last_match(rstc.sit(N)) = prim(N) is semidet.
 
-last_match(do(A, S)) =
-    ( if is_match_action(A) then A else last_match(S) ).
+last_match(do(A, S)) = ( if is_match_action(A) then A else last_match(S) ).
 
 
 /*
@@ -348,31 +371,26 @@ obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
 
 %-----------------------------------------------------------------------------%
 
-/*
-:- instance bat(prim(N), stoch(N), proc(N)) <= arithmetic(N) where [
-    pred(poss/3) is rstc.poss,
-    pred(random_outcome/3) is rstc.random_outcome,
+:- instance bat(prim(N)) <= arithmetic(N) where [
+    pred(poss/2) is rstc.poss,
     func(reward/2) is rstc.reward,
-    func(lookahead/1) is rstc.lookahead,
-    func(new_lookahead/2) is rstc.new_lookahead,
-    pred(proc/2) is rstc.proc
+    func(lookahead/1) is rstc.lookahead
 ].
-*/
 
-/*
-:- instance obs_bat(prim, stoch, proc, obs) where [
-    pred(is_obs/1) is rstc.is_match_action,
-    pred(covered_by_obs/1) is rstc.covered_by_match,
-    func(obs_to_action/1) is rstc.obs2match
+:- instance obs_bat(prim(N), obs) <= arithmetic(N) where [
+    (is_obs_action(match(_))),
+    (is_obs_prog(atom(prim(match(_))))),
+    (covered_by_obs(do(A, S)) :-
+        (   A \= wait(_), covered_by_obs(S)
+        ;   A = match(_) )
+    ),
+    (obs_to_action(Obs) = atom(prim(match(Obs))))
 ].
-*/
 
-/*
-:- instance pr_bat(prim, stoch, proc, obs, env) where [
+:- instance pr_bat(prim(N), obs, env) <= arithmetic(N) where [
     seed_init_sit(I) = do(seed(I), s0),
     init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
 ].
-*/
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.

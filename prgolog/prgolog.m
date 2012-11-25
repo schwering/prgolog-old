@@ -13,7 +13,7 @@
 % The basic ingredient to write and execute a Golog program, one needs to
 % define a basic action theory, short bat.  A bat consists of a type for
 % primitive actions, a precondition predicate poss/2, a function reward/2,
-% and a pair of functions lookahead/1 and new_lookahead/2.
+% and a functions lookahead/1.
 %
 % Programs and Execution:
 %
@@ -60,9 +60,9 @@
 % Procedure Calls:
 %
 % Calls of procedures are represented as nullary higher-order functions which
-% return the body of the procedure.  The program decomposition evalues these
+% return the body of the procedure.  The program decomposition evaluates these
 % functions and thus replaces the procedure call with the procedure body when
-% needed.
+% needed, that is, lazily.
 %
 % Fluent Formulas:
 %
@@ -130,10 +130,7 @@
     mode reward(in, in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
-    mode lookahead(in) = out is det,
-
-    func new_lookahead(lookahead, atom(A)) = lookahead,
-    mode new_lookahead(in, in) = out is det
+    mode lookahead(in) = out is det
 ].
 
 %-----------------------------------------------------------------------------%
@@ -152,11 +149,12 @@
 :- include_module ccfluent.
 :- include_module fluent.
 :- include_module nice.
+:- include_module test.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
-:- include_module test. :- implementation.
+:- implementation.
 
 :- import_module float.
 :- import_module int.
@@ -260,7 +258,7 @@ value(P, S, L) = {V, N} :-
     if      L > 0,
             {V2, N2} = foldl((func(decomp(C, R), VN2) = VN3 is det :-
                 if      trans_atom(C, S, S1)
-                then    {V1, N1} = value(R, S1, new_lookahead(L, C)),
+                then    {V1, N1} = value(R, S1, L - 1),
                         VN3 = max({V1, N1 + 1}, VN2)
                 else    VN3 = VN2
             ), next2(P), {min, min_int}),
@@ -275,12 +273,12 @@ trans(P, S, P1, S1) :-
     Ds = next2(P),
     (   if      Ds = [D]
         then    decomp(C1, P1) = D
-        else    {decomp(C1, P1), _} = foldl(func(D, VN) = Red(Map(D), VN),
+        else    {decomp(C1, P1), _} = foldl(func(D, VN) = Reduce(Map(D), VN),
                     tail(Ds), Map(head(Ds))),
                 Map = (func(D @ decomp(C, R)) = {D, VN} is det :-
                     VN = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S))
                 ),
-                Red = (func({D1, VN1}, {D2, VN2}) =
+                Reduce = (func({D1, VN1}, {D2, VN2}) =
                     ( if VN1 > VN2 then {D1, VN1} else {D2, VN2} )
                 )
     ),

@@ -15,7 +15,7 @@
 % form of list of s_state objects, one for each sample.
 %
 % online_planrecog/7 works similarly except that it calls a handler after each
-% step. Besides 
+% step.
 %
 %-----------------------------------------------------------------------------%
 
@@ -129,36 +129,35 @@ merge_and_trans_loop(Source, Log, !State, !ObsStreamState, !IO) :-
 
 merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
                 !ObsStreamState, Continue, !IO) :-
-    (   if
-            !.Phase \= finishing,
-            obs_count_in_prog(P) < lookahead(S)
-        then
-            Continue = yes,
-            next_obs(ObsMsg, S, P, !ObsStreamState, !IO),
-            P2 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
-            S2 = ( if ObsMsg = init_msg(E) then init_env_sit(E, S) else S ),
-            !:Phase = ( if ObsMsg = end_of_obs then finishing else running )
-        else if
-            final(remove_obs_sequence(P), S),
-            last_action_covered_by_obs(S)
-        then
-            Continue = no,
-            P2 = P,
-            S2 = S,
-            !:Phase = finished
-        else if
-            trans(P, S, P1, S1)
-        then
-            Continue = yes,
-            P2 = P1,
-            S2 = S1,
-            !:Phase = !.Phase
-        else
-            Continue = no,
-            P2 = P,
-            S2 = S,
-            !:Phase = failed
-    ).
+    if
+        !.Phase \= finishing,
+        obs_count_in_prog(P) < lookahead(S)
+    then
+        Continue = yes,
+        next_obs(ObsMsg, S, P, !ObsStreamState, !IO),
+        P2 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
+        S2 = ( if ObsMsg = init_msg(E) then init_env_sit(E, S) else S ),
+        !:Phase = ( if ObsMsg = end_of_obs then finishing else running )
+    else if
+        final(remove_obs_sequence(P), S),
+        last_action_covered_by_obs(S)
+    then
+        Continue = no,
+        P2 = P,
+        S2 = S,
+        !:Phase = finished
+    else if
+        trans(P, S, P1, S1)
+    then
+        Continue = yes,
+        P2 = P1,
+        S2 = S1,
+        !:Phase = !.Phase
+    else
+        Continue = no,
+        P2 = P,
+        S2 = S,
+        !:Phase = failed.
 
 %-----------------------------------------------------------------------------%
 
@@ -168,11 +167,10 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
                                   list(s_state(A))::out) is det.
 
 run_concurrently_par_conj(I, P, Rs) :-
-    (   if      I > 0
-        then    ( P(I, R) & run_concurrently_par_conj(I - 1, P, Rs0) ),
-                Rs = [R | Rs0]
-        else    Rs = []
-    ).
+    if      I > 0
+    then    ( P(I, R) & run_concurrently_par_conj(I - 1, P, Rs0) ),
+            Rs = [R | Rs0]
+    else    Rs = [].
 
 
 :- pred run_sequentially(int::in,
@@ -180,11 +178,10 @@ run_concurrently_par_conj(I, P, Rs) :-
                          list(s_state(A))::out) is det.
 
 run_sequentially(I, P, Rs) :-
-    (   if      I > 0
-        then    P(I, R), run_sequentially(I - 1, P, Rs0),
-                Rs = [R | Rs0]
-        else    Rs = []
-    ).
+    if      I > 0
+    then    P(I, R), run_sequentially(I - 1, P, Rs0),
+            Rs = [R | Rs0]
+    else    Rs = [].
 
 
 :- pred init_vars(int::in, list(mvar(T))::out, io::di, io::uo) is det.
@@ -207,7 +204,8 @@ take_vars([V | Vs], [R | Rs], !IO) :-
 
 :- pred run_concurrently_thread(Source::in, int::in,
                                 list(mvar(s_state(A)))::in,
-                                pred(int, s_state(A), io, io)::in(pred(in, out, di, uo) is det),
+                                pred(int, s_state(A), io, io)
+                                    ::in(pred(in, out, di, uo) is det),
                                 io::di, io::uo) is cc_multi
                                 <= obs_source(_, _, Source, _).
 
@@ -218,14 +216,10 @@ run_concurrently_thread(Source, I, [V | Vs], P, !IO) :-
             !:SubIO = IO0,
             P(I, R, !SubIO),
             R = s_state(_, Phase),
-            %write(I, !SubIO),
-            %write_string(" --> ", !SubIO),
-            %write(Phase, !SubIO),
-            %nl(!SubIO),
-            (   Phase = running, update_state(Source, I, working, !SubIO)
-            ;   Phase = finishing, update_state(Source, I, working, !SubIO)
-            ;   Phase = finished, update_state(Source, I, finished, !SubIO)
-            ;   Phase = failed, update_state(Source, I, failed, !SubIO)
+            (   Phase = running,   update_state(Source, I, working,  !SubIO)
+            ;   Phase = finishing, update_state(Source, I, working,  !SubIO)
+            ;   Phase = finished,  update_state(Source, I, finished, !SubIO)
+            ;   Phase = failed,    update_state(Source, I, failed,   !SubIO)
             ),
             put(V, R, !SubIO),
             !.SubIO = IO1
@@ -235,7 +229,8 @@ run_concurrently_thread(Source, I, [V | Vs], P, !IO) :-
 
 
 :- pred run_concurrently(Source::in, int::in,
-                         pred(int, s_state(A), io, io)::in(pred(in, out, di, uo) is det),
+                         pred(int, s_state(A), io, io)
+                            ::in(pred(in, out, di, uo) is det),
                          list(s_state(A))::out,
                          io::di, io::uo) is cc_multi
                          <= obs_source(_, _, Source, _).

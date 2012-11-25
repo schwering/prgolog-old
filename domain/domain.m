@@ -36,10 +36,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- typeclass pr_bat(A, Obs, Env)
-        <= ((A, Obs -> Env),
-            (Obs, Env -> A),
-            obs_bat(A, Obs)) where [
+:- typeclass pr_bat(A, Obs, Env) <= ((A, Obs -> Env), obs_bat(A, Obs)) where [
     func seed_init_sit(int) = sit(A),
     mode seed_init_sit(in) = out is det,
 

@@ -402,12 +402,6 @@ lookahead(_S) = 4.
 
 %-----------------------------------------------------------------------------%
 
-:- func new_lookahead(lookahead, atom(prim)) = lookahead is det.
-
-new_lookahead(H, _C) = H - 1.
-
-%-----------------------------------------------------------------------------%
-
 reward(s0) = 0.0.
 reward(do(A, S)) =
     (   if      A = match(_, _, _, _)
@@ -568,8 +562,7 @@ obs2match(Obs) = atom(primf(match(Obs, constant(OT)))) :-
 :- instance bat(prim) where [
     pred(poss/2) is cont.poss,
     func(reward/2) is cont.reward,
-    func(lookahead/1) is cont.lookahead,
-    func(new_lookahead/2) is cont.new_lookahead
+    func(lookahead/1) is cont.lookahead
 ].
 
 :- instance obs_bat(prim, obs) where [

@@ -32,6 +32,7 @@
     func N / N = N,
     func unchecked_quotient(N, N) = N,
     func from_float(float) = N,
+    func to_float(N) = float,
     pred (N::in) < (N::in) is semidet,
     pred (N::in) > (N::in) is semidet,
     pred (N::in) =< (N::in) is semidet,
@@ -49,6 +50,7 @@
 :- implementation.
 
 :- use_module float.
+:- use_module integer.
 
 %-----------------------------------------------------------------------------%
 
@@ -64,6 +66,7 @@
     X / Y = float.'/'(X, Y),
     unchecked_quotient(X, Y) = float.unchecked_quotient(X, Y),
     from_float(F) = F,
+    to_float(F) = F,
     X < Y :- float.'<'(X, Y),
     X > Y :- float.'>'(X, Y),
     X =< Y :- float.'=<'(X, Y),
@@ -83,6 +86,7 @@
     X / Y = rat.'/'(X, Y),
     unchecked_quotient(X, Y) = rat.'/'(X, Y),
     from_float(F) = float_to_rat(F),
+    to_float(F) = float.float(rat.numer(F)) / float.float(rat.denom(F)),
     X < Y :- rat.'<'(X, Y),
     X > Y :- rat.'>'(X, Y),
     X =< Y :- rat.'=<'(X, Y),
@@ -102,6 +106,8 @@
     X / Y = rational.'/'(X, Y),
     unchecked_quotient(X, Y) = rational.'/'(X, Y),
     from_float(F) = float_to_rational(F),
+    to_float(F) = integer.float(rational.numer(F)) /
+                  integer.float(rational.denom(F)),
     X < Y :- rational.'<'(X, Y),
     X > Y :- rational.'>'(X, Y),
     X =< Y :- rational.'=<'(X, Y),
