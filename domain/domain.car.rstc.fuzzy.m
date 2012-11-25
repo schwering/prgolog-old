@@ -39,6 +39,18 @@
 
 %-----------------------------------------------------------------------------%
 
+:- pred ntg_cat(category).
+:- mode ntg_cat(out(ntg)) is multi.
+:- mode ntg_cat(in(ntg)) is det.
+:- mode ntg_cat(in(ttc)) is failure.
+
+:- pred ttc_cat(category).
+:- mode ttc_cat(out(ttc)) is multi.
+:- mode ttc_cat(in(ttc)) is det.
+:- mode ttc_cat(in(ntg)) is failure.
+
+%-----------------------------------------------------------------------------%
+
 :- pred A  `in` category <= arithmetic(A).
 :- mode in `in` in  is semidet.
 :- mode in `in` out is nondet.
@@ -55,7 +67,7 @@
 
 %-----------------------------------------------------------------------------%
 
-
+:- include_module test.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -71,24 +83,43 @@
 
 %-----------------------------------------------------------------------------%
 
+ntg_cat(very_far_infront).
+ntg_cat(far_infront).
+ntg_cat(infront).
+ntg_cat(close_infront).
+ntg_cat(very_close_infront).
+ntg_cat(side_by_side).
+ntg_cat(very_close_behind).
+ntg_cat(close_behind).
+ntg_cat(behind).
+ntg_cat(far_behind).
+ntg_cat(very_far_behind).
+
+ttc_cat(expanding_slowly).
+ttc_cat(expanding).
+ttc_cat(expanding_fast).
+ttc_cat(reached).
+ttc_cat(contracting_fast).
+ttc_cat(contracting).
+ttc_cat(contracting_slowly).
+
+%-----------------------------------------------------------------------------%
+
 :- func eval_triangle(mu(A), A) = memdeg <= arithmetic(A).
 
 eval_triangle(left_border(L, R), Val) = to_float(Mu) :-
-    (        if Val < L then  Mu = one
-        else if Val > R then  Mu = zero
-        else                  Mu = one - (Val - L) / (R - L)
-    ).
+         if Val < L then  Mu = one
+    else if Val > R then  Mu = zero
+    else                  Mu = one - (Val - L) / (R - L).
 eval_triangle(triangle(L, P, R), Val) = to_float(Mu) :-
-    (        if Val < L then  Mu = zero
-        else if Val > R then  Mu = zero
-        else if Val < P then  Mu = (Val - L) / (P - L)
-        else                  Mu = one - (Val - P) / (R - P)
-    ).
+         if Val < L then  Mu = zero
+    else if Val > R then  Mu = zero
+    else if Val < P then  Mu = (Val - L) / (P - L)
+    else                  Mu = one - (Val - P) / (R - P).
 eval_triangle(right_border(L, R), Val) = to_float(Mu) :-
-    (        if Val < L then  Mu = zero
-        else if Val > R then  Mu = one
-        else                  Mu = (Val - L) / (R - L)
-    ).
+         if Val < L then  Mu = zero
+    else if Val > R then  Mu = one
+    else                  Mu = (Val - L) / (R - L).
 
 
 :- func mk_left_border(float, float) = mu(A) <= arithmetic(A).

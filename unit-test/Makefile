@@ -1,7 +1,7 @@
 GOAL = suite
 SOURCE_FILES = $(shell ls *.m)
 
-EXE_MCFLAGS += --ml prgolog
+EXE_MCFLAGS += --ml prgolog --ml domain
 
 #all: enable-tests mercury-depends exe disable-tests
 

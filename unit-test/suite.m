@@ -36,6 +36,12 @@
 :- use_module prgolog.
 :- use_module prgolog.test.
 
+:- use_module domain.
+:- use_module domain.car.
+:- use_module domain.car.rstc.
+:- use_module domain.car.rstc.fuzzy.
+:- use_module domain.car.rstc.fuzzy.test.
+
 %-----------------------------------------------------------------------------%
 
 :- type test ---> test(mod       :: string,
@@ -77,6 +83,8 @@ get_tests(Tests, !IO) :-
             , test("prgolog", "test_trans_atom", ccm(prgolog.test.test_trans_atom))
             , test("prgolog", "test_trans", ccm(prgolog.test.test_trans))
             , test("prgolog", "test_final2", ccm(prgolog.test.test_final2))
+            , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
+            , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))
             ].
 
 %-----------------------------------------------------------------------------%
