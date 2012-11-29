@@ -29,8 +29,10 @@
 :- import_module bool.
 :- import_module exception.
 :- import_module list.
+:- use_module math.
 :- import_module prgolog.nice.
 :- import_module string.
+:- import_module rat.
 :- import_module require.
 
 %-----------------------------------------------------------------------------%

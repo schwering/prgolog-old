@@ -31,6 +31,7 @@
     func N * N = N,
     func N / N = N,
     func unchecked_quotient(N, N) = N,
+    func epsilon = N,
     func from_float(float) = N,
     func to_float(N) = float,
     pred (N::in) < (N::in) is semidet,
@@ -39,10 +40,29 @@
     pred (N::in) >= (N::in) is semidet
 ].
 
+:- instance arithmetic(int).
 :- instance arithmetic(float).
 :- instance arithmetic(rat.rat).
 :- instance arithmetic(rational.rational).
 %:- instance arithmetic(prgolog.ccfluent.aterm).
+
+%-----------------------------------------------------------------------------%
+
+:- func two = N <= arithmetic(N).
+:- func three = N <= arithmetic(N).
+:- func four = N <= arithmetic(N).
+
+:- func pow(N, int) = N <= arithmetic(N).
+
+%-----------------------------------------------------------------------------%
+
+:- pred bin_search(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
+:- mode bin_search(in(func(in) = out is det), in, in, in, out) is semidet.
+:- mode bin_search(in(func(in) = out is semidet), in, in, in, out) is semidet.
+
+%-----------------------------------------------------------------------------%
+
+:- include_module test.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -50,9 +70,106 @@
 :- implementation.
 
 :- use_module float.
+:- use_module int.
 :- use_module integer.
 
 %-----------------------------------------------------------------------------%
+
+two = one + one.
+three = two + one.
+four = pow(two, 2).
+
+pow(X, N) = (    if N = 0 then one
+            else if N > 0 then X * pow(X, N - 1)
+            else               one / pow(X, -N) ).
+
+%-----------------------------------------------------------------------------%
+
+:- pred in_eps_ball(N::in, N::in) is semidet <= arithmetic(N).
+
+in_eps_ball(X, Y) :- abs(X - Y) =< epsilon.
+
+
+:- pred in_2eps_ball(func(X) = Y, X, Y) <= (arithmetic(X), arithmetic(Y)).
+:- mode in_2eps_ball(in(func(in) = out is det), in, in) is semidet.
+:- mode in_2eps_ball(in(func(in) = out is semidet), in, in) is semidet.
+
+in_2eps_ball(F, X, Y) :-
+    F(X - two * epsilon) =< Y,
+    F(X + two * epsilon) >= Y.
+
+%-----------------------------------------------------------------------------%
+
+bin_search(F, XMin, XMax, YGoal, X) :-
+    if F(XMin) > F(XMax) then
+        bin_search_2(func(X1) = -F(X1) is semidet, XMin, XMax, -YGoal, X)
+    else
+        bin_search_2(F, XMin, XMax, YGoal, X).
+
+
+:- pred bin_search_2(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
+:- mode bin_search_2(in(func(in) = out is det), in, in, in, out) is semidet.
+:- mode bin_search_2(in(func(in) = out is semidet), in, in, in, out) is semidet.
+
+bin_search_2(F, XMin, XMax, YGoal, X) :-
+    XMid = (XMin + XMax) / two,
+%    trace [io(!IO)] (
+%        write_string("binary_search_2(", !IO),
+%        write(XMin, !IO),
+%        write_string(", ", !IO),
+%        write(XMax, !IO),
+%        write_string(", ", !IO),
+%        write(YGoal, !IO),
+%        write_string(")    ", !IO),
+%        write(XMid, !IO),
+%        nl(!IO),
+%        write_string("eps = ", !IO), write(float.epsilon, !IO), nl(!IO),
+%        ( if FXMin = F(XMin), FXMax = F(XMax), FXMid = F(XMid) then
+%            write_string("Xmin = ", !IO), write(XMin, !IO), nl(!IO),
+%            write_string("Xmid = ", !IO), write(XMid, !IO), nl(!IO),
+%            write_string("Xmax = ", !IO), write(XMax, !IO), nl(!IO),
+%            write_string("f(Xmin-) = ", !IO), write(FXMin - epsilon, !IO), nl(!IO),
+%            write_string("f(Xmin)  = ", !IO), write(FXMin, !IO), nl(!IO),
+%            write_string("f(Xmid)  = ", !IO), write(FXMid, !IO), nl(!IO),
+%            write_string("ygoal    = ", !IO), write(YGoal, !IO), nl(!IO),
+%            write_string("f(Xmax)  = ", !IO), write(FXMax, !IO), nl(!IO),
+%            write_string("f(Xmax+) = ", !IO), write(FXMax + epsilon, !IO), nl(!IO),
+%            write_string("2eps = ", !IO), write(2.0 `float.'*'` float.epsilon, !IO), nl(!IO),
+%            write_string("diff = ", !IO), write(XMax - XMin, !IO), nl(!IO),
+%            write_string("minu = ", !IO), write(XMax - XMin - two * epsilon, !IO), nl(!IO),
+%            write_string("f-diff = ", !IO), write(FXMax - FXMin, !IO), nl(!IO)
+%        else true ),
+%        true
+%    ),
+    (        if XMax - XMin =< two * epsilon,
+                F(XMid - two * epsilon) =< F(XMin),
+                F(XMid + two * epsilon) >= F(XMax) then X = XMid
+        else if XMin >= XMax    then fail
+        else if F(XMid) < YGoal then bin_search_2(F, XMid, XMax, YGoal, X)
+        else /* F(XMid) > YGoal */   bin_search_2(F, XMin, XMid, YGoal, X)
+    ).
+
+%-----------------------------------------------------------------------------%
+
+:- instance arithmetic(int) where [
+    zero = 0,
+    one = 1,
+    func(abs/1) is int.abs,
+    + X = int.'+'(X),
+    - X = int.'-'(X),
+    X + Y = int.'+'(X, Y),
+    X - Y = int.'-'(X, Y),
+    X * Y = int.'*'(X, Y),
+    X / Y = int.'/'(X, Y),
+    unchecked_quotient(X, Y) = int.unchecked_quotient(X, Y),
+    epsilon = 0,
+    from_float(F) = float.floor_to_int(F),
+    to_float(I) = float.float(I),
+    X < Y :- int.'<'(X, Y),
+    X > Y :- int.'>'(X, Y),
+    X =< Y :- int.'=<'(X, Y),
+    X >= Y :- int.'>='(X, Y)
+].
 
 :- instance arithmetic(float) where [
     zero = 0.0,
@@ -60,11 +177,12 @@
     func(abs/1) is float.abs,
     + X = float.'+'(X),
     - X = float.'-'(X),
-    X + Y = float.'-'(X, Y),
+    X + Y = float.'+'(X, Y),
     X - Y = float.'-'(X, Y),
     X * Y = float.'*'(X, Y),
     X / Y = float.'/'(X, Y),
     unchecked_quotient(X, Y) = float.unchecked_quotient(X, Y),
+    epsilon = float.epsilon,
     from_float(F) = F,
     to_float(F) = F,
     X < Y :- float.'<'(X, Y),
@@ -80,11 +198,12 @@
     func(abs/1) is rat.abs,
     + X = rat.'+'(X),
     - X = rat.'-'(X),
-    X + Y = rat.'-'(X, Y),
+    X + Y = rat.'+'(X, Y),
     X - Y = rat.'-'(X, Y),
     X * Y = rat.'*'(X, Y),
     X / Y = rat.'/'(X, Y),
     unchecked_quotient(X, Y) = rat.'/'(X, Y),
+    epsilon = rat.rat(1, 52),
     from_float(F) = float_to_rat(F),
     to_float(F) = float.float(rat.numer(F)) / float.float(rat.denom(F)),
     X < Y :- rat.'<'(X, Y),
@@ -100,11 +219,12 @@
     func(abs/1) is rational.abs,
     + X = rational.'+'(X),
     - X = rational.'-'(X),
-    X + Y = rational.'-'(X, Y),
+    X + Y = rational.'+'(X, Y),
     X - Y = rational.'-'(X, Y),
     X * Y = rational.'*'(X, Y),
     X / Y = rational.'/'(X, Y),
     unchecked_quotient(X, Y) = rational.'/'(X, Y),
+    epsilon = rational.rational(1, 52),
     from_float(F) = float_to_rational(F),
     to_float(F) = integer.float(rational.numer(F)) /
                   integer.float(rational.denom(F)),
@@ -198,11 +318,15 @@ float_to_rational(Float) = rational.rational(Numer, Denom) :-
     abs(T) = T,
     + X = prgolog.ccfluent.'+'(X),
     - X = prgolog.ccfluent.'-'(X),
-    X + Y = prgolog.ccfluent.'-'(X, Y),
+    X + Y = prgolog.ccfluent.'+'(X, Y),
     X - Y = prgolog.ccfluent.'-'(X, Y),
     X * Y = prgolog.ccfluent.'*'(X, Y),
     X / Y = prgolog.ccfluent.'/'(X, Y),
+    unchecked_quotient(X, Y) = prgolog.ccfluent.'/'(X, Y),
+    epsilon = zero,
     from_float(F) = prgolog.ccfluent.constant(F),
+    to_float(F) = integer.float(rational.numer(F)) /
+                  integer.float(rational.denom(F)),
     X < Y :- prgolog.ccfluent.'<'(X, Y),
     X > Y :- prgolog.ccfluent.'>'(X, Y),
     X =< Y :- prgolog.ccfluent.'=<'(X, Y),

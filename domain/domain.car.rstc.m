@@ -36,10 +36,12 @@
     ;       senseL(agent, lane)
     ;       init_env(env)
     ;       match(obs)
-    ;       seed(int).
+    ;       seed(int)
+    ;       abort.
 
 :- type sit(N) == prgolog.sit(prim(N)).
 :- type prog(N) == prgolog.prog(prim(N)).
+:- type proc(N) == prgolog.proc(prim(N)).
 :- type conf(N) == prgolog.nice.conf(prim(N)).
 
 %-----------------------------------------------------------------------------%
@@ -114,8 +116,7 @@ transitive_car(B, D, S) = E :-
     map((pred(C::in, {Cost, C}::out) is semidet :-
         ttc(B, C, S) \= zero,
         ttc(C, D, S) \= zero,
-        Cost = abs(ntg(B, C, S) + ntg(C, D, S) +
-                   ttc(B, C, S) + ttc(C, D, S))
+        Cost = abs(ntg(B, C, S) + ntg(C, D, S) + ttc(B, C, S) + ttc(C, D, S))
     ), Cars, [FirstCandidate | Candidates]),
     {_, E} = foldr(min, Candidates, FirstCandidate).
 
@@ -307,6 +308,8 @@ poss(accel(_, Q), _) :- Q >= zero.
 poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
 
+poss(abort, _) :- fail.
+
 %-----------------------------------------------------------------------------%
 
 :- func lookahead(rstc.sit(N)) = lookahead is det.
@@ -335,39 +338,6 @@ is_match_action(match(_)).
 :- func last_match(rstc.sit(N)) = prim(N) is semidet.
 
 last_match(do(A, S)) = ( if is_match_action(A) then A else last_match(S) ).
-
-
-/*
-:- pred covered_by_match(sit(prim)::in) is semidet.
-
-covered_by_match(S) :-
-    match(_, _, _, T0) = last_match(S),
-    C = (start(S) `=` T0),
-    solve(vargen(S), [C] ++ constraints(S)).
-*/
-
-
-/*
-:- func obs2ccformula(obs::in) = ({s, ccformula(prim)}::out) is det.
-
-obs2ccformula(obs(OT, AgentPositions)) = {OT, OF} :-
-    OF = ( func(T, S) =
-        foldr(( func((Agent - Pos), Cs) = [C1, C2, C3, C4] ++ Cs :-
-            C1 = MinX `=<` x(Agent, S)(T), C2 = x(Agent, S)(T) `=<` MaxX,
-            C3 = MinY `=<` y(Agent, S)(T), C4 = y(Agent, S)(T) `=<` MaxY,
-            MinX = constant(x(Pos) - x_tol(Agent, S)),
-            MaxX = constant(x(Pos) + x_tol(Agent, S)),
-            MinY = constant(y(Pos) - y_tol(Agent, S)),
-            MaxY = constant(y(Pos) + y_tol(Agent, S))
-        ), AgentPositions, [])
-    ).
-
-
-:- func obs2match(obs::in) = (prim::out) is det.
-
-obs2match(Obs) = match(Obs, no, [], constant(OT)) :-
-    {OT, _} = obs2ccformula(Obs).
-*/
 
 %-----------------------------------------------------------------------------%
 

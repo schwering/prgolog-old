@@ -51,19 +51,24 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred A  `in` category <= arithmetic(A).
+:- pred N  `in` category <= arithmetic(N).
 :- mode in `in` in  is semidet.
 :- mode in `in` out is nondet.
 
-:- pred A  `not_in` category <= arithmetic(A).
+:- pred N  `not_in` category <= arithmetic(N).
 :- mode in `not_in` in  is semidet.
 :- mode in `not_in` out is nondet.
 
-:- pred (A::in) `in_all`  (list(category)::in) is semidet <= arithmetic(A).
-:- pred (A::in) `in_any`  (list(category)::in) is semidet <= arithmetic(A).
-:- pred (A::in) `in_none` (list(category)::in) is semidet <= arithmetic(A).
+:- pred (N::in) `in_all`  (list(category)::in) is semidet <= arithmetic(N).
+:- pred (N::in) `in_any`  (list(category)::in) is semidet <= arithmetic(N).
+:- pred (N::in) `in_none` (list(category)::in) is semidet <= arithmetic(N).
 
-:- func defuzzify(category) = A <= arithmetic(A).
+:- func defuzzify(category) = N <= arithmetic(N).
+
+%-----------------------------------------------------------------------------%
+
+:- func follow(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
+:- func overtake(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
@@ -77,9 +82,9 @@
 %-----------------------------------------------------------------------------%
 
 :- type memdeg == float.
-:- type mu(A) ---> triangle(A, A, A)
-              ;    left_border(A, A)
-              ;    right_border(A, A).
+:- type mu(N) ---> triangle(N, N, N)
+              ;    left_border(N, N)
+              ;    right_border(N, N).
 
 %-----------------------------------------------------------------------------%
 
@@ -105,7 +110,7 @@ ttc_cat(contracting_slowly).
 
 %-----------------------------------------------------------------------------%
 
-:- func eval_triangle(mu(A), A) = memdeg <= arithmetic(A).
+:- func eval_triangle(mu(N), N) = memdeg <= arithmetic(N).
 
 eval_triangle(left_border(L, R), Val) = to_float(Mu) :-
          if Val < L then  Mu = one
@@ -122,16 +127,16 @@ eval_triangle(right_border(L, R), Val) = to_float(Mu) :-
     else                  Mu = (Val - L) / (R - L).
 
 
-:- func mk_left_border(float, float) = mu(A) <= arithmetic(A).
-:- func mk_triangle(float, float, float) = mu(A) <= arithmetic(A).
-:- func mk_right_border(float, float) = mu(A) <= arithmetic(A).
+:- func mk_left_border(float, float) = mu(N) <= arithmetic(N).
+:- func mk_triangle(float, float, float) = mu(N) <= arithmetic(N).
+:- func mk_right_border(float, float) = mu(N) <= arithmetic(N).
 
 mk_left_border(P, R) = left_border(from_float(P), from_float(R)).
 mk_triangle(L, P, R) = triangle(from_float(L), from_float(P), from_float(R)).
 mk_right_border(P, R) = right_border(from_float(P), from_float(R)).
 
 
-:- func mu(category) = mu(A) <= arithmetic(A).
+:- func mu(category) = mu(N) <= arithmetic(N).
 :- mode mu(in) = out is det.
 :- mode mu(out) = out is multi.
 
@@ -156,7 +161,7 @@ mu(contracting)        =     mk_triangle(  3.5,    7.0,   12.0 ).
 mu(contracting_slowly) = mk_right_border(  10.0,  15.0         ).
 
 
-:- func mu(category, A) = memdeg <= arithmetic(A).
+:- func mu(category, N) = memdeg <= arithmetic(N).
 :- mode mu(in, in) = out is det.
 :- mode mu(out, in) = out is multi.
 
@@ -164,17 +169,17 @@ mu(Cat, Val) = eval_triangle(mu(Cat), Val).
 
 %-----------------------------------------------------------------------------%
 
-:- func combine(func(memdeg, memdeg) = memdeg, A, list(category), memdeg) =
-    memdeg <= arithmetic(A).
+:- func combine(func(memdeg, memdeg) = memdeg, N, list(category), memdeg) =
+    memdeg <= arithmetic(N).
 
 combine(CombineF, Val, Cats, Initial) =
     foldl(func(Cat, Mem) = CombineF(mu(Cat, Val), Mem), Cats, Initial).
 
 
-Val `in` Cat :- mu(Cat, Val) `float.'>'` 0.0.
-Val `not_in` Cat :- mu(Cat, Val) = 0.0.
-Val `in_all` Cats :- combine(float.min, Val, Cats, 1.0) `float.'>'` 0.0.
-Val `in_any` Cats :- combine(float.max, Val, Cats, 0.0) `float.'>'` 0.0.
+Val `in`      Cat  :- mu(Cat, Val) `float.'>'` 0.0.
+Val `not_in`  Cat  :- mu(Cat, Val) = 0.0.
+Val `in_all`  Cats :- combine(float.min, Val, Cats, 1.0) `float.'>'` 0.0.
+Val `in_any`  Cats :- combine(float.max, Val, Cats, 0.0) `float.'>'` 0.0.
 Val `in_none` Cats :- combine(float.max, Val, Cats, 0.0) = 0.0.
 
 
@@ -184,6 +189,56 @@ defuzzify(Cat) = Val :-
     ;   Mu = triangle(_, Val, _)
     ;   Mu = right_border(_, Val)
     ).
+
+%-----------------------------------------------------------------------------%
+
+:- func accelf(agent, func(rstc.sit(N)) = N) `with_type` primf(rstc.prim(N))
+    <= arithmetic(N).
+:- mode accelf(in, func(in) = out is det, in) = out is det.
+:- mode accelf(in, func(in) = out is semidet, in) = out is det.
+
+accelf(B, AccelF, S) = ( if Q = AccelF(S) then accel(B, Q) else abort ).
+
+
+:- func lcf(agent) `with_type` primf(rstc.prim(N)) <= arithmetic(N).
+
+lcf(B, S) = ( if lane(B, S) = left then lc(B, right) else lc(B, left) ).
+
+
+:- func ntg_after(agent, agent, rstc.sit(N), s(N)) = ntg(N) <= arithmetic(N).
+:- mode ntg_after(in, in, in, in) = out is semidet.
+
+ntg_after(B, C, S, T) = ntg(B, C, prgolog.do(wait(T), S)).
+
+
+:- func ttc_after(agent, agent, rstc.sit(N), s(N)) = ttc(N) <= arithmetic(N).
+:- mode ttc_after(in, in, in, in) = out is semidet.
+
+ttc_after(B, C, S, T) = ttc(B, C, prgolog.do(wait(T), S)).
+
+
+:- func max_search_time = N <= arithmetic(N).
+
+max_search_time = two*two*two*two*two*two*two*two.
+
+
+:- func await(func(rstc.sit(N)) = s(N), s(N)) `with_type` primf(rstc.prim(N))
+    <= arithmetic(N).
+:- mode await(in(func(in) = out is semidet), in, in) = out is det.
+
+await(F, Goal, S) = A :-
+    if   bin_search(func(T) = F(prgolog.do(wait(T), S)) is semidet,
+                    zero, max_search_time, Goal, V1)
+    then A = wait(V1)
+    else A = abort.
+
+
+follow(B, Victim) = P :-
+    P = b(accelf(B, rel_v(Victim, B))).
+
+
+overtake(B, Victim) = P :-
+    P = b(accelf(B, rel_v(Victim, B))).
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.fuzzy.
