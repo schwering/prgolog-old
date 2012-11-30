@@ -33,6 +33,7 @@
     func unchecked_quotient(N, N) = N,
     func epsilon = N,
     func from_float(float) = N,
+    func from_int(int) = N,
     func to_float(N) = float,
     pred (N::in) < (N::in) is semidet,
     pred (N::in) > (N::in) is semidet,
@@ -48,14 +49,51 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func two = N <= arithmetic(N).
-:- func three = N <= arithmetic(N).
-:- func four = N <= arithmetic(N).
-
 :- func pow(N, int) = N <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
+    % bin_search(F, XMin, XMax, Y, X) determines the value X that such that F(X)
+    % matches Y with accuracy 4*eps for a monotone function F.
+    %
+    % If F is not increasing, it is inverted.
+    %
+    % Now first of all, XMid = (XMin + XMax) / 2 may be imprecise by more than
+    % one epsilon. In this case we simply increment XMin repeatedly by one
+    % epsilon. This is done in halfway/2.
+    %
+    % One problem arises because when F has a slope > 1, [XMin, XMax] might have
+    % narrowed down the correct X value with an accuracy of eps, i.e.,
+    % XMax - XMin =< eps, but still F(XMax) - F(XMin) > eps.
+    %
+    % When
+    %   XMin =< X =< XMax and
+    %   XMax - XMin =< eps
+    % for X being the answer we look for, this implies that
+    %   X - eps =< XMin
+    %   X + eps >= XMax.
+    %
+    % Now since F is monotone and increasing, this implies
+    %   F(XMin) =< F(X) =< F(XMax),
+    % but
+    %   F(X - eps) =< F(XMin)
+    %   F(X + eps) >= F(XMax).
+    % When the latter two inequailities hold, we're happy and accept the as
+    % precise enough. That's for the case where the slope is > 1.
+    %
+    % For the other case, where the slope is < 1, we impose the conditions
+    %   F(X) - eps =< F(XMin)
+    %   F(X) + eps >= F(XMax).
+    %
+    % From
+    %   X - eps =< XMin
+    %   X + eps >= XMax.
+    % we get
+    %   XMax - XMin =< 2 * eps
+    % by multiplying the first line with (-1) and adding the result to the
+    % second line. Thus, the precision of our computation is 2 * eps.
+    % (TODO Does this really apply to the conditions for slope > 1?)
+    %
 :- pred bin_search(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
 :- mode bin_search(in(func(in) = out is det), in, in, in, out) is semidet.
 :- mode bin_search(in(func(in) = out is semidet), in, in, in, out) is semidet.
@@ -69,15 +107,18 @@
 
 :- implementation.
 
+:- import_module exception.
 :- use_module float.
 :- use_module int.
 :- use_module integer.
 
 %-----------------------------------------------------------------------------%
 
-two = one + one.
-three = two + one.
-four = pow(two, 2).
+:- func two = N <= arithmetic(N).
+
+:- pragma type_spec(two/0, (N = float)).
+
+two = from_int(2).
 
 pow(X, N) = (    if N = 0 then one
             else if N > 0 then X * pow(X, N - 1)
@@ -85,20 +126,20 @@ pow(X, N) = (    if N = 0 then one
 
 %-----------------------------------------------------------------------------%
 
-:- pred in_eps_ball(N::in, N::in) is semidet <= arithmetic(N).
+:- func halfway(N, N) = N <= arithmetic(N).
 
-in_eps_ball(X, Y) :- abs(X - Y) =< epsilon.
+:- pragma type_spec(halfway/2, N = float).
 
-
-:- pred in_2eps_ball(func(X) = Y, X, Y) <= (arithmetic(X), arithmetic(Y)).
-:- mode in_2eps_ball(in(func(in) = out is det), in, in) is semidet.
-:- mode in_2eps_ball(in(func(in) = out is semidet), in, in) is semidet.
-
-in_2eps_ball(F, X, Y) :-
-    F(X - two * epsilon) =< Y,
-    F(X + two * epsilon) >= Y.
+halfway(X, Y) = Z :-
+    H1 = (X + Y) / two,
+    H2 = X + epsilon,
+    (    if X < H1, H1 < Y then Z = H1
+    else if X < H2, H2 < Y then Z = H2
+    else throw({"arithmetic.halfway: X+eps > Z?", X, Y, H1, H2}) ).
 
 %-----------------------------------------------------------------------------%
+
+:- pragma type_spec(bin_search/5, (X = float, Y = float)).
 
 bin_search(F, XMin, XMax, YGoal, X) :-
     if F(XMin) > F(XMax) then
@@ -111,8 +152,12 @@ bin_search(F, XMin, XMax, YGoal, X) :-
 :- mode bin_search_2(in(func(in) = out is det), in, in, in, out) is semidet.
 :- mode bin_search_2(in(func(in) = out is semidet), in, in, in, out) is semidet.
 
+:- pragma type_spec(bin_search_2/5, (X = float, Y = float)).
+
+:- import_module io.
+
 bin_search_2(F, XMin, XMax, YGoal, X) :-
-    XMid = (XMin + XMax) / two,
+    XMid = halfway(XMin, XMax),
 %    trace [io(!IO)] (
 %        write_string("binary_search_2(", !IO),
 %        write(XMin, !IO),
@@ -128,12 +173,12 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
 %            write_string("Xmin = ", !IO), write(XMin, !IO), nl(!IO),
 %            write_string("Xmid = ", !IO), write(XMid, !IO), nl(!IO),
 %            write_string("Xmax = ", !IO), write(XMax, !IO), nl(!IO),
-%            write_string("f(Xmin-) = ", !IO), write(FXMin - epsilon, !IO), nl(!IO),
+%            write_string("f(Xmin-) = ", !IO), write(FXMin - two * epsilon, !IO), nl(!IO),
 %            write_string("f(Xmin)  = ", !IO), write(FXMin, !IO), nl(!IO),
 %            write_string("f(Xmid)  = ", !IO), write(FXMid, !IO), nl(!IO),
 %            write_string("ygoal    = ", !IO), write(YGoal, !IO), nl(!IO),
 %            write_string("f(Xmax)  = ", !IO), write(FXMax, !IO), nl(!IO),
-%            write_string("f(Xmax+) = ", !IO), write(FXMax + epsilon, !IO), nl(!IO),
+%            write_string("f(Xmax+) = ", !IO), write(FXMax + two * epsilon, !IO), nl(!IO),
 %            write_string("2eps = ", !IO), write(2.0 `float.'*'` float.epsilon, !IO), nl(!IO),
 %            write_string("diff = ", !IO), write(XMax - XMin, !IO), nl(!IO),
 %            write_string("minu = ", !IO), write(XMax - XMin - two * epsilon, !IO), nl(!IO),
@@ -141,12 +186,27 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
 %        else true ),
 %        true
 %    ),
-    (        if XMax - XMin =< two * epsilon,
-                F(XMid - two * epsilon) =< F(XMin),
-                F(XMid + two * epsilon) >= F(XMax) then X = XMid
-        else if XMin >= XMax    then fail
-        else if F(XMid) < YGoal then bin_search_2(F, XMid, XMax, YGoal, X)
-        else /* F(XMid) > YGoal */   bin_search_2(F, XMin, XMid, YGoal, X)
+    (
+        if
+            F(XMin) =< YGoal, YGoal =< F(XMax),
+            F(XMid) - epsilon =< YGoal,
+            F(XMid) + epsilon >= YGoal
+        then
+            X = XMid
+        else if
+            F(XMin) =< YGoal, YGoal =< F(XMax),
+            F(XMid - epsilon) =< F(XMin),
+            F(XMid + epsilon) >= F(XMax)
+        then
+            X = XMid
+        else if
+            XMin = XMax
+        then
+            fail
+        else if
+            F(XMid) < YGoal then bin_search_2(F, XMid, XMax, YGoal, X)
+        else /* if F(XMid) > YGoal */
+            bin_search_2(F, XMin, XMid, YGoal, X)
     ).
 
 %-----------------------------------------------------------------------------%
@@ -164,6 +224,7 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
     unchecked_quotient(X, Y) = int.unchecked_quotient(X, Y),
     epsilon = 0,
     from_float(F) = float.floor_to_int(F),
+    from_int(I) = I,
     to_float(I) = float.float(I),
     X < Y :- int.'<'(X, Y),
     X > Y :- int.'>'(X, Y),
@@ -184,6 +245,7 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
     unchecked_quotient(X, Y) = float.unchecked_quotient(X, Y),
     epsilon = float.epsilon,
     from_float(F) = F,
+    from_int(I) = float.float(I),
     to_float(F) = F,
     X < Y :- float.'<'(X, Y),
     X > Y :- float.'>'(X, Y),
@@ -205,6 +267,7 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
     unchecked_quotient(X, Y) = rat.'/'(X, Y),
     epsilon = rat.rat(1, 52),
     from_float(F) = float_to_rat(F),
+    from_int(I) = rat.rat(I),
     to_float(F) = float.float(rat.numer(F)) / float.float(rat.denom(F)),
     X < Y :- rat.'<'(X, Y),
     X > Y :- rat.'>'(X, Y),
@@ -226,6 +289,7 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
     unchecked_quotient(X, Y) = rational.'/'(X, Y),
     epsilon = rational.rational(1, 52),
     from_float(F) = float_to_rational(F),
+    from_int(I) = rational.rational(I),
     to_float(F) = integer.float(rational.numer(F)) /
                   integer.float(rational.denom(F)),
     X < Y :- rational.'<'(X, Y),
@@ -325,6 +389,7 @@ float_to_rational(Float) = rational.rational(Numer, Denom) :-
     unchecked_quotient(X, Y) = prgolog.ccfluent.'/'(X, Y),
     epsilon = zero,
     from_float(F) = prgolog.ccfluent.constant(F),
+    from_int(I) = prgolog.ccfluent.constant(float.float(I)),
     to_float(F) = integer.float(rational.numer(F)) /
                   integer.float(rational.denom(F)),
     X < Y :- prgolog.ccfluent.'<'(X, Y),

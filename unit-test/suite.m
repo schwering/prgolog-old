@@ -94,6 +94,7 @@ get_tests(Tests, !IO) :-
             , test("arithmetic", "test_bin_search_float_inv", ccm(arithmetic.test.test_bin_search_float_inv))
             , test("arithmetic", "test_bin_search_float_sq", ccm(arithmetic.test.test_bin_search_float_sq))
             , test("arithmetic", "test_bin_search_float_sq2", ccm(arithmetic.test.test_bin_search_float_sq2))
+            , test("arithmetic", "test_bin_search_float_sqrt", ccm(arithmetic.test.test_bin_search_float_sqrt))
             ].
 
 %-----------------------------------------------------------------------------%

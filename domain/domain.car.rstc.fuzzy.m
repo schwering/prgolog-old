@@ -219,14 +219,14 @@ ttc_after(B, C, S, T) = ttc(B, C, prgolog.do(wait(T), S)).
 
 :- func max_search_time = N <= arithmetic(N).
 
-max_search_time = two*two*two*two*two*two*two*two.
+max_search_time = from_int(60).
 
 
-:- func await(func(rstc.sit(N)) = s(N), s(N)) `with_type` primf(rstc.prim(N))
-    <= arithmetic(N).
-:- mode await(in(func(in) = out is semidet), in, in) = out is det.
+:- func wait_until(func(rstc.sit(N)) = s(N), s(N))
+    `with_type` primf(rstc.prim(N)) <= arithmetic(N).
+:- mode wait_until(in(func(in) = out is semidet), in, in) = out is det.
 
-await(F, Goal, S) = A :-
+wait_until(F, Goal, S) = A :-
     if   bin_search(func(T) = F(prgolog.do(wait(T), S)) is semidet,
                     zero, max_search_time, Goal, V1)
     then A = wait(V1)
