@@ -34,7 +34,8 @@
 :- import_module string.
 
 :- use_module arithmetic.
-:- use_module arithmetic.test.
+:- use_module arithmetic.impl.
+:- use_module arithmetic.impl.test.
 
 :- use_module prgolog.
 :- use_module prgolog.test.
@@ -88,13 +89,13 @@ get_tests(Tests, !IO) :-
             , test("prgolog", "test_final2", ccm(prgolog.test.test_final2))
             , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
             , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))
-            , test("arithmetic", "test_bin_search_rat", ccm(arithmetic.test.test_bin_search_rat))
-            , test("arithmetic", "test_bin_search_rat_sq", ccm(arithmetic.test.test_bin_search_rat_sq))
-            , test("arithmetic", "test_bin_search_float", ccm(arithmetic.test.test_bin_search_float))
-            , test("arithmetic", "test_bin_search_float_inv", ccm(arithmetic.test.test_bin_search_float_inv))
-            , test("arithmetic", "test_bin_search_float_sq", ccm(arithmetic.test.test_bin_search_float_sq))
-            , test("arithmetic", "test_bin_search_float_sq2", ccm(arithmetic.test.test_bin_search_float_sq2))
-            , test("arithmetic", "test_bin_search_float_sqrt", ccm(arithmetic.test.test_bin_search_float_sqrt))
+            , test("arithmetic", "test_bin_search_rat", ccm(arithmetic.impl.test.test_bin_search_rat))
+            , test("arithmetic", "test_bin_search_rat_sq", ccm(arithmetic.impl.test.test_bin_search_rat_sq))
+            , test("arithmetic", "test_bin_search_float", ccm(arithmetic.impl.test.test_bin_search_float))
+            , test("arithmetic", "test_bin_search_float_inv", ccm(arithmetic.impl.test.test_bin_search_float_inv))
+            , test("arithmetic", "test_bin_search_float_sq", ccm(arithmetic.impl.test.test_bin_search_float_sq))
+            , test("arithmetic", "test_bin_search_float_sq2", ccm(arithmetic.impl.test.test_bin_search_float_sq2))
+            , test("arithmetic", "test_bin_search_float_sqrt", ccm(arithmetic.impl.test.test_bin_search_float_sqrt))
             ].
 
 %-----------------------------------------------------------------------------%

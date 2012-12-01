@@ -67,11 +67,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func follow(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
-:- func overtake(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
-
-%-----------------------------------------------------------------------------%
-
 :- include_module test.
 
 %-----------------------------------------------------------------------------%
@@ -189,56 +184,6 @@ defuzzify(Cat) = Val :-
     ;   Mu = triangle(_, Val, _)
     ;   Mu = right_border(_, Val)
     ).
-
-%-----------------------------------------------------------------------------%
-
-:- func accelf(agent, func(rstc.sit(N)) = N) `with_type` primf(rstc.prim(N))
-    <= arithmetic(N).
-:- mode accelf(in, func(in) = out is det, in) = out is det.
-:- mode accelf(in, func(in) = out is semidet, in) = out is det.
-
-accelf(B, AccelF, S) = ( if Q = AccelF(S) then accel(B, Q) else abort ).
-
-
-:- func lcf(agent) `with_type` primf(rstc.prim(N)) <= arithmetic(N).
-
-lcf(B, S) = ( if lane(B, S) = left then lc(B, right) else lc(B, left) ).
-
-
-:- func ntg_after(agent, agent, rstc.sit(N), s(N)) = ntg(N) <= arithmetic(N).
-:- mode ntg_after(in, in, in, in) = out is semidet.
-
-ntg_after(B, C, S, T) = ntg(B, C, prgolog.do(wait(T), S)).
-
-
-:- func ttc_after(agent, agent, rstc.sit(N), s(N)) = ttc(N) <= arithmetic(N).
-:- mode ttc_after(in, in, in, in) = out is semidet.
-
-ttc_after(B, C, S, T) = ttc(B, C, prgolog.do(wait(T), S)).
-
-
-:- func max_search_time = N <= arithmetic(N).
-
-max_search_time = from_int(60).
-
-
-:- func wait_until(func(rstc.sit(N)) = s(N), s(N))
-    `with_type` primf(rstc.prim(N)) <= arithmetic(N).
-:- mode wait_until(in(func(in) = out is semidet), in, in) = out is det.
-
-wait_until(F, Goal, S) = A :-
-    if   bin_search(func(T) = F(prgolog.do(wait(T), S)) is semidet,
-                    zero, max_search_time, Goal, V1)
-    then A = wait(V1)
-    else A = abort.
-
-
-follow(B, Victim) = P :-
-    P = b(accelf(B, rel_v(Victim, B))).
-
-
-overtake(B, Victim) = P :-
-    P = b(accelf(B, rel_v(Victim, B))).
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.fuzzy.

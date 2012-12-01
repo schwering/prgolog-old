@@ -26,6 +26,7 @@
 :- implementation.
 
 :- import_module arithmetic.
+:- import_module arithmetic.impl.
 :- import_module bool.
 :- import_module exception.
 :- import_module list.

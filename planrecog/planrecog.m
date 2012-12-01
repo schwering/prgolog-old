@@ -45,8 +45,7 @@
                   prog(A)::in,
                   list(s_state(A))::out,
                   io::di, io::uo) is cc_multi
-                  <= (pr_bat(A, Obs, Env),
-                      obs_source(Obs, Env, Source, _)).
+    <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, _)).
 
 %-----------------------------------------------------------------------------%
 

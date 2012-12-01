@@ -20,8 +20,6 @@
 :- import_module prgolog.
 :- import_module prgolog.nice.
 
-:- include_module fuzzy.
-
 %-----------------------------------------------------------------------------%
 
 :- type s(N) == N.
@@ -38,17 +36,20 @@
     ;       match(obs)
     ;       seed(int)
     ;       abort.
+:- inst wait ---> wait(ground).
+:- inst accel ---> accel(ground, ground).
+:- inst lc ---> lc(ground, ground).
+:- inst senseD ---> senseD(ground, ground, ground, ground).
+:- inst senseL ---> senseL(ground, ground).
+:- inst init_env ---> init_env(ground).
+:- inst match ---> match(ground).
+:- inst seed ---> seed(ground).
+:- inst abort ---> abort.
 
 :- type sit(N) == prgolog.sit(prim(N)).
 :- type prog(N) == prgolog.prog(prim(N)).
 :- type proc(N) == prgolog.proc(prim(N)).
 :- type conf(N) == prgolog.nice.conf(prim(N)).
-
-%-----------------------------------------------------------------------------%
-
-:- instance bat(prim(N)) <= arithmetic(N).
-:- instance obs_bat(prim(N), obs) <= arithmetic(N).
-:- instance pr_bat(prim(N), obs, env) <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
@@ -81,7 +82,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred poss(prim(N)::in, rstc.sit(N)::in) is semidet <= arithmetic(N).
+:- include_module bat.
+:- include_module fuzzy.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -301,35 +303,6 @@ faster(B, C, S) :- not slower(B, C, S).
 
 %-----------------------------------------------------------------------------%
 
-poss(wait(T), _) :- T > zero.
-
-poss(accel(_, Q), _) :- Q >= zero.
-
-poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
-%poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
-
-poss(abort, _) :- fail.
-
-%-----------------------------------------------------------------------------%
-
-:- func lookahead(rstc.sit(N)) = lookahead is det.
-
-lookahead(_S) = 3.
-
-%-----------------------------------------------------------------------------%
-
-:- func reward(rstc.sit(N)) = reward.
-
-reward(s0) = 0.0.
-reward(do(A, S)) = ( if A = match(_) then 1.0 else 0.0 ) `float.'+'` reward(S).
-
-
-:- func reward(rstc.prog(N), rstc.sit(N)) = reward.
-
-reward(_, S) = reward(S).
-
-%-----------------------------------------------------------------------------%
-
 :- pred is_match_action(prim(N)::in) is semidet.
 
 is_match_action(match(_)).
@@ -338,29 +311,6 @@ is_match_action(match(_)).
 :- func last_match(rstc.sit(N)) = prim(N) is semidet.
 
 last_match(do(A, S)) = ( if is_match_action(A) then A else last_match(S) ).
-
-%-----------------------------------------------------------------------------%
-
-:- instance bat(prim(N)) <= arithmetic(N) where [
-    pred(poss/2) is rstc.poss,
-    func(reward/2) is rstc.reward,
-    func(lookahead/1) is rstc.lookahead
-].
-
-:- instance obs_bat(prim(N), obs) <= arithmetic(N) where [
-    (is_obs_action(match(_))),
-    (is_obs_prog(atom(prim(match(_))))),
-    (covered_by_obs(do(A, S)) :-
-        (   A \= wait(_), covered_by_obs(S)
-        ;   A = match(_) )
-    ),
-    (obs_to_action(Obs) = atom(prim(match(Obs))))
-].
-
-:- instance pr_bat(prim(N), obs, env) <= arithmetic(N) where [
-    seed_init_sit(I) = do(seed(I), s0),
-    init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
-].
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.

@@ -4,12 +4,12 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: arithmetic.test.m.
+% File: arithmetic.impl.test.m.
 % Main author: schwering.
 %
 %-----------------------------------------------------------------------------%
 
-:- module arithmetic.test.
+:- module arithmetic.impl.test.
 
 :- interface.
 
@@ -30,7 +30,6 @@
 
 :- implementation.
 
-:- import_module arithmetic.
 :- import_module bool.
 :- import_module exception.
 :- import_module list.
@@ -140,5 +139,5 @@ test_bin_search_float_sqrt(!IO) :-
     true.
 
 %-----------------------------------------------------------------------------%
-:- end_module arithmetic.test.
+:- end_module arithmetic.impl.test.
 %-----------------------------------------------------------------------------%

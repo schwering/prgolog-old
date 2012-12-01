@@ -25,8 +25,8 @@
 :- func f(R) = funfluent(A, R).
 :- mode f(in) = out is det.
 
-:- func r((pred)) = relfluent(A).
-:- mode r(in((pred) is semidet)) = out is det.
+:- func r(pred(sit(A))) = relfluent(A).
+:- mode r(in((pred(in)) is semidet)) = out is det.
 
 :- func ==(funfluent(A, R), funfluent(A, R)) `with_type` relfluent(A).
 :- func and(relfluent(A), relfluent(A)) `with_type` relfluent(A).
@@ -41,7 +41,7 @@
 %-----------------------------------------------------------------------------%
 
 f(R) = (func(_) = R).
-r(P) = (func(_) = ( if call(P) then bool.yes else bool.no )).
+r(P) = (func(S) = ( if P(S) then bool.yes else bool.no )).
 
 %-----------------------------------------------------------------------------%
 
