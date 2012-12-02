@@ -43,6 +43,7 @@
 :- use_module domain.
 :- use_module domain.car.
 :- use_module domain.car.rstc.
+:- use_module domain.car.rstc.test.
 :- use_module domain.car.rstc.fuzzy.
 :- use_module domain.car.rstc.fuzzy.test.
 
@@ -87,6 +88,7 @@ get_tests(Tests, !IO) :-
             , test("prgolog", "test_trans_atom", ccm(prgolog.test.test_trans_atom))
             , test("prgolog", "test_trans", ccm(prgolog.test.test_trans))
             , test("prgolog", "test_final2", ccm(prgolog.test.test_final2))
+            , test("rstc", "test_1", ccm(domain.car.rstc.test.test_1))
             , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
             , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))
             , test("arithmetic", "test_bin_search_rat", ccm(arithmetic.impl.test.test_bin_search_rat))

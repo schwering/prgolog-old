@@ -18,6 +18,7 @@
 %-----------------------------------------------------------------------------%
 
 :- func follow(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
+:- func tailgate(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
 :- func overtake(agent, agent) `with_type` rstc.proc(N) <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
@@ -81,26 +82,42 @@ wait_until(F, Goal, S) = A :-
     then A = wait(V1)
     else A = abort.
 
+%-----------------------------------------------------------------------------%
 
 follow(B, Victim) = P :-
-    P = b(accelf(B, rel_v(Victim, B))).
+    P = t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in` close_behind))
+        ) `;`
+        b(accelf(B, rel_v(Victim, B))).
+
+
+tailgate(B, Victim) = P :-
+    P = t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in_any` [very_close_behind, very_close_behind]))
+        ) `;`
+        b(accelf(B, rel_v(Victim, B))).
 
 
 overtake(B, Victim) = P :-
-    P = t(r((pred(S::in) is semidet :- ntg(B, Victim, S) `in` close_behind))) `;`
+    P = t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in` close_behind))
+        ) `;`
         b(accelf(B, rel_v(Victim, B))).
 
 %-----------------------------------------------------------------------------%
 
 :- pred poss(prim(N), rstc.sit(N)) <= arithmetic(N).
 :- mode poss(in, in) is semidet.
+:- mode poss(in(wait), in) is semidet.
+:- mode poss(in(accel), in) is semidet.
+:- mode poss(in(lc), in) is semidet.
 :- mode poss(in(senseD), in) is det.
 :- mode poss(in(senseL), in) is det.
 :- mode poss(in(init_env), in) is det.
 :- mode poss(in(seed), in) is det.
 :- mode poss(in(abort), in) is failure.
 
-poss(wait(T), _) :- T > zero.
+poss(wait(T), _) :- T >= zero.
 poss(accel(_, Q), _) :- Q >= zero.
 poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
@@ -131,46 +148,72 @@ reward(_, S) = reward(S).
 
 %-----------------------------------------------------------------------------%
 
-:- func obs_to_action(obs) = pseudo_atom(prim(N)) <= arithmetic(N).
-
-obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
-                                             pseudo_atom(atom(Match)))) :-
-    T1 = from_float(T),
-    Wait = primf(wait_until(start, T1)),
-    Match = prim(match(Obs)).
-
-%-----------------------------------------------------------------------------%
-
 :- pred match_obs(assoc_list(agent, info)::in, rstc.sit(N)::in) is semidet
     <= arithmetic(N).
 
 match_obs(L, S) :-
     all [B, C] (
-        member((B - InfoB), L),
-        member((C - InfoC), L),
-        some [NTG1, NTG2] (
-            NTG1 = ntg(B, C, S) => (
-                NTG2 = from_float((x(pos(InfoC)) - x(pos(InfoB))) /
-                                   veloc(InfoC)) `with_type` N,
-                some [Cat] (
+        if      member(PB @ (B - _), L),
+                member(PC @ (C - _), L)
+        then    match_info(PB, PC, S)
+        else    true
+    ),
+    all [D] (
+        if      member(P @ (D - _), L)
+        then    match_y(P, S)
+        else    true
+    ).
+
+
+:- pred match_info(pair(agent, info)::in, pair(agent, info)::in,
+                   rstc.sit(N)::in) is semidet <= arithmetic(N).
+
+match_info((B - info(VB, _, p(XB, _))), (C - info(VC, _, p(XC, _))), S) :-
+    NTG2 = from_float((XC - XB) / VB) `with_type` N,
+    TTC2 = from_float((XC - XB) / (VB - VC)) `with_type` N,
+    (   if      NTG1 = ntg(B, C, S)
+        then    some [Cat] (
                     ntg_cat(Cat),
                     NTG1 `in` Cat,
                     NTG2 `in` Cat
                 )
-            )
-        ),
-        some [TTC1, TTC2] (
-            TTC1 = ttc(B, C, S) => (
-                TTC2 = from_float((x(pos(InfoC)) - x(pos(InfoB))) /
-                                  (veloc(InfoB) - veloc(InfoC))) `with_type` N,
-                some [Cat] (
+        else    true
+    ),
+    (   if      TTC1 = ttc(B, C, S)
+        then    some [Cat] (
                     ttc_cat(Cat),
                     TTC1 `in` Cat,
                     TTC2 `in` Cat
                 )
-            )
-        )
+        else    true
     ).
+
+
+:- pred match_y(pair(agent, info)::in, rstc.sit(N)::in) is semidet
+    <= arithmetic(N).
+
+match_y((B - info(_, _, p(_, Y))), S) :-
+    Lane = lane(B, S),
+    (   Lane = right, Y `float.'<'` 0.0
+    ;   Lane = left,  Y `float.'>'` 0.0
+    ).
+
+%-----------------------------------------------------------------------------%
+
+:- pred is_obs_prog(pseudo_atom(prim(N))::in) is semidet <= arithmetic(N).
+
+is_obs_prog(complex(seq(pseudo_atom(atom(primf(_))),
+                        pseudo_atom(atom(prim(match(_))))))).
+
+%-----------------------------------------------------------------------------%
+
+:- func obs_to_action(obs) = pseudo_atom(prim(N)) <= arithmetic(N).
+
+obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
+                                             pseudo_atom(atom(Match)))) :-
+    T1 = from_float(T),
+    Wait = primf(func(S) = wait(T1 - start(S))),
+    Match = prim(match(Obs)).
 
 %-----------------------------------------------------------------------------%
 
@@ -182,11 +225,11 @@ match_obs(L, S) :-
 
 :- instance obs_bat(prim(N), obs) <= arithmetic(N) where [
     (is_obs_action(match(_))),
-    (is_obs_prog(atom(prim(match(_))))),
     (covered_by_obs(do(A, S)) :-
         (   A \= wait(_), covered_by_obs(S)
         ;   A = match(_) )
     ),
+    pred(is_obs_prog/1) is bat.is_obs_prog,
     func(obs_to_action/1) is bat.obs_to_action
 ].
 
