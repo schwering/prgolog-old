@@ -53,7 +53,7 @@
     X * Y = int.'*'(X, Y),
     X / Y = int.'/'(X, Y),
     unchecked_quotient(X, Y) = int.unchecked_quotient(X, Y),
-    epsilon = 0,
+    epsilon(_) = 0,
     from_float(F) = float.floor_to_int(F),
     from_int(I) = I,
     to_float(I) = float.float(I),
@@ -74,7 +74,8 @@
     X * Y = float.'*'(X, Y),
     X / Y = float.'/'(X, Y),
     unchecked_quotient(X, Y) = float.unchecked_quotient(X, Y),
-    epsilon = float.epsilon,
+    epsilon(X) = Eps :- eps(X, Eps),
+    %epsilon = float.epsilon,
     from_float(F) = F,
     from_int(I) = float.float(I),
     to_float(F) = F,
@@ -96,7 +97,7 @@
     X * Y = rat.'*'(X, Y),
     X / Y = rat.'/'(X, Y),
     unchecked_quotient(X, Y) = rat.'/'(X, Y),
-    epsilon = rat.rat(1, 52),
+    epsilon(_) = rat.rat(1, 52),
     from_float(F) = float_to_rat(F),
     from_int(I) = rat.rat(I),
     to_float(F) = float.float(rat.numer(F)) / float.float(rat.denom(F)),
@@ -118,7 +119,7 @@
     X * Y = rational.'*'(X, Y),
     X / Y = rational.'/'(X, Y),
     unchecked_quotient(X, Y) = rational.'/'(X, Y),
-    epsilon = rational.rational(1, 52),
+    epsilon(_) = rational.rational(1, 52),
     from_float(F) = float_to_rational(F),
     from_int(I) = rational.rational(I),
     to_float(F) = integer.float(rational.numer(F)) /
@@ -129,6 +130,25 @@
     X >= Y :- rational.'>='(X, Y)
 ].
 
+%-----------------------------------------------------------------------------%
+
+:- pred eps(float::in, float::out) is det.
+
+:- pragma foreign_proc("C",
+    eps(Float::in, Eps::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    union {
+        long long i64;
+        double d64;
+    } s;
+    s.d64 = Float;
+    s.i64++;
+    Eps = (s.i64 < 0 ? Float - s.d64 : s.d64 - Float);
+").
+
+
+%-----------------------------------------------------------------------------%
 
 :- func float_to_rat(float) = rat.rat.
 
@@ -148,6 +168,7 @@ float_to_rat(Float) = rat.rat(Numer, Denom) :-
 float_to_rational(Float) = rational.rational(Numer, Denom) :-
     float_numer_denom(100000, Float, Numer, Denom).
 
+%-----------------------------------------------------------------------------%
 
 :- pred float_numer_denom(int::in, float::in, int::out, int::out) is det.
 
@@ -218,7 +239,7 @@ float_to_rational(Float) = rational.rational(Numer, Denom) :-
     X * Y = prgolog.ccfluent.'*'(X, Y),
     X / Y = prgolog.ccfluent.'/'(X, Y),
     unchecked_quotient(X, Y) = prgolog.ccfluent.'/'(X, Y),
-    epsilon = zero,
+    epsilon(_) = zero,
     from_float(F) = prgolog.ccfluent.constant(F),
     from_int(I) = prgolog.ccfluent.constant(float.float(I)),
     to_float(F) = integer.float(rational.numer(F)) /

@@ -24,6 +24,7 @@
 :- pred test_bin_search_float_sq(io::di, io::uo) is det.
 :- pred test_bin_search_float_sq2(io::di, io::uo) is det.
 :- pred test_bin_search_float_sqrt(io::di, io::uo) is det.
+:- pred test_bin_search_float_fail(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -41,10 +42,15 @@
 
 %-----------------------------------------------------------------------------%
 
+:- func max(N, N) = N <= arithmetic(N).
+
+max(X, Y) = ( if X > Y then X else Y ).
+
+
 :- pred in_ball(int::in, N::in, N::in) is semidet <= arithmetic(N).
 
 in_ball(N, X, Y) :-
-    abs(X - Y) =< from_int(N) * epsilon.
+    abs(X - Y) =< from_int(N) * epsilon(X).
 
 :- pred in_eps_ball(N::in, N::in) is semidet <= arithmetic(N).
 
@@ -56,8 +62,8 @@ in_eps_ball(X, Y) :- in_ball(1, X, Y).
 :- mode in_2eps_ball(in(func(in) = out is semidet), in, in) is semidet.
 
 in_2eps_ball(F, X, Y) :-
-    F(X - two * epsilon) =< Y,
-    F(X + two * epsilon) >= Y.
+    F(X - two * epsilon(X)) =< Y,
+    F(X + two * epsilon(X)) >= Y.
 
 %-----------------------------------------------------------------------------%
 
@@ -135,6 +141,17 @@ test_bin_search_float_sqrt(!IO) :-
     ( if bin_search(F, Min, Max, Goal, Found)
       then ( if in_ball(2, F(Found), Goal) then true else throw({F(Found), Goal}) )
       else throw({"failed", Goal})
+    ),
+    true.
+
+test_bin_search_float_fail(!IO) :-
+    F = (func(X) = math.sqrt(X) is det),
+    Goal = 5.0,
+    Min = 0.0,
+    Max = 16.0,
+    ( if bin_search(F, Min, Max, Goal, _Found)
+      then throw({"found unexpectedly", Goal, F(Min), F(Max)})
+      else true
     ),
     true.
 

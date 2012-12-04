@@ -9,6 +9,10 @@
 %
 % Typeclass for arithmetic operations.
 %
+% Note that epsilon/1 has an argument, the number whose nearest bigger neighbor
+% we look for.  The reason is that for some imprecise number types for large X
+% we have the paradox X + epsilon = X.  This holds for floats, for example.
+%
 %-----------------------------------------------------------------------------%
 
 :- module arithmetic.
@@ -31,7 +35,7 @@
     func N * N = N,
     func N / N = N,
     func unchecked_quotient(N, N) = N,
-    func epsilon = N,
+    func epsilon(N) = N, % next bigger neighbor of N
     func from_float(float) = N,
     func from_int(int) = N,
     func to_float(N) = float,
@@ -124,12 +128,18 @@ pow(X, N) = (    if N = 0         then  one
 
 :- pragma type_spec(halfway/2, N = float).
 
+:- use_module float.
+
 halfway(X, Y) = Z :-
-    H1 = (X + Y) / two,
-    H2 = X + epsilon,
-    (    if X < H1, H1 < Y then Z = H1
-    else if X < H2, H2 < Y then Z = H2
-    else throw({"arithmetic.halfway: X+eps > Z?", X, Y, H1, H2}) ).
+   ( if X = Y
+     then Z = X
+     else
+        H1 = (X + Y) / two,
+        H2 = X + epsilon(X),
+        (    if X < H1, H1  < Y then Z = H1
+        else if X < H2, H2 =< Y then Z = H2
+        else throw({"arithmetic.halfway: X+eps > Z?", X, Y, H1, H2}) )
+   ).
 
 %-----------------------------------------------------------------------------%
 
@@ -183,14 +193,14 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
     (
         if
             F(XMin) =< YGoal, YGoal =< F(XMax),
-            F(XMid) - epsilon =< YGoal,
-            F(XMid) + epsilon >= YGoal
+            F(XMid) - epsilon(F(XMid)) =< YGoal,
+            F(XMid) + epsilon(F(XMid)) >= YGoal
         then
             X = XMid
         else if
             F(XMin) =< YGoal, YGoal =< F(XMax),
-            F(XMid - epsilon) =< F(XMin),
-            F(XMid + epsilon) >= F(XMax)
+            F(XMid - epsilon(XMid)) =< F(XMin),
+            F(XMid + epsilon(XMid)) >= F(XMax)
         then
             X = XMid
         else if

@@ -100,6 +100,7 @@ get_tests(Tests, !IO) :-
             , test("arithmetic", "test_bin_search_float_sq", ccm(arithmetic.impl.test.test_bin_search_float_sq))
             , test("arithmetic", "test_bin_search_float_sq2", ccm(arithmetic.impl.test.test_bin_search_float_sq2))
             , test("arithmetic", "test_bin_search_float_sqrt", ccm(arithmetic.impl.test.test_bin_search_float_sqrt))
+            , test("arithmetic", "test_bin_search_float_fail", ccm(arithmetic.impl.test.test_bin_search_float_fail))
             ].
 
 %-----------------------------------------------------------------------------%

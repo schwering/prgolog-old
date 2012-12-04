@@ -86,23 +86,38 @@ wait_until(F, Goal, S) = A :-
 
 follow(B, Victim) = P :-
     P = t(r((pred(S::in) is semidet :-
-            ntg(B, Victim, S) `in` close_behind))
-        ) `;`
+            lane(B, S) = lane(Victim, S)
+        ))) `;`
+        t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in` close_behind
+        ))) `;`
         b(accelf(B, rel_v(Victim, B))).
 
 
 tailgate(B, Victim) = P :-
     P = t(r((pred(S::in) is semidet :-
-            ntg(B, Victim, S) `in_any` [very_close_behind, very_close_behind]))
-        ) `;`
+            lane(B, S) = lane(Victim, S)
+        ))) `;`
+        t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
+        ))) `;`
         b(accelf(B, rel_v(Victim, B))).
 
 
 overtake(B, Victim) = P :-
     P = t(r((pred(S::in) is semidet :-
-            ntg(B, Victim, S) `in` close_behind))
-        ) `;`
-        b(accelf(B, rel_v(Victim, B))).
+            lane(B, S) = right,
+            lane(Victim, S) = right
+        ))) `;`
+        t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in` close_behind
+        ))) `;`
+        b(accelf(B,
+            func(S) = from_float(1.1) * rel_v(Victim, B, S) is semidet
+        )) `;`
+        a(lc(B, left)) `;`
+        b(wait_until(ntg(B, Victim), defuzzify(infront))) `;`
+        a(lc(B, right)).
 
 %-----------------------------------------------------------------------------%
 

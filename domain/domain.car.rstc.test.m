@@ -72,19 +72,22 @@ init_sit = do(init_env(env(0.0, L)), s0) :-
 
 check_sit(_, [], !IO).
 check_sit(S, [test_val(Func, Exp, Str) | Rest], !IO) :-
-    (   if      float.abs(Func(S) `float.'-'` Exp) `float.'<'` 0.01
+    (   if      float.abs(Func(S) `float.'-'` Exp) `float.'<'` 0.00001
         then    true
         else    write(S, !IO), nl(!IO),
                 (   if      some [Val] Val = Func(S)
-                    then    format("%s = %f != %f\n", [s(Str), f(Val), f(Exp)], !IO)
-                    else    format("%s = undef != %f\n", [s(Str), f(Exp)], !IO)
+                    then    format("%s = %f != %f\n", [s(Str), f(Val), f(Exp)], !IO),
+                            throw({Str, Val, Exp})
+                    else    format("%s = undef != %f\n", [s(Str), f(Exp)], !IO),
+                            throw({Str, Exp})
                 )
     ),
     check_sit(S, Rest, !IO).
 check_sit(S, [test_undef(Func, Str) | Rest], !IO) :-
     (   if      Val = Func(S)
         then    write(S, !IO), nl(!IO),
-                format("%s = %f != undef\n", [s(Str), f(Val)], !IO)
+                format("%s = %f != undef\n", [s(Str), f(Val)], !IO),
+                throw({Str, Val})
         else    true
     ),
     check_sit(S, Rest, !IO).
