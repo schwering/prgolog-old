@@ -49,6 +49,10 @@
 x(b) = 1.0.
 x(c) = 5.0.
 x(d) = 3.0.
+x(e) = 0.0.
+x(f) = 0.0.
+x(g) = 0.0.
+x(h) = 0.0.
 
 
 :- func v(agent) = float.
@@ -56,6 +60,10 @@ x(d) = 3.0.
 v(b) = 3.0.
 v(c) = 2.0.
 v(d) = 1.0.
+v(e) = 0.0.
+v(f) = 0.0.
+v(g) = 0.0.
+v(h) = 0.0.
 
 
 :- func init_sit = rstc.sit(float).
@@ -64,6 +72,10 @@ init_sit = do(init_env(env(0.0, L)), s0) :-
     L = [ (b - info(v(b), 0.0, p(x(b), 1.0)))
         , (c - info(v(c), 0.0, p(x(c), 1.0)))
         , (d - info(v(d), 0.0, p(x(d), 1.0)))
+        , (e - info(v(e), 0.0, p(x(e), 1.0)))
+        , (f - info(v(f), 0.0, p(x(f), 1.0)))
+        , (g - info(v(g), 0.0, p(x(g), 1.0)))
+        , (h - info(v(h), 0.0, p(x(h), 1.0)))
         ].
 
 

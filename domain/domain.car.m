@@ -18,7 +18,7 @@
 :- import_module assoc_list.
 :- import_module prgolog.
 
-:- type agent ---> b ; c ; d.
+:- type agent ---> b ; c ; d ; e ; f ; g ; h.
 :- type lane ---> left ; right.
 
 :- type degree == float.
@@ -91,10 +91,18 @@ deg_max = deg_zero - 25.0.
 agent(b).
 agent(c).
 agent(d).
+agent(e).
+agent(f).
+agent(g).
+agent(h).
 
 agent_to_string(b) = "b".
 agent_to_string(c) = "c".
 agent_to_string(d) = "d".
+agent_to_string(e) = "e".
+agent_to_string(f) = "f".
+agent_to_string(g) = "g".
+agent_to_string(h) = "h".
 
 string_to_agent(S) = A :-
     (   if      S = agent_to_string(A0)

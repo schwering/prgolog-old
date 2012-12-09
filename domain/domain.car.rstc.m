@@ -116,10 +116,11 @@ min(E1 @ {Cost1, _}, E2 @ {Cost2, _}) = ( if Cost1 < Cost2 then E1 else E2 ).
 
 transitive_car(B, D, S) = E :-
     Cars = solutions((pred(C::out) is nondet :- agent(C), C \= B, C \= D)),
-    map((pred(C::in, {Cost, C}::out) is semidet :-
+    filter_map((pred(C::in, {Cost, C}::out) is semidet :-
         ttc(B, C, S) \= zero,
         ttc(C, D, S) \= zero,
-        Cost = abs(ntg(B, C, S) + ntg(C, D, S) + ttc(B, C, S) + ttc(C, D, S))
+        Cost = abs(ntg(B, C, S)) + abs(ntg(C, D, S)) +
+               abs(ttc(B, C, S)) + abs(ttc(C, D, S))
     ), Cars, [FirstCandidate | Candidates]),
     {_, E} = foldr(min, Candidates, FirstCandidate).
 
