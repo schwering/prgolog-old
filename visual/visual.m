@@ -112,6 +112,10 @@ get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
 agent_to_color(b) = red.
 agent_to_color(c) = blue.
 agent_to_color(d) = green.
+agent_to_color(e) = magenta.
+agent_to_color(f) = cyan.
+agent_to_color(g) = yellow.
+agent_to_color(h) = white.
 
 
 :- pred border(area::in, io::di, io::uo) is det.
