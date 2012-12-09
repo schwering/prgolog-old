@@ -44,6 +44,8 @@
 :- use_module domain.car.
 :- use_module domain.car.rstc.
 :- use_module domain.car.rstc.test.
+:- use_module domain.car.rstc.bat.
+:- use_module domain.car.rstc.bat.test.
 :- use_module domain.car.rstc.fuzzy.
 :- use_module domain.car.rstc.fuzzy.test.
 
@@ -91,6 +93,8 @@ get_tests(Tests, !IO) :-
             , test("rstc", "test_1", ccm(domain.car.rstc.test.test_1))
             , test("rstc", "test_2", ccm(domain.car.rstc.test.test_2))
             , test("rstc", "test_3", ccm(domain.car.rstc.test.test_3))
+            , test("bat", "test_ntg", ccm(domain.car.rstc.bat.test.test_ntg))
+            , test("bat", "test_ttc", ccm(domain.car.rstc.bat.test.test_ttc))
             , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
             , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))
             , test("arithmetic", "test_bin_search_rat", ccm(arithmetic.impl.test.test_bin_search_rat))

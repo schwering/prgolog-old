@@ -128,8 +128,6 @@ pow(X, N) = (    if N = 0         then  one
 
 :- pragma type_spec(halfway/2, N = float).
 
-:- use_module float.
-
 halfway(X, Y) = Z :-
    ( if X = Y
      then Z = X

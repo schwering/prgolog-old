@@ -209,22 +209,22 @@ take_vars([V | Vs], [R | Rs], !IO) :-
                                 <= obs_source(_, _, Source, _).
 
 run_concurrently_thread(_, _, [], _, !IO).
-run_concurrently_thread(Source, I, [V | Vs], P, !IO) :-
+run_concurrently_thread(Source, N, [V | Vs], P, !IO) :-
     spawn((pred(IO0::di, IO1::uo) is cc_multi :-
         some [!SubIO] (
             !:SubIO = IO0,
-            P(I, R, !SubIO),
+            P(N, R, !SubIO),
             R = s_state(_, Phase),
-            (   Phase = running,   update_state(Source, I, working,  !SubIO)
-            ;   Phase = finishing, update_state(Source, I, working,  !SubIO)
-            ;   Phase = finished,  update_state(Source, I, finished, !SubIO)
-            ;   Phase = failed,    update_state(Source, I, failed,   !SubIO)
+            (   Phase = running,   update_state(Source, N, working,  !SubIO)
+            ;   Phase = finishing, update_state(Source, N, working,  !SubIO)
+            ;   Phase = finished,  update_state(Source, N, finished, !SubIO)
+            ;   Phase = failed,    update_state(Source, N, failed,   !SubIO)
             ),
             put(V, R, !SubIO),
             !.SubIO = IO1
         )
     ), !IO),
-    run_concurrently_thread(Source, I - 1, Vs, P, !IO).
+    run_concurrently_thread(Source, N - 1, Vs, P, !IO).
 
 
 :- pred run_concurrently(Source::in, int::in,
