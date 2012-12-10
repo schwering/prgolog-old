@@ -495,7 +495,7 @@ right_lane_change(Agent) = P :-
 
 cruise(Agent) = P :-
     P = p(((func) = straight_right(Agent))) `;`
-        b(set_veloc_st(Agent, 15.09)).
+        b(set_veloc_st(Agent, 16.38)).
 
 overtake(Agent, Victim) = P :-
     P = b(set_veloc_st(Agent, 20.8)) `;` % Why do we need this stupid action?

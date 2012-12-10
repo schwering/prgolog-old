@@ -145,8 +145,9 @@ accept_connections(ServerSocket, Areas, !IO) :-
     % reasonable value for dual core (one free core @ 2.2 GHz): 9
     % reasonable value for core i7 (four free cores @ 3.2 GHz): 27
     NSamples = 9,
-    Prog = (cruise(b) // overtake(c, b)),% `with_type` prog(prim),
+    Prog = (cruise(b) // overtake(h, b)),% `with_type` prog(prim),
     Handler = visual.visualize(Areas),
+    reset_all_sources(!IO),
     new_source(Source, !IO),
     accept_connection(ServerSocket, Socket, !IO),
     %format("Accepted connection...\n", [], !IO),

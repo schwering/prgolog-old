@@ -15,6 +15,11 @@
 % Furthermore one might create one source per hypothesis. Each hypothesis'
 % confidence can be acquired separately using the function confidence/1.
 %
+% Note that if you use the TORCS observation interface repeatedly in otherwise
+% independent iterations, you should cal reset_all_sources/2 after each
+% iteration. Otherwise you might quickly run out of sources, because the counter
+% is continually incremented.
+%
 % Internally, observations are read from stdin and then enqueued in an array for
 % subsequent access.
 % Reading observations is thread-safe.
@@ -35,6 +40,7 @@
 :- instance obs_source(obs, env, source, stream_state).
 
 :- pred new_source(source::uo, io::di, io::uo) is det.
+:- pred reset_all_sources(io::di, io::uo) is det.
 
 :- func confidence(source::in) = (float::out) is det.
 
@@ -225,6 +231,11 @@ new_source(s(Source), !IO) :- new_source_2(Source, !IO).
     sources[Source].max_valid_stream = -1;
     IO1 = IO0;
 ").
+
+
+reset_all_sources(!IO) :-
+    finalize_globals(!IO),
+    initialize_globals(!IO).
 
 
 :- pred reset_obs_source(source::in, io::di, io::uo) is det.
