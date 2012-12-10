@@ -50,12 +50,16 @@
     #include <assert.h>
     #include <pthread.h>
     #include <stdarg.h>
+    #include <stdio.h>
 
     /* None of these definitions are intended for public use.
      * Observations are read from stdin in this module and enqueued in the
      * array declared below. */
 
     #define MAX_OBSERVATIONS    1000
+
+    /* The curren stream, stdin by default. */
+    static FILE *domain__car__obs__stdin__stream;
 
     /* The greatest index that points to an initialized observation. Not intended for public use. */
     static int domain__car__obs__stdin__max_valid_observation;
@@ -68,6 +72,10 @@
 
     /* Enqueues a new observation. Not intended for public use. */
     void domain__car__obs__stdin__push_obs(const struct observation_record *obs);
+
+    /* Gets/sets the curren stream. */
+    void domain__car__obs__stdin__set_stream(FILE *fp);
+    FILE *domain__car__obs__stdin__get_stream(void);
 ").
 
 %-----------------------------------------------------------------------------%
@@ -79,6 +87,16 @@
       assert(domain__car__obs__stdin__max_valid_observation + 1 < MAX_OBSERVATIONS);
       memcpy(&domain__car__obs__stdin__observations[domain__car__obs__stdin__max_valid_observation + 1], obs, sizeof(struct observation_record));
       ++domain__car__obs__stdin__max_valid_observation;
+    }
+
+    void domain__car__obs__stdin__set_stream(FILE *fp)
+    {
+      domain__car__obs__stdin__stream = fp;
+    }
+
+    FILE *domain__car__obs__stdin__get_stream(void)
+    {
+      return domain__car__obs__stdin__stream;
     }
 ").
 
@@ -93,6 +111,7 @@
     [will_not_call_mercury, promise_pure, thread_safe],
 "
     int i;
+    domain__car__obs__stdin__stream = stdin;
     domain__car__obs__stdin__max_valid_observation = -1;
     memset(domain__car__obs__stdin__observations, 0, MAX_OBSERVATIONS * sizeof(struct observation_record));
     pthread_mutex_init(&domain__car__obs__stdin__mutex, NULL);
@@ -190,7 +209,7 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
             if (I0 > domain__car__obs__stdin__max_valid_observation) {
                 struct observation_record r;
                 r.n_agents = 2;
-                int i = scanf(
+                int i = fscanf(domain__car__obs__stdin__stream,
                         ""%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\\n"",
                         &r.t,
                         r.info[0].agent, &r.info[0].veloc, &r.info[0].rad, &r.info[0].x, &r.info[0].y,

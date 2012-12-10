@@ -50,16 +50,20 @@ static int make_socket(void)
     return sockfd;
 }
 
-static float min_conf(const struct planrecog_state *msg)
+static float min_conf(const struct planrecog_state *msg, const int i)
 {
-    return (double) (msg->finished) /
-           (double) (msg->working + msg->finished + msg->failed);
+    const int numer = msg->sources[i].finished;
+    const int denom = msg->sources[i].working + msg->sources[i].finished +
+                      msg->sources[i].failed;
+    return (double) numer / (double) denom;
 }
 
-static float max_conf(const struct planrecog_state *msg)
+static float max_conf(const struct planrecog_state *msg, const int i)
 {
-    return (double) (msg->working + msg->finished) /
-           (double) (msg->working + msg->finished + msg->failed);
+    const int numer = msg->sources[i].working + msg->sources[i].finished;
+    const int denom = msg->sources[i].working + msg->sources[i].finished +
+                      msg->sources[i].failed;
+    return (double) numer / (double) denom;
 }
 
 static void klatschtgleich2(FILE *fp, int sockfd)
@@ -92,8 +96,8 @@ static void klatschtgleich2(FILE *fp, int sockfd)
             fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));
             exit(1);
         }
-        printf("%.2lf =< confidence =< %.2lf\n",
-                min_conf(&state), max_conf(&state));
+        printf("%.2lf =< confidence %d, %d, %d =< %.2lf\n",
+                min_conf(&state, 0), state.sources[0].working, state.sources[0].finished, state.sources[0].failed, max_conf(&state, 0));
     }
 }
 
@@ -144,7 +148,7 @@ static void klatschtgleich3(FILE *fp, int sockfd)
             exit(1);
         }
         printf("%.2lf =< confidence =< %.2lf\n",
-                min_conf(&state), max_conf(&state));
+                min_conf(&state, 0), max_conf(&state, 0));
     }
 }
 

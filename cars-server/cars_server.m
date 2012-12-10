@@ -45,16 +45,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func confidence = (float::out) is det.
-
-:- pragma foreign_proc("C",
-    confidence = (Conf::out),
-    [will_not_call_mercury, promise_pure, thread_safe],
-"
-    Conf = (MR_Float) confidence();
-").
-
-
 :- pragma foreign_decl("C", "
     #include <assert.h>
     #include <netinet/in.h>
@@ -156,18 +146,16 @@ accept_connections(ServerSocket, Areas, !IO) :-
     % reasonable value for core i7 (four free cores @ 3.2 GHz): 27
     NSamples = 9,
     Prog = (cruise(b) // overtake(c, b)),% `with_type` prog(prim),
+    Handler = visual.visualize(Areas),
+    new_source(Source, !IO),
     accept_connection(ServerSocket, Socket, !IO),
     %format("Accepted connection...\n", [], !IO),
-    Source = source,
-    reset_obs_source(Source, !IO),
-    %format("Reset source...\n", [], !IO),
-    online_planrecog(NSamples, Source, Vars, visual.visualize(Areas), Prog, !IO),
+    online_planrecog(NSamples, Source, Vars, Handler, Prog, !IO),
     handle_connection(Socket, !IO),
-    %format("Connection terminated, waiting for plan recognition...\n", [], !IO),
     wait_for_planrecog_finish(Source, Vars, !IO),
     %visual.wait_for_key(!IO),
     %format("Plan recognition finished with confidence %.2f.\n",
-    %       [f(confidence)], !IO),
+    %       [f(confidence(Source))], !IO),
     finalize_connection(Socket, !IO),
     accept_connections(ServerSocket, Areas, !IO),
     true.% ( if Cont = yes then accept_connections(ServerSocket, !IO) else true ).

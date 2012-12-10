@@ -32,31 +32,21 @@ struct agent_info_record {
 /* Represents an observation of two agents and their physical parameters at a
  * certain point in time. */
 struct observation_record {
-  double t;       /* timestamp */
+  double t;         /* timestamp */
   uint8_t n_agents; /* number of agents in this observation */
   struct agent_info_record info[NAGENTS]; /* agent info */
 };
 
-/* Minor states a sample process can be in. */
-enum activity {
-  UNUSED = 0,   /* initially the process does nothing */
-  WORKING = 1,  /* then the process incrementally executes the program */
-  FINISHED = 2, /* finally the process either completes execution */
-  FAILED = 3    /* or execution fails */
-};
-
-/* State a sample process can be in. */
-struct process_state {
-  int done;               /* observations matched until now */
-  int tbd;                /* observations still to matched */
-  enum activity activity; /* is it working, has it succeeded or failed? */
-};
+#define NSOURCES 3
 
 /* Global state of the plan recognition system. */
 struct planrecog_state {
-  uint8_t working;  /* number of processes still working */
-  uint8_t finished; /* number of succeeded processes */
-  uint8_t failed;   /* number of failed processes */
+  uint8_t n_sources;
+  struct {
+    uint8_t working;  /* number of processes still working */
+    uint8_t finished; /* number of succeeded processes */
+    uint8_t failed;   /* number of failed processes */
+  } sources[NSOURCES];
 };
 
 #endif

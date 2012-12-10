@@ -290,9 +290,7 @@ y(Agent, do(A, S)) = Y :-
 
 %-----------------------------------------------------------------------------%
 
-x_tol(b, s0) = 0.0.
-x_tol(c, s0) = 0.0.
-x_tol(d, s0) = 0.0.
+x_tol(_, s0) = 0.0.
 x_tol(Agent, do(A, S)) = Tol :-
     if      A = set_veloc(Agent, _, Tol0, _, _, _, _)
     then    Tol = Tol0

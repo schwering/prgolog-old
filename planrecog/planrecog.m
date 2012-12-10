@@ -210,19 +210,15 @@ take_vars([V | Vs], [R | Rs], !IO) :-
 
 run_concurrently_thread(_, _, [], _, !IO).
 run_concurrently_thread(Source, N, [V | Vs], P, !IO) :-
-    spawn((pred(IO0::di, IO1::uo) is cc_multi :-
-        some [!SubIO] (
-            !:SubIO = IO0,
-            P(N, R, !SubIO),
-            R = s_state(_, Phase),
-            (   Phase = running,   update_state(Source, N, working,  !SubIO)
-            ;   Phase = finishing, update_state(Source, N, working,  !SubIO)
-            ;   Phase = finished,  update_state(Source, N, finished, !SubIO)
-            ;   Phase = failed,    update_state(Source, N, failed,   !SubIO)
-            ),
-            put(V, R, !SubIO),
-            !.SubIO = IO1
-        )
+    spawn((pred(!.SubIO::di, !:SubIO::uo) is cc_multi :-
+        P(N, R, !SubIO),
+        R = s_state(_, Phase),
+        (   Phase = running,   update_state(Source, N, working,  !SubIO)
+        ;   Phase = finishing, update_state(Source, N, working,  !SubIO)
+        ;   Phase = finished,  update_state(Source, N, finished, !SubIO)
+        ;   Phase = failed,    update_state(Source, N, failed,   !SubIO)
+        ),
+        put(V, R, !SubIO)
     ), !IO),
     run_concurrently_thread(Source, N - 1, Vs, P, !IO).
 
@@ -248,10 +244,10 @@ run_concurrently(Source, N, P, Rs, !IO) :-
     <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
 pr_thread(Source, Prog, I, R, !IO) :-
+    Log = empty_logger,
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
     init_obs_stream(Source, I, ObsStreamState, !IO),
-    merge_and_trans_loop(Source, empty_logger, InitialState, R,
-                         ObsStreamState, _, !IO).
+    merge_and_trans_loop(Source, Log, InitialState, R, ObsStreamState, _, !IO).
 
 
 planrecog(ThreadCount, Source, Prog, Results, !IO) :-
@@ -266,8 +262,8 @@ planrecog(ThreadCount, Source, Prog, Results, !IO) :-
     <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
 opr_thread(Source, Handler, Prog, I, R, !IO) :-
-    Log = (pred(S::in, IO0::di, IO1::uo) is det :-
-        Handler(I, S, IO0, IO1)
+    Log = (pred(S::in, !.IO::di, !:IO::uo) is det :-
+        Handler(I, S, !IO)
     ),
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
     init_obs_stream(Source, I, ObsStreamState, !IO),
