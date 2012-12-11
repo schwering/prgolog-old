@@ -42,7 +42,9 @@
 :- pred new_source(source::uo, io::di, io::uo) is det.
 :- pred reset_all_sources(io::di, io::uo) is det.
 
-:- func confidence(source::in) = (float::out) is det.
+:- func min_confidence(source::in) = (float::out) is det.
+:- func max_confidence(source::in) = (float::out) is det.
+:- func confidences(source::in) = ({float, float}::out) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -112,7 +114,8 @@
 
     /* Computes the current approximated confidence of the plan recognition
      * system. */
-    static float confidence(int source);
+    static float min_confidence(int source);
+    static float max_confidence(int source);
 ").
 
 %-----------------------------------------------------------------------------%
@@ -122,9 +125,9 @@
     {
         int i, j;
         for (i = 0; i < MAX_SOURCES; ++i) {
-            assert(sources[i].max_valid_observation + 1 < MAX_OBSERVATIONS);
-            memcpy(&sources[i].observations[sources[i].max_valid_observation + 1], obs, sizeof(*obs));
-            ++sources[i].max_valid_observation;
+            const int k = ++sources[i].max_valid_observation;
+            assert(k < MAX_OBSERVATIONS);
+            memcpy(&sources[i].observations[k], obs, sizeof(*obs));
             for (j = 0; j < MAX_STREAMS; ++j) {
                 sem_post(&sources[i].streams[j].sem);
             }
@@ -153,6 +156,38 @@
 ").
 
 
+:- pragma foreign_code("C", "
+    static float min_confidence(int source) {
+        struct planrecog_state msg;
+        int numer, denom;
+        domain__car__obs__torcs__init_msg(&msg);
+        numer = msg.sources[source].finished;
+        denom = msg.sources[source].working +
+                msg.sources[source].finished +
+                msg.sources[source].failed;                              
+        return (float) numer / (float) denom;
+    }
+").
+
+
+:- pragma foreign_code("C", "
+    static float max_confidence(int source) {
+        struct planrecog_state msg;
+        int numer, denom;
+        domain__car__obs__torcs__init_msg(&msg);
+        numer = msg.sources[source].working +
+                msg.sources[source].finished;
+        denom = msg.sources[source].working +
+                msg.sources[source].finished +
+                msg.sources[source].failed;                              
+        return (float) numer / (float) denom;
+    }
+").
+
+
+/* XXX this function is currently not used. What does it actually compute?! 
+ * I guess it's the confidence where each stream which is still working is weighted with
+ * its quotient of processed and total observations. */
 :- pragma foreign_code("C", "
     static float confidence(int source) {
         int j;
@@ -187,6 +222,8 @@
     memset(&sources, 0, sizeof(sources));
     max_valid_source = -1;
     for (i = 0; i < MAX_SOURCES; ++i) {
+        sources[i].max_valid_observation = -1;
+        sources[i].max_valid_stream = -1;
         for (j = 0; j < MAX_STREAMS; ++j) {
             sem_init(&sources[i].streams[j].sem, 0, 0);
         }
@@ -264,16 +301,32 @@ reset_obs_source(s(Source), !IO) :- reset_obs_source_2(Source, !IO).
 ").
 
 
-confidence(s(Source)) = confidence_2(Source).
+confidences(Source) = {min_confidence(Source), max_confidence(Source)}.
 
 
-:- func confidence_2(int::in) = (float::out) is det.
+max_confidence(s(Source)) = max_confidence_2(Source).
+
+
+:- func max_confidence_2(int::in) = (float::out) is det.
 
 :- pragma foreign_proc("C",
-    confidence_2(Source::in) = (Conf::out),
+    max_confidence_2(Source::in) = (Conf::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    Conf = (MR_Float) confidence(Source);
+    Conf = (MR_Float) max_confidence(Source);
+").
+
+
+min_confidence(s(Source)) = min_confidence_2(Source).
+
+
+:- func min_confidence_2(int::in) = (float::out) is det.
+
+:- pragma foreign_proc("C",
+    min_confidence_2(Source::in) = (Conf::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    Conf = (MR_Float) min_confidence(Source);
 ").
 
 
@@ -317,6 +370,7 @@ next_obs(ObsMsg, S, P, ss(Source, Stream, I0), State1, !IO) :-
     ;
         Ok = no,
         ObsMsg = end_of_obs
+        ,write_string("END_OF_OBS!!! END_OF_OBS!!! END_OF_OBS!!! END_OF_OBS!!! END_OF_OBS!!!\n", !IO)
     ),
     copy(ss(Source, Stream, I1), State1).
 
