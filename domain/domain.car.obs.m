@@ -116,7 +116,8 @@ obs_count_in_prog(conc(P1, P2)) = obs_count_in_prog(P1) + obs_count_in_prog(P2).
 obs_count_in_prog(star(_)) = 0.
 obs_count_in_prog(proc(_)) = 0.
 obs_count_in_prog(nil) = 0.
-obs_count_in_prog(pseudo_atom(complex(P))) = obs_count_in_prog(P).
+obs_count_in_prog(pseudo_atom(PA @ complex(P))) =
+    ( if is_obs_prog(PA) then 1 else obs_count_in_prog(P) ).
 obs_count_in_prog(pseudo_atom(PA @ atom(_))) =
     ( if is_obs_prog(PA) then 1 else 0 ).
 
