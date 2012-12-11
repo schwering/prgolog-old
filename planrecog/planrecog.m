@@ -132,6 +132,7 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         !.Phase \= finishing,
         obs_count_in_prog(P) < lookahead(S)
     then
+        format("Getting next observation %d < %d\n", [i(obs_count_in_prog(P)), i(lookahead(S))], !IO),
         Continue = yes,
         next_obs(ObsMsg, S, P, !ObsStreamState, !IO),
         P2 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
@@ -141,6 +142,7 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         final(remove_obs_sequence(P), S),
         last_action_covered_by_obs(S)
     then
+        format("Finished because final and covered\n", [], !IO),
         Continue = no,
         P2 = P,
         S2 = S,
@@ -148,11 +150,17 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
     else if
         trans(P, S, P1, S1)
     then
+        ( if S1 = do(A, S) then
+            format("Executed primitive action of program\n", [], !IO)
+          else
+            format("Executed test action of program\n", [], !IO)
+        ),
         Continue = yes,
         P2 = P1,
         S2 = S1,
         !:Phase = !.Phase
     else
+        format("Failure\n", [], !IO),
         Continue = no,
         P2 = P,
         S2 = S,
