@@ -171,26 +171,23 @@ reward(_, S) = reward(S).
     <= arithmetic(N).
 
 match_obs(L, S) :-
-    all [B, C] (
-        if      member(PB @ (B - _), L),
-                member(PC @ (C - _), L)
-        then    match_info(PB, PC, S)
-        else    true
-    ),
-    all [D] (
-        if      member(P @ (D - _), L)
-        then    match_y(P, S)
-        else    true
-    ).
+    all_true((pred(PB::in) is semidet :-
+        all_true((pred(PC::in) is semidet :-
+            if not match_info(PB, PC, S) then PB=(B-_), PC=(C-_), trace [io(!IO)] ( format("Conflict %s %s\n", [s(agent_to_string(B)), s(agent_to_string(C))], !IO) ) else true
+        ), L)
+    ), L),
+    all_true((pred(PD::in) is semidet :-
+        if not match_y(PD, S) then PD=(D-_), trace [io(!IO)] ( format("Conflict %s\n", [s(agent_to_string(D))], !IO) ) else true
+    ), L).
 
 
 :- pred match_info(pair(agent, info)::in, pair(agent, info)::in,
                    rstc.sit(N)::in) is semidet <= arithmetic(N).
 
 match_info((B - info(VB, _, p(XB, _))), (C - info(VC, _, p(XC, _))), S) :-
-    NTG2 = from_float((XC - XB) / VB) `with_type` N,
-    TTC2 = from_float((XC - XB) / (VB - VC)) `with_type` N,
-    (   if      NTG1 = ntg(B, C, S)
+    (   if      VB \= 0.0,
+                NTG2 = from_float((XC - XB) / VB) `with_type` N,
+                NTG1 = ntg(B, C, S)
         then    some [Cat] (
                     ntg_cat(Cat),
                     NTG1 `in` Cat,
@@ -198,7 +195,9 @@ match_info((B - info(VB, _, p(XB, _))), (C - info(VC, _, p(XC, _))), S) :-
                 )
         else    true
     ),
-    (   if      TTC1 = ttc(B, C, S)
+    (   if      VB - VC \= 0.0,
+                TTC2 = from_float((XC - XB) / (VB - VC)) `with_type` N,
+                TTC1 = ttc(B, C, S)
         then    some [Cat] (
                     ttc_cat(Cat),
                     TTC1 `in` Cat,
@@ -208,8 +207,7 @@ match_info((B - info(VB, _, p(XB, _))), (C - info(VC, _, p(XC, _))), S) :-
     ).
 
 
-:- pred match_y(pair(agent, info)::in, rstc.sit(N)::in) is semidet
-    <= arithmetic(N).
+:- pred match_y(pair(agent, info)::in, rstc.sit(_)::in) is semidet.
 
 match_y((B - info(_, _, p(_, Y))), S) :-
     Lane = lane(B, S),
