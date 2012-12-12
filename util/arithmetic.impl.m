@@ -20,6 +20,8 @@
 :- use_module rat.
 :- use_module rational.
 
+%-----------------------------------------------------------------------------%
+
 :- instance arithmetic(int).
 :- instance arithmetic(float).
 :- instance arithmetic(rat.rat).
@@ -62,6 +64,7 @@
     X =< Y :- int.'=<'(X, Y),
     X >= Y :- int.'>='(X, Y)
 ].
+
 
 :- instance arithmetic(float) where [
     zero = 0.0,

@@ -103,9 +103,9 @@ test_loop(Kind, !SS, !IO) :-
         ),
         S = do(init_env(Env), s0) `with_type` rstc.sit(float),
         (   Kind = ntg,
-            check(ntg, (pred(Cat::out) is nondet :- ntg_cat(Cat)), "NTG", c, b, S, !IO)
+            check(ntg, (pred(Cat::out) is nondet :- ntg_cat(Cat)), "NTG", h, b, S, !IO)
         ;   Kind = ttc,
-            check(ttc, (pred(Cat::out) is nondet :- ttc_cat(Cat)), "TTC", c, b, S, !IO)
+            check(ttc, (pred(Cat::out) is nondet :- ttc_cat(Cat)), "TTC", h, b, S, !IO)
         ),
         test_loop(Kind, !SS, !IO)
     ;   Msg = end_of_obs
