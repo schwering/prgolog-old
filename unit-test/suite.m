@@ -36,8 +36,8 @@
 :- use_module arithmetic.
 :- use_module arithmetic.impl.
 :- use_module arithmetic.impl.test.
-:- use_module arithmetic.inf.
-:- use_module arithmetic.inf.test.
+:- use_module inf_arithmetic.
+:- use_module inf_arithmetic.test.
 
 :- use_module prgolog.
 :- use_module prgolog.test.
@@ -107,7 +107,7 @@ get_tests(Tests, !IO) :-
             , test("arithmetic", "test_bin_search_float_sq2", ccm(arithmetic.impl.test.test_bin_search_float_sq2))
             , test("arithmetic", "test_bin_search_float_sqrt", ccm(arithmetic.impl.test.test_bin_search_float_sqrt))
             , test("arithmetic", "test_bin_search_float_fail", ccm(arithmetic.impl.test.test_bin_search_float_fail))
-            , test("arithmetic", "test", ccm(arithmetic.inf.test.test))
+            , test("inf_arithmetic", "test", ccm(inf_arithmetic.test.test))
             ].
 
 %-----------------------------------------------------------------------------%
