@@ -8,6 +8,10 @@
 % Main author: schwering.
 %
 % Extension of numbers with positive and negative infinity.
+% This package adds infinity to instances of the arithmetic typeclass.
+%
+% However, it does not implement the arithmetic typeclass itself, because
+% its functions are all semidet.
 %
 %-----------------------------------------------------------------------------%
 
@@ -29,8 +33,19 @@
 :- pred negative_infinity(num(N)::in) is semidet.
 :- pred positive_infinity(num(N)::in) is semidet.
 
+:- pred negative(num(N)::in) is semidet <= arithmetic(N).
+:- pred positive(num(N)::in) is semidet <= arithmetic(N).
+
+:- func zero = num(N) <= arithmetic(N).
+:- func one = num(N) <= arithmetic(N).
+
+:- func abs(num(N)) = num(N) <= arithmetic(N).
+
 :- func        + num(N) = num(N) <= arithmetic(N).
+:- mode        + in     = out is det.
+
 :- func        - num(N) = num(N) <= arithmetic(N).
+:- mode        - in     = out is det.
 
 :- func num(N) + num(N) = num(N) <= arithmetic(N).
 :- mode in     + in     = out is semidet.
@@ -73,14 +88,19 @@ positive_infinity = pos_inf.
 negative_infinity(neg_inf).
 positive_infinity(pos_inf).
 
+negative(N) :- N `inf.'<'` num(zero).
+positive(N) :- N `inf.'>'` num(zero).
+
+one = num(one).
+zero = num(zero).
+
+abs(N) = ( if negative(N) then inf.'-'(N) else N ).
 
 + N = N.
-
 
 - neg_inf = pos_inf.
 - num(N)  = num(-N).
 - pos_inf = neg_inf.
-
 
 neg_inf + neg_inf = neg_inf.
 neg_inf + num(_)  = neg_inf.
@@ -92,9 +112,7 @@ pos_inf + neg_inf = _ :- fail.
 pos_inf + num(_)  = pos_inf.
 pos_inf + pos_inf = pos_inf.
 
-
 A - B = A `inf.'+'` inf.'-'(B).
-
 
 neg_inf * neg_inf = pos_inf.
 neg_inf * num(N)  = R :- ( if N = zero then fail else R = flip(N, neg_inf) ).
@@ -105,7 +123,6 @@ num(N)  * pos_inf = R :- ( if N = zero then fail else R = flip(N, pos_inf) ).
 pos_inf * neg_inf = neg_inf.
 pos_inf * num(N)  = R :- ( if N = zero then fail else R = flip(N, pos_inf) ).
 pos_inf * pos_inf = pos_inf.
-
 
 neg_inf / neg_inf = _ :- fail.
 neg_inf / num(N)  = R :- ( if N = zero then fail else R = flip(N, neg_inf) ).
@@ -138,7 +155,6 @@ pos_inf < neg_inf :- fail.
 pos_inf < num(_) :- fail.
 pos_inf < neg_inf :- fail.
 
-
 neg_inf =< neg_inf.
 neg_inf =< num(_).
 neg_inf =< pos_inf.
@@ -149,9 +165,7 @@ pos_inf =< neg_inf :- fail.
 pos_inf =< num(_) :- fail.
 pos_inf =< neg_inf.
 
-
 N > M :- M `inf.'<'` N.
-
 
 N >= M :- M `inf.'=<'` N.
 
