@@ -25,7 +25,6 @@
 
 :- implementation.
 
-:- import_module arithmetic.
 :- import_module arithmetic.impl.
 :- import_module bool.
 :- import_module exception.
@@ -38,12 +37,17 @@
 
 %-----------------------------------------------------------------------------%
 
+:- func n(float) = num(float).
+
+n(F) = number_from_float(F).
+
+
 test_ntg(!IO) :-
     In = (pred(Val::in, Cat::in) is det :-
-        if Val `in` Cat then true else throw({Val, Cat})
+        if n(Val) `in` Cat then true else throw({Val, Cat})
     ),
     NotIn = (pred(Val::in, Cat::in) is det :-
-        if Val `not_in` Cat then true else throw({Val, Cat})
+        if n(Val) `not_in` Cat then true else throw({Val, Cat})
     ),
     In(   -100.0,   very_far_infront),
     In(     -9.0,   very_far_infront),
@@ -109,20 +113,20 @@ test_ntg(!IO) :-
     In(      9.0,    very_far_behind),
     In(     10.0,    very_far_behind),
     In(    100.0,    very_far_behind),
-    ( if -0.7 `in_all` [very_close_infront, side_by_side]
+    ( if n(-0.7) `in_all` [very_close_infront, side_by_side]
       then true else throw({"in_all", -0.7}) ),
-    ( if 0.0 `in_any` [very_close_infront, side_by_side, very_close_behind]
+    ( if n(0.0) `in_any` [very_close_infront, side_by_side, very_close_behind]
       then true else throw({"in_any", 0.0}) ),
-    ( if 0.0 `in_none` [very_close_infront, very_close_behind]
+    ( if n(0.0) `in_none` [very_close_infront, very_close_behind]
       then true else throw({"in_none", 0.0}) ),
     true.
 
 test_ttc(!IO) :-
     In = (pred(Val::in, Cat::in) is det :-
-        if Val `in` Cat then true else throw({Val, Cat})
+        if n(Val) `in` Cat then true else throw({Val, Cat})
     ),
     NotIn = (pred(Val::in, Cat::in) is det :-
-        if Val `not_in` Cat then true else throw({Val, Cat})
+        if n(Val) `not_in` Cat then true else throw({Val, Cat})
     ),
     In(   -100.0,   expanding_slowly),
     In(    -15.0,   expanding_slowly),

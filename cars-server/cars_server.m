@@ -43,7 +43,7 @@
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module arithmetic.
+:- use_module arithmetic.
 :- import_module arithmetic.impl.
 :- use_module visual.
 
@@ -152,15 +152,15 @@ accept_connections(ServerSocket, Areas, !IO) :-
     %Prog = (cruise(b) // overtake(h, b)),% `with_type` prog(prim),
     %Handler = visual.visualize(Areas),
     Prog = tailgate(h, d) `with_type` rstc.prog(float),
-    Handler = (pred(I::in, s_state(conf(P, S), Phase)::in, !.SubIO::di, !:SubIO::uo) is det :-
+    Handler = (pred(I::in, s_state(conf(_P, S), Phase)::in, !.SubIO::di, !:SubIO::uo) is det :-
         write(Phase, !SubIO), nl(!SubIO),
         ( if S = do(A, _) then write(A, !SubIO), nl(!SubIO) else true ),
         %write(S, !SubIO), nl(!SubIO),
-        format("  start = %f\n", [f(start(S))], !SubIO),
-        ( if NTG1 = ntg(d,h,S) then format("  ntg(d,h) = %f\n", [f(NTG1)], !SubIO) else true ),
-        ( if NTG2 = ntg(h,d,S) then format("  ntg(h,d) = %f\n", [f(NTG2)], !SubIO) else true ),
-        ( if TTC1 = ttc(d,h,S) then format("  ttc(d,h) = %f\n", [f(TTC1)], !SubIO) else true ),
-        ( if TTC2 = ttc(h,d,S) then format("  ttc(h,d) = %f\n", [f(TTC2)], !SubIO) else true ),
+        format("  start = %s\n", [s(if Start = start(S) then string(Start) else "undef")], !SubIO),
+        ( if NTG1 = ntg(d,h,S) then format("  ntg(d,h) = %s\n", [s(string(NTG1))], !SubIO) else true ),
+        ( if NTG2 = ntg(h,d,S) then format("  ntg(h,d) = %s\n", [s(string(NTG2))], !SubIO) else true ),
+        ( if TTC1 = ttc(d,h,S) then format("  ttc(d,h) = %s\n", [s(string(TTC1))], !SubIO) else true ),
+        ( if TTC2 = ttc(h,d,S) then format("  ttc(h,d) = %s\n", [s(string(TTC2))], !SubIO) else true ),
         %write(P, !SubIO), nl(!SubIO),
         format("  %f =< p_%d =< %f\n", [f(min_confidence(Source)), i(I), f(max_confidence(Source))], !SubIO)
     ),

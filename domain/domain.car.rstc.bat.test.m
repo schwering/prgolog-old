@@ -25,7 +25,6 @@
 
 :- implementation.
 
-:- import_module arithmetic.
 :- import_module arithmetic.impl.
 :- import_module exception.
 :- import_module maybe.
@@ -60,9 +59,10 @@
 ").
 
 :- pred check(
-    func(agent, agent, rstc.sit(float)) = float,
+    func(agent, agent, rstc.sit(float)) = num(N),
     pred(category),
-    string, agent, agent, rstc.sit(float), io, io).
+    string, agent, agent, rstc.sit(float), io, io)
+    <= arithmetic.arithmetic(N).
 :- mode check(
     func(in, in, in) = out is semidet,
     pred(out) is multi,
@@ -73,15 +73,18 @@
     in, in, in, in, di, uo) is det.
 
 check(F, P, Name, B, C, S, !IO) :-
-    ( if Tmp1 = F(B, C, S) then Maybe = yes(Tmp1) else Maybe = no ),
+    some [Tmp] ( if Tmp = start(S) then Start = string(Tmp) else Start = "undef" ),
+    some [Tmp] ( if Tmp = F(B, C, S) then Maybe = yes(Tmp) else Maybe = no ),
     solutions((pred(Cat::out) is nondet :-
-        Maybe = yes(Tmp2),
-        P(Cat),
-        Tmp2 `in` Cat
+        some [Tmp] (
+            Maybe = yes(Tmp),
+            P(Cat),
+            Tmp `in` Cat
+        )
     ), CatList),
-    format("%6.3f: %s(%s, %s) = ",
-        [f(start(S)), s(Name), s(agent_to_string(B)), s(agent_to_string(C))], !IO),
-    ( if Maybe = yes(Tmp3) then format("%6.3f", [f(Tmp3)], !IO) else write_string("undef", !IO) ),
+    format("%6.3s: %s(%s, %s) = ",
+        [s(Start), s(Name), s(agent_to_string(B)), s(agent_to_string(C))], !IO),
+    ( if Maybe = yes(Tmp3) then format("%6.3s", [s(string(Tmp3))], !IO) else write_string("undef", !IO) ),
     write_string(" in ", !IO),
     write(CatList, !IO),
     nl(!IO),
