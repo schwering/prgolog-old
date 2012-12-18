@@ -20,7 +20,15 @@
 
 %-----------------------------------------------------------------------------%
 
+:- pragma obsolete(remove_obs_sequence/1).
 :- func remove_obs_sequence(prog(A)) = prog(A) is semidet <= obs_bat(A, O).
+
+    % Does not substitute anything in called procedures!
+:- func map_prog(pred(prog(A), prog(A)), prog(A)) = prog(A) <= obs_bat(A, O).
+:- mode map_prog(pred(in, out) is semidet, in) = out is det.
+
+    % Does not substitute observations in called procedures!
+:- func subst_obs(prog(A), prog(A)) = prog(A) is det <= obs_bat(A, O).
 
 :- func last_obs(sit(A)) = A is semidet <= obs_bat(A, O).
 
@@ -74,12 +82,37 @@ append_obs_to_most_right(pseudo_atom(PA1), PA2) =
     seq(pseudo_atom(PA1), pseudo_atom(PA2)) :- is_obs_prog(PA1).
 
 
+    % This is broken!!!
+    % It fails for the program seq(nil, conc(nil, nil))
+    % because of the seq(nil, _) part.
 remove_obs_sequence(conc(P1, P2)) = Q :-
     if          only_obs_actions(P2)
     then        Q = P1
     else if     only_obs_actions(P1)
     then        Q = P2
     else        false.
+
+
+map_prog(Pred, P) = Q :-
+    if Pred(P, Q1) then Q = Q1 else
+    (   P = seq(P1, P2),     Q = seq(map_prog(Pred, P1),
+                                     map_prog(Pred, P2))
+    ;   P = non_det(P1, P2), Q = non_det(map_prog(Pred, P1),
+                                         map_prog(Pred, P2))
+    ;   P = conc(P1, P2),    Q = conc(map_prog(Pred, P1),
+                                      map_prog(Pred, P2))
+    ;   P = star(P1),        Q = star(map_prog(Pred, P1))
+    ;   P = proc(_),         Q = P
+    ;   P = pseudo_atom(_),  Q = P
+    ;   P = nil,             Q = P
+    ).
+    
+
+subst_obs(New, P) = map_prog(Pred, P) :-
+    Pred = (pred(pseudo_atom(PA)::in, New1::out) is semidet :-
+        is_obs_prog(PA),
+        New1 = New
+    ).
 
 
 :- pred only_obs_actions(prog(A)::in) is semidet <= obs_bat(A, O).

@@ -43,11 +43,13 @@
 :- mode ntg_cat(out(ntg)) is multi.
 :- mode ntg_cat(in(ntg)) is det.
 :- mode ntg_cat(in(ttc)) is failure.
+:- mode ntg_cat(in) is semidet.
 
 :- pred ttc_cat(category).
 :- mode ttc_cat(out(ttc)) is multi.
 :- mode ttc_cat(in(ttc)) is det.
 :- mode ttc_cat(in(ntg)) is failure.
+:- mode ttc_cat(in) is semidet.
 
 %-----------------------------------------------------------------------------%
 

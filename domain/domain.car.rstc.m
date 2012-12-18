@@ -38,7 +38,10 @@
     ;       init_env(env)
     ;       match(obs)
     ;       seed(int)
-    ;       abort.
+    ;       abort
+    ;       start(agent, string)
+    ;       end(agent, string).
+
 :- inst wait ---> wait(ground).
 :- inst accel ---> accel(ground, ground).
 :- inst lc ---> lc(ground, ground).
@@ -48,6 +51,9 @@
 :- inst match ---> match(ground).
 :- inst seed ---> seed(ground).
 :- inst abort ---> abort.
+:- inst start ---> start(ground, ground).
+:- inst end ---> end(ground, ground).
+
 :- inst finite_time_action
     --->    wait(basic_num)
     ;       accel(ground, basic_num) % XXX really?
@@ -57,7 +63,9 @@
     ;       init_env(ground)
     ;       match(ground)
     ;       seed(ground)
-    ;       abort.
+    ;       abort
+    ;       start(ground, ground)
+    ;       end(ground, ground).
 
 :- inst finite_time_sit ---> s0 ; do(finite_time_action, finite_time_sit).
 
@@ -113,6 +121,12 @@
 :- import_module math.
 :- import_module prgolog.nice.
 :- import_module solutions.
+
+%-----------------------------------------------------------------------------%
+
+:- pragma memo(ntg/3, [allow_reset, fast_loose]). 
+:- pragma memo(ttc/3, [allow_reset, fast_loose]). 
+:- pragma memo(lane/2, [allow_reset, fast_loose]). 
 
 %-----------------------------------------------------------------------------%
 
@@ -188,12 +202,12 @@ ttc(B, D, do(A, S)) = R :-
                 ntg(B, D, S) \= zero,
                 ttc(B, D, S) \= zero
             then
-                Q \= one - ntg(B, D, S) / ttc(B, D, S),
+                %Q \= one - ntg(B, D, S) / ttc(B, D, S),
                 R = one / ((Q - one) * ttc(B, D, S) / ntg(B, D, S) + one)
                     * ttc(B, D, S)
             else
                 C = transitive_car(B, D, S),
-                Q \= one - ntg(B, C, S) / ttc(B, C, S),
+                %Q \= one - ntg(B, C, S) / ttc(B, C, S),
                 TTC_BC = one / ((Q - one) * ttc(B, C, S) / ntg(B, C, S) + one)
                     * ttc(B, C, S),
                 R1 = (ttc(C, D, S) * ntg(B, C, S))
@@ -210,12 +224,12 @@ ttc(B, D, do(A, S)) = R :-
                 ntg(B, D, S) \= zero,
                 ttc(B, D, S) \= zero
             then
-                Q \= one / (one - ntg(B, D, S) / ttc(B, D, S)),
+                %Q \= one / (one - ntg(B, D, S) / ttc(B, D, S)),
                 R = one / ((one - Q) * ttc(B, D, S) / ntg(B, D, S) + Q)
                     * ttc(B, D, S)
             else
                 C = transitive_car(B, D, S),
-                Q \= one / (one - ntg(C, D, S) / ttc(C, D, S)),
+                %Q \= one / (one - ntg(C, D, S) / ttc(C, D, S)),
                 NTG_CD = one / Q * ntg(C, D, S),
                 TTC_CD = one / ((one - Q) * ttc(C, D, S) / ntg(C, D, S) + Q)
                     * ttc(C, D, S),
