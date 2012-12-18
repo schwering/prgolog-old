@@ -205,6 +205,8 @@ final(conc(P1, P2)) :-
     final(P1),
     final(P2).
 final(star(_)).
+final(proc(N)) :-
+    final(apply(N)).
 final(pseudo_atom(_)) :-
     false.
 final(nil).
