@@ -46,7 +46,7 @@
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_decl("C", "
-    #include ""car-obs-torcs-types.h""
+    #include ""domain-car-obs-torcs-types.h""
     #include <assert.h>
     #include <pthread.h>
     #include <stdarg.h>

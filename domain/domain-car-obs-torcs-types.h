@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
  *
- * File: car-obs-torcs-types.h.
+ * File: domain-car-obs-torcs-types.h.
  * Main author: schwering.
  *
  * Low-level types for observations from TORCS for the continuous car domain.

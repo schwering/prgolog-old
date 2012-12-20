@@ -42,9 +42,17 @@
 :- pred new_source(source::uo, io::di, io::uo) is det.
 :- pred reset_all_sources(io::di, io::uo) is det.
 
-:- func min_confidence(source::in) = (float::out) is det.
-:- func max_confidence(source::in) = (float::out) is det.
-:- func confidences(source::in) = ({float, float}::out) is det.
+:- func min_confidence(source) = float.
+:- mode min_confidence(ui) = out is det.
+:- mode min_confidence(in) = out is det.
+
+:- func max_confidence(source) = float.
+:- mode max_confidence(ui) = out is det.
+:- mode max_confidence(in) = out is det.
+
+:- func confidences(source) = {float, float}.
+:- mode confidences(ui) = out is det.
+:- mode confidences(in) = out is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -68,7 +76,7 @@
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_decl("C", "
-    #include ""car-obs-torcs-types.h""
+    #include ""domain-car-obs-torcs-types.h""
     #include <mercury_string.h>
     #include <mercury_tags.h>
 
@@ -304,7 +312,7 @@ reset_obs_source(s(Source), !IO) :- reset_obs_source_2(Source, !IO).
 confidences(Source) = {min_confidence(Source), max_confidence(Source)}.
 
 
-max_confidence(s(Source)) = max_confidence_2(Source).
+max_confidence(Source) = max_confidence_2(I) :- copy(Source, s(I)).
 
 
 :- func max_confidence_2(int::in) = (float::out) is det.
@@ -317,7 +325,7 @@ max_confidence(s(Source)) = max_confidence_2(Source).
 ").
 
 
-min_confidence(s(Source)) = min_confidence_2(Source).
+min_confidence(Source) = min_confidence_2(I) :- copy(Source, s(I)).
 
 
 :- func min_confidence_2(int::in) = (float::out) is det.
@@ -370,7 +378,6 @@ next_obs(ObsMsg, S, P, ss(Source, Stream, I0), State1, !IO) :-
     ;
         Ok = no,
         ObsMsg = end_of_obs
-        ,write_string("END_OF_OBS!!! END_OF_OBS!!! END_OF_OBS!!! END_OF_OBS!!! END_OF_OBS!!!\n", !IO)
     ),
     copy(ss(Source, Stream, I1), State1).
 

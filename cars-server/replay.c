@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <car-obs-torcs-types.h>
+#include <domain-car-obs-torcs-types.h>
 
 #define HOST "localhost"
 #define PORT 19123

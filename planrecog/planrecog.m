@@ -132,7 +132,6 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         !.Phase \= finishing,
         obs_count_in_prog(P) < lookahead(S)
     then
-        format("Getting next observation %d < %d\n", [i(obs_count_in_prog(P)), i(lookahead(S))], !IO),
         Continue = yes,
         next_obs(ObsMsg, S, P, !ObsStreamState, !IO),
         P2 = ( if ObsMsg = obs_msg(Obs) then append_obs(P, Obs) else P ),
@@ -142,11 +141,6 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         final(subst_obs(nil, P), S),
         last_action_covered_by_obs(S)
     then
-        format("Finished because final and covered\n", [], !IO),
-        write(P, !IO), nl(!IO),
-        foldr((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
-            write_string("   ", !SubIO), write(A, !SubIO), nl(!SubIO)
-        ), reverse(sit2list(S)), !.IO, !:IO),
         Continue = no,
         P2 = P,
         S2 = S,
@@ -154,23 +148,11 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
     else if
         trans(P, S, P1, S1)
     then
-        ( if S1 = do(_, S) then
-            format("Executed primitive action of program\n", [], !IO)
-          else
-            format("Executed test action of program\n", [], !IO)
-        ),
         Continue = yes,
         P2 = P1,
         S2 = S1,
         !:Phase = !.Phase
     else
-        format("Failure\n", [], !IO),
-        PX = subst_obs(nil, P), ( if final(PX, S) then write_string("Final: ", !IO), write(PX, !IO), nl(!IO) else write_string("Not final: ", !IO), write(PX, !IO), nl(!IO) ),
-        ( if last_action_covered_by_obs(S) then format("last action covered by observation\n", [], !IO) else format("last action covered by observation\n", [], !IO) ),
-        write(P, !IO), nl(!IO),
-        foldr((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
-            write_string("   ", !SubIO), write(A, !SubIO), nl(!SubIO)
-        ), reverse(sit2list(S)), !.IO, !:IO),
         Continue = no,
         P2 = P,
         S2 = S,
@@ -297,13 +279,6 @@ online_planrecog(ThreadCount, Source, Vars, Handler, Prog, !IO) :-
 wait_for_planrecog_finish(Source, Vars, !IO) :-
     mark_obs_end(Source, !IO),
     take_vars(Vars, _, !IO).
-
-%-----------------------------------------------------------------------------%
-
-:- func sit2list(sit(A)) = list(A) is det.
-
-sit2list(s0) = [].
-sit2list(do(A, S)) = [A|sit2list(S)].
 
 %-----------------------------------------------------------------------------%
 :- end_module planrecog.

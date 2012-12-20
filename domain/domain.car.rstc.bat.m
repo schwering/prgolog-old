@@ -109,18 +109,22 @@ basify(F) = ( func(S) = X is semidet :- num(X) = F(S) ).
 %-----------------------------------------------------------------------------%
 
 follow(B, Victim) = P :-
-    P = t(r((pred(S::in) is semidet :-
-            lane(B, S) = lane(Victim, S)
-        ))) `;`
-        t(r((pred(S::in) is semidet :-
-            ntg(B, Victim, S) `in` close_behind
-        ))) `;`
-        b(accelf(B, rel_v(Victim, B))).
+    P = atomic(
+            a(start(B, $pred)) `;`
+            t(r((pred(S::in) is semidet :-
+                lane(B, S) = lane(Victim, S)
+            ))) `;`
+            t(r((pred(S::in) is semidet :-
+                ntg(B, Victim, S) `in` close_behind
+            ))) `;`
+            b(accelf(B, rel_v(Victim, B)))
+        ) `;`
+        a(end(B, $pred)).
 
 
 tailgate(B, Victim) = P :-
     P = atomic(
-            a(start(B, "tailgate")) `;`
+            a(start(B, $pred)) `;`
             t(r((pred(S::in) is semidet :-
                 lane(B, S) = lane(Victim, S)
             ))) `;`
@@ -129,7 +133,7 @@ tailgate(B, Victim) = P :-
             ))) `;`
             b(accelf(B, rel_v(Victim, B)))
         ) `;`
-        a(end(B, "tailgate")).
+        a(end(B, $pred)).
 
 
 overtake(B, Victim) = P :-
