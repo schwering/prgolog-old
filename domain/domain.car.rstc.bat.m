@@ -288,6 +288,25 @@ have_common_cat(P, V1, V2) :-
     V1 `in` Cat,
     V2 `in` Cat.
 
+    % When two cars have the same speed, TTC is +/-inf.
+    % In practice, though, they never have the same speed but continuously
+    % balance their speeds. That is, sometimes v(B) >= v(C) and sometimes
+    % v(B) =< v(C).
+    % This leads to oscillation of TTC: sometimes its +X, then again -X
+    % for some really big number X.
+    %
+    % Problem: our internal model doesn't reflect these oscillations.
+    % In fact, it's a weakness of the TTC metric, I guess.
+    %
+    % To deal with this effect, we allow the model's TTC and the observed
+    % TTC to fall into different categories, as long as (= if!) the
+    % relative velocity delta does not exceed the value defined by this
+    % function:
+    %
+:- func max_veloc_discrepancy_to_ignore_ttc = float.
+
+max_veloc_discrepancy_to_ignore_ttc = 0.1.
+
 
 :- pred match_info(pair(agent, info)::in, pair(agent, info)::in,
                    rstc.sit(N)::in) is semidet <= arithmetic.arithmetic(N).
@@ -307,9 +326,9 @@ match_info(PB, PC, S) :-
                         ntgs(PB, PC, S, NTG1, NTG2),
                         RelV1 = one - NTG1 / TTC1,
                         RelV2 = one - NTG2 / TTC2,
-                        Eps = number_from_float(0.02),
-                        abs(RelV1 - one) =< Eps,
-                        abs(RelV2 - one) =< Eps
+                        Eps = max_veloc_discrepancy_to_ignore_ttc,
+                        abs(RelV1 - one) =< number_from_float(Eps),
+                        abs(RelV2 - one) =< number_from_float(Eps)
                     )
                 )
         else    true
