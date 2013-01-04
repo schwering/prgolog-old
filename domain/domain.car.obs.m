@@ -101,6 +101,8 @@ map_prog(Pred, P) = Q :-
                                          map_prog(Pred, P2))
     ;   P = conc(P1, P2),    Q = conc(map_prog(Pred, P1),
                                       map_prog(Pred, P2))
+    ;   P = pick(F, X0, P1), Q = 'new pick'(F, X0,
+                                            func(X) = map_prog(Pred, P1(X)))
     ;   P = star(P1),        Q = star(map_prog(Pred, P1))
     ;   P = proc(_),         Q = P
     ;   P = pseudo_atom(_),  Q = P
@@ -146,6 +148,7 @@ append_obs(P, O) = P2 :-
 obs_count_in_prog(seq(P1, P2)) = obs_count_in_prog(P1) + obs_count_in_prog(P2).
 obs_count_in_prog(non_det(P1, P2)) = min(obs_count_in_prog(P1), obs_count_in_prog(P2)).
 obs_count_in_prog(conc(P1, P2)) = obs_count_in_prog(P1) + obs_count_in_prog(P2).
+obs_count_in_prog(pick(_, _, _)) = 0.
 obs_count_in_prog(star(_)) = 0.
 obs_count_in_prog(proc(_)) = 0.
 obs_count_in_prog(nil) = 0.

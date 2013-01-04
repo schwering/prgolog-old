@@ -82,9 +82,9 @@ check(F, P, Name, B, C, S, !IO) :-
             Tmp `in` Cat
         )
     ), CatList),
-    format("%6.3s: %s(%s, %s) = ",
+    format("%s: %s(%s, %s) = ",
         [s(Start), s(Name), s(agent_to_string(B)), s(agent_to_string(C))], !IO),
-    ( if Maybe = yes(Tmp3) then format("%6.3s", [s(string(Tmp3))], !IO) else write_string("undef", !IO) ),
+    ( if Maybe = yes(Tmp3) then format("%s", [s(string(Tmp3))], !IO) else write_string("undef", !IO) ),
     write_string(" in ", !IO),
     write(CatList, !IO),
     nl(!IO),
@@ -106,9 +106,9 @@ test_loop(Kind, !SS, !IO) :-
         ),
         S = do(init_env(Env), s0) `with_type` rstc.sit(float),
         (   Kind = ntg,
-            check(ntg, (pred(Cat::out) is nondet :- ntg_cat(Cat)), "NTG", h, b, S, !IO)
+            check(ntg, (pred(Cat::out) is nondet :- ntg_cat(Cat)), "NTG", h, d, S, !IO)
         ;   Kind = ttc,
-            check(ttc, (pred(Cat::out) is nondet :- ttc_cat(Cat)), "TTC", h, b, S, !IO)
+            check(ttc, (pred(Cat::out) is nondet :- ttc_cat(Cat)), "TTC", h, d, S, !IO)
         ),
         test_loop(Kind, !SS, !IO)
     ;   Msg = end_of_obs

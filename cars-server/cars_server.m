@@ -213,7 +213,8 @@ accept_connections(ServerSocket, Areas, !IO) :-
     %Prog = (cruise(b) // overtake(h, b)),% `with_type` prog(prim),
     %Handler = visual.visualize(Areas),
     Progs = [ tailgate(h, d)
-            , follow(h, d)] `with_type` list(rstc.prog(float)),
+            , follow(h, d)
+            ] `with_type` list(rstc.prog(float)),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,
                  Sources1::in, [Source|Sources1]::out,
@@ -230,6 +231,7 @@ accept_connections(ServerSocket, Areas, !IO) :-
     ), Sources, Varss, !IO),
     finalize_connection(Socket, !IO),
     reset_all_sources(!IO),
+    print_stats(!IO),
     accept_connections(ServerSocket, Areas, !IO).
 
 %-----------------------------------------------------------------------------%

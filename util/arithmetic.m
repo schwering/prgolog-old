@@ -19,10 +19,8 @@
 
 :- interface.
 
-:- use_module prgolog.
-:- use_module prgolog.ccfluent.
-:- use_module rat.
-:- use_module rational.
+:- import_module list.
+:- import_module solutions.
 
 :- typeclass arithmetic(N) where [
     func zero = N,
@@ -95,6 +93,23 @@
 :- pred bin_search(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
 :- mode bin_search(in(func(in) = out is det), in, in, in, out) is semidet.
 :- mode bin_search(in(func(in) = out is semidet), in, in, in, out) is semidet.
+
+%-----------------------------------------------------------------------------%
+
+:- func min(N, N) = N <= arithmetic(N).
+:- func max(N, N) = N <= arithmetic(N).
+
+:- func optimize(func(N, N) = N, pred(T), func(T) = N) = N <= arithmetic(N).
+:- mode optimize(in, in(pred(out) is nondet), in) = out is semidet.
+:- mode optimize(in, in(pred(out) is multi), in) = out is det.
+
+:- func minimize(pred(T), func(T) = N) = N <= arithmetic(N).
+:- mode minimize(in(pred(out) is nondet), in) = out is semidet.
+:- mode minimize(in(pred(out) is multi), in) = out is det.
+
+:- func maximize(pred(T), func(T) = N) = N <= arithmetic(N).
+:- mode maximize(in(pred(out) is nondet), in) = out is semidet.
+:- mode maximize(in(pred(out) is multi), in) = out is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -210,6 +225,19 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
         else /* if F(XMid) > YGoal */
             bin_search_2(F, XMin, XMid, YGoal, X)
     ).
+
+
+min(X, Y) = ( if X < Y then X else Y ).
+max(X, Y) = ( if X > Y then X else Y ).
+
+
+maximize(P, F) = optimize(max, P, F).
+
+minimize(P, F) = optimize(min, P, F).
+
+optimize(O, P, F) = Y :-
+    [X|Xs] = solutions(P),
+    Y = foldl(func(X1, X2) = O(F(X1), X2), Xs, F(X)).
 
 %-----------------------------------------------------------------------------%
 :- end_module arithmetic.

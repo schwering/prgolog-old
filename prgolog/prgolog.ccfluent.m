@@ -33,6 +33,7 @@
 
 :- import_module assoc_list.
 :- use_module osi.
+:- import_module list.
 :- use_module term.
 :- use_module varset.
 
@@ -155,14 +156,14 @@ variable(V) = t([mult(1.0, V)]).
 
 %-----------------------------------------------------------------------------%
 
-C1 * t(SL) = t(map((func(Summand) = Summand1 :-
+C1 * t(SL) = t(list.map((func(Summand) = Summand1 :-
         (   Summand = const(C2),   Summand1 = const(C1 * C2)
         ;   Summand = mult(C2, V), Summand1 = mult(C1 * C2, V) )
     ), SL)).
 
 + T = T.
 
-- t(SL) = t(map((func(Summand) = Summand1 :-
+- t(SL) = t(list.map((func(Summand) = Summand1 :-
         (   Summand = const(C),   Summand1 = const(-1.0 * C)
         ;   Summand = mult(C, V), Summand1 = mult(-1.0 * C, V) )
     ), SL)).
@@ -231,7 +232,7 @@ solve(Vargen, Constraints, Obj, Map, Val) :-
 
 variables(vargen(VS)) = varset.vars(VS).
 
-variable_sum(vargen(VS)) = t(map((func(V) = mult(1.0, V)), varset.vars(VS))).
+variable_sum(vargen(VS)) = t(list.map((func(V) = mult(1.0, V)), varset.vars(VS))).
 
 eval(_, t([])) = 0.0.
 eval(M, t([const(C) | Ts])) = C + eval(M, t(Ts)).

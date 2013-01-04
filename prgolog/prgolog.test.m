@@ -39,7 +39,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type prim ---> a ; b ; c ; d ; e ; impossible.
+:- type prim ---> a ; b ; c ; d ; e ; e2 ; impossible.
 
 :- instance bat(prim) where [
     poss(A, _) :- A \= impossible,
@@ -50,6 +50,7 @@
         ;   A = c, R = 2.0
         ;   A = d, R = 3.0
         ;   A = e, R = 4.0
+        ;   A = e2, R = 4.0
         ;   A = impossible, R = 0.0
         ),
     lookahead(_) = 3
@@ -79,12 +80,14 @@ test_next(!IO) :-
         [Decomp(a, (nil `;` a(b)) `;` star(a(a) `;` a(b)))] }
     ] `with_type` list({prog(prim), _}),
     Test = (pred(P::in, Exp::in, Succ::out) is det :-
-        Ds = next(P),
+        T = next(P),
+        S = s0,
+        Ds = tree.tree_to_list(tree.force(pickbest(S), T)),
         sort(Ds, Ds1),
         sort(Exp, Exp1),
         ( if Ds1 = Exp1 then Succ = yes else throw({Ds, Exp}) )
     ),
-    foldl((func({P, Exp}, M) = N :-
+    list.foldl((func({P, Exp}, M) = N :-
         Test(P, Exp, Succ),
         N = M + ( if Succ = yes then 1 else 0 )
     ), Inputs, 0) = _Successes,
@@ -118,12 +121,14 @@ test_next2(!IO) :-
         [Decomp(a, (nil `;` a(b)) `;` star(a(a) `;` a(b)))] }
     ] `with_type` list({prog(prim), _}),
     Test = (pred(P::in, Exp::in, Succ::out) is det :-
-        Ds = next2(P),
+        T = next2(P),
+        S = s0,
+        Ds = tree.tree_to_list(tree.force(pickbest(S), T)),
         sort(Ds, Ds1),
         sort(Exp, Exp1),
         ( if Ds1 = Exp1 then Succ = yes else throw({Ds, Exp}) )
     ),
-    foldl((func({P, Exp}, M) = N :-
+    list.foldl((func({P, Exp}, M) = N :-
         Test(P, Exp, Succ),
         N = M + ( if Succ = yes then 1 else 0 )
     ), Inputs, 0) = _Successes,
@@ -259,6 +264,10 @@ test_trans(!IO) :-
     ),
     some [P] (
         P = (a(e) or a(d) or a(c) or a(b) or a(a) or a(impossible)) `with_type` prog(prim),
+        ( if trans(P, s0, nil, do(e, s0)) then true else throw(P) )
+    ),
+    some [P] (
+        P = (a(e2) or a(e) or a(d) or a(c) or a(b) or a(a) or a(impossible)) `with_type` prog(prim),
         ( if trans(P, s0, nil, do(e, s0)) then true else throw(P) )
     ),
     true.

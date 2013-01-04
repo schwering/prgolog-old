@@ -1,7 +1,7 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
-% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2011-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
 % File: prgolog.m.
@@ -95,12 +95,16 @@
 
 :- type reward == float.
 :- type lookahead == int.
+:- type value.
 
 :- type funfluent(A, R) == (func(sit(A)) = R).
 :- type relfluent(A) == funfluent(A, bool.bool).
 
 :- type proc(A) == ((func) = prog(A)).
 :- type primf(A) == (func(sit(A)) = A).
+
+:- type picksucc(A, T) == (func(T, value) = T).
+:- type pickprog(A, T) == (func(T) = prog(A)).
 
 :- type atom(A)
     --->    prim(A)
@@ -116,6 +120,7 @@
     ;       non_det(prog(A), prog(A))
     ;       conc(prog(A), prog(A))
     ;       star(prog(A))
+    ;       some [T] ( pick(picksucc(A, T), T, pickprog(A, T)) )
     ;       proc(proc(A))
     ;       pseudo_atom(pseudo_atom(A))
     ;       nil.
@@ -146,6 +151,11 @@
 
 %-----------------------------------------------------------------------------%
 
+:- pred value > value.
+:- mode in > in is semidet.
+
+%-----------------------------------------------------------------------------%
+
 :- include_module ccfluent.
 :- include_module fluent.
 :- include_module nice.
@@ -158,41 +168,53 @@
 
 :- import_module float.
 :- import_module int.
-:- import_module list.
-:- import_module maybe.
-:- import_module solutions.
+:- use_module lazy.
+:- use_module tree.
 
 %-----------------------------------------------------------------------------%
+
+:- type value == {reward, lookahead}.
 
 :- type pseudo_decomp(A) ---> pseudo_decomp(pseudo_atom(A), prog(A)).
 :- type decomp(A) ---> decomp(atom(A), prog(A)).
 
+:- type pickspec(A) ---> some [T] pickspec(picksucc(A, T), T, pickprog(A, T)).
+:- type pickbest(A) == (func(pickspec(A)) = prog(A)).
+:- type tree(A, T) == tree.tree(T, pickbest(A)).
+
 %-----------------------------------------------------------------------------%
 
-:- func next(prog(A)) = list(pseudo_decomp(A)) <= bat(A).
+:- func next(prog(A)) = tree(A, pseudo_decomp(A)) <= bat(A).
 :- mode next(in) = out is det.
-:- mode next(in) = in is semidet.
 
 next(seq(P1, P2)) =
-    ( if final(P1) then next(P2) else [] ) ++
-    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, P2)), next(P1)).
+    tree.branch(
+        ( if final(P1) then next(P2) else tree.empty ),
+        tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, P2)),
+                 next(P1))).
 next(non_det(P1, P2)) =
-    next(P1) ++ next(P2).
+    tree.branch(next(P1), next(P2)).
 next(conc(P1, P2)) =
-    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)), next(P2)) ++
-    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(R, P2)), next(P1)).
+    tree.branch(
+        tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)),
+                 next(P2)),
+        tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(R, P2)),
+                 next(P1))).
+next(pick(F, X0, P)) =
+    tree.lazy(func(PickBest) = next(PickBest('new pickspec'(F, X0, P)))).
 next(star(P)) =
-    map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, star(P))), next(P)).
+    tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, star(P))),
+             next(P)).
 next(proc(N)) =
     next(apply(N)).
 next(pseudo_atom(C)) =
-    [pseudo_decomp(C, nil)].
+    tree.value(pseudo_decomp(C, nil)).
 next(nil) =
-    [].
+    tree.empty.
 
 %-----------------------------------------------------------------------------%
 
-:- pred final(prog(A)) <= bat(A).
+:- pred final(prog(A)).
 :- mode final(in) is semidet.
 
 final(seq(P1, P2)) :-
@@ -204,27 +226,30 @@ final(non_det(P1, P2)) :-
 final(conc(P1, P2)) :-
     final(P1),
     final(P2).
+final(pick(_, X0, P)) :-
+    final(P(X0)).
 final(star(_)).
 final(proc(N)) :-
     final(apply(N)).
-final(pseudo_atom(_)) :-
+final(pseudo_atom(atom(_))) :-
     false.
+final(pseudo_atom(complex(P))) :-
+    final(P).
 final(nil).
 
 %-----------------------------------------------------------------------------%
 
-:- func next2(prog(A)) = list(decomp(A)) <= bat(A).
+:- func next2(prog(A)) = tree(A, decomp(A)) <= bat(A).
 :- mode next2(in) = out is det.
-:- mode next2(in) = in is semidet.
 
 next2(P) =
-    foldl((func(pseudo_decomp(C, R), Ds1) = Ds ++ Ds1 :-
+    tree.mapt((func(pseudo_decomp(C, R)) = T :-
         (   C = complex(P1),
-            Ds = map(func(decomp(C1, R1)) = decomp(C1, seq(R1, R)), next2(P1))
+            T = next2(seq(P1, R))
         ;   C = atom(C1),
-            Ds = [decomp(C1, R)]
+            T = tree.value(decomp(C1, R))
         )
-    ), next(P), []).
+    ), next(P)).
 
 %-----------------------------------------------------------------------------%
 
@@ -242,28 +267,31 @@ trans_atom(test(T), S, S) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred ({reward, lookahead}::in) > ({reward, lookahead}::in) is semidet.
-
 {V1, N1} > {V2, N2} :- V1 > V2 ; V1 = V2, N1 > N2.
 
 
-:- func max({reward, lookahead}::in, {reward, lookahead}::in) =
-    ({reward, lookahead}::out) is det.
+:- func max(value, value) = value.
 
 max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
 
 
-:- func value(prog(A), sit(A), lookahead) = {reward, lookahead} <= bat(A).
+:- func value(prog(A), sit(A)) = value <= bat(A).
+:- mode value(in, in) = out is det.
+
+value(P, S) = value(P, S, lookahead(S)).
+
+
+:- func value(prog(A), sit(A), lookahead) = value <= bat(A).
 :- mode value(in, in, in) = out is det.
 
 value(P, S, L) = {V, N} :-
     if      L > 0,
-            {V2, N2} = foldl((func(decomp(C, R), VN2) = VN3 is det :-
+            {V2, N2} = tree.foldl((func(decomp(C, R), VN2) = VN3 is det :-
                 if      trans_atom(C, S, S1)
                 then    {V1, N1} = value(R, S1, L - 1),
                         VN3 = max({V1, N1 + 1}, VN2)
                 else    VN3 = VN2
-            ), next2(P), {min, min_int}),
+            ), tree.force(pickbest(S), next2(P)), {min, min_int}),
             {min, min_int} \= {V2, N2},
             ( final(P) => V2 > reward(P, S) )
     then    V = V2, N = N2
@@ -271,26 +299,33 @@ value(P, S, L) = {V, N} :-
 
 %-----------------------------------------------------------------------------%
 
+:- func fixpoint(func(T) = T, T) = T.
+
+fixpoint(F, X0) = ( if X = X0 then X else fixpoint(F, X) ) :- X = F(X0).
+
+
+:- func pickbest(sit(A), pickspec(A)) = prog(A) <= bat(A).
+
+pickbest(S, pickspec(F, X0, P)) =
+    P(fixpoint(func(X) = F(X, value(P(X), S)), X0)).
+
+%-----------------------------------------------------------------------------%
+
 trans(P, S, P1, S1) :-
-    Ds = next2(P),
-    (   if      Ds = [D]
-        then    decomp(C1, P1) = D
-        else    {decomp(C1, P1), _} = foldl(func(D, VN) = Reduce(Map(D), VN),
-                    tail(Ds), Map(head(Ds))),
-                Map = (func(D @ decomp(C, R)) = {D, VN} is det :-
-                    VN = value(seq(pseudo_atom(atom(C)), R), S, lookahead(S))
-                ),
-                Reduce = (func({D1, VN1}, {D2, VN2}) =
-                    ( if VN1 > VN2 then {D1, VN1} else {D2, VN2} )
-                )
-    ),
+    T = tree.force(pickbest(S), next2(P)),
+    tree.map_reduce(
+        func(D @ decomp(C, R)) =
+            {D, lazy.delay((func) = value(seq(pseudo_atom(atom(C)), R), S))},
+        func(X1 @ {_, VN1}, X2 @ {_, VN2}) =
+            ( if lazy.force(VN1) > lazy.force(VN2) then X1 else X2 ),
+    T) = {decomp(C1, P1), _},
     trans_atom(C1, S, S1).
 
 %-----------------------------------------------------------------------------%
 
 final(P, S) :-
     final(P),
-    {V, _} = value(P, S, lookahead(S)),
+    {V, _} = value(P, S),
     reward(P, S) >= V.
 
 %-----------------------------------------------------------------------------%

@@ -88,6 +88,7 @@
 
 %-----------------------------------------------------------------------------%
 
+/*
 :- typeclass pickable(V, T, A) where [
     func substitute(V, T, A) = A,
     mode substitute(in, in, in(I)) = out(I) is det
@@ -103,6 +104,7 @@
 :- func pick2(term.var(T), list(T), prog(A)) = prog(A) <= bat(A).
 :- mode pick2(in, in(non_empty_list), in) = out is det.
 :- mode pick2(in, in, in) = out is semidet.
+*/
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -137,6 +139,7 @@ while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
 
 %-----------------------------------------------------------------------------%
 
+/*
 :- func subst(term.var(T), T, prog(A)) = prog(A) <= bat(A).
 :- mode subst(in, in, in) = out is det.
 
@@ -181,6 +184,7 @@ replace(V, T, pseudo_atom(atom(test(G)))) =
 replace(V, T, pseudo_atom(complex(P))) =
     pseudo_atom(complex(replace(V, T, P))).
 replace(_, _, nil) = nil.
+*/
 
 %-----------------------------------------------------------------------------%
 :- end_module prgolog.nice.

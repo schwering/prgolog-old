@@ -17,6 +17,25 @@
 
 %-----------------------------------------------------------------------------%
 
+:- func rel_v(agent, agent, rstc.sit(N)) = scale(N) <= arithmetic.arithmetic(N).
+:- mode rel_v(in, in, in) = out is semidet.
+
+:- pred opposite_direction(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic.arithmetic(N).
+
+:- pred same_direction(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic.arithmetic(N).
+
+:- pred slower(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic.arithmetic(N).
+
+:- pred faster(agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= arithmetic.arithmetic(N).
+
+%-----------------------------------------------------------------------------%
+
+%-----------------------------------------------------------------------------%
+
 :- func follow(agent, agent) `with_type` rstc.proc(N)
     <= arithmetic.arithmetic(N).
 
@@ -24,6 +43,9 @@
     <= arithmetic.arithmetic(N).
 
 :- func overtake(agent, agent) `with_type` rstc.proc(N)
+    <= arithmetic.arithmetic(N).
+
+:- func imitate(agent, agent) `with_type` rstc.proc(N)
     <= arithmetic.arithmetic(N).
 
 %-----------------------------------------------------------------------------%
@@ -46,7 +68,66 @@
 :- import_module domain.car.rstc.fuzzy.
 :- import_module prgolog.fluent.
 :- import_module assoc_list.
+:- import_module list.
 :- import_module pair.
+
+%-----------------------------------------------------------------------------%
+
+rel_v(C, B, S) = one - ntg(B, C, S) / ttc(B, C, S).
+
+opposite_direction(B, C, S) :- rel_v(B, C, S) > zero.
+
+same_direction(B, C, S) :- rel_v(B, C, S) < zero.
+
+slower(B, C, S) :- rel_v(B, C, S) > -one, rel_v(B, C, S) < one.
+
+faster(B, C, S) :- not slower(B, C, S).
+
+%-----------------------------------------------------------------------------%
+
+:- pred actions_since(pred(A)::in(pred(in) is semidet),
+                      prgolog.sit(A)::in, A::out) is nondet.
+
+actions_since(P, do(A, S), A1) :-
+    not P(A),
+    (   actions_since(P, S, A1)
+    ;   A = A1
+    ).
+
+
+:- func actions_since(pred(A)::in(pred(in) is semidet),
+                      prgolog.sit(A)::in) = (list(A)::out) is det.
+
+actions_since(P, S1) =
+    ( if S1 = do(A, S), not P(A) then actions_since(P, S) ++ [A] else [] ).
+
+
+:- pred to_be_copied(agent::in, agent::in, rstc.sit(N)::in,
+                     rstc.prim(N)::out) is nondet.
+
+to_be_copied(Copycat, Actor, S, A) :-
+    BStart = (pred(start(B, _)::in) is semidet :- B = Copycat),
+    actions_since(BStart, S, A),
+    ( A = accel(Actor, _) ; A = lc(Actor, _) ).
+
+
+:- func to_be_copied(agent, agent, rstc.sit(N)) = list(rstc.prim(N)).
+
+to_be_copied(Copycat, Actor, S) = filter(P, actions_since(Q, S)) :-
+    Q = (pred(start(B, _)::in) is semidet :- B = Copycat),
+    P = (pred(A::in) is semidet :- ( A = accel(Actor, _) ; A = lc(Actor, _) )).
+
+
+:- pred next_to_be_copied(agent::in, agent::in, rstc.sit(N)::in,
+                          rstc.prim(N)::out) is semidet.
+
+next_to_be_copied(Copycat, Actor, S, A1) :-
+    % One thing I really don't like about Mercury: This one could be easily
+    % implemented with actions_since/3, but then the determinism would be
+    % cc_nondet.
+    Q = (pred(start(B, _)::in) is semidet :- B = Copycat),
+    P = (pred(A::in) is semidet :- ( A = accel(Actor, _) ; A = lc(Actor, _) )),
+    find_first_match(P, actions_since(Q, S), A1).
 
 %-----------------------------------------------------------------------------%
 
@@ -150,6 +231,16 @@ overtake(B, Victim) = P :-
         a(lc(B, left)) `;`
         b(wait_until(basify(ntg(B, Victim)), basic(defuzzify(infront)))) `;`
         a(lc(B, right)).
+
+
+imitate(B, Victim) = P :-
+    P = a(start(B, $pred)) `;`
+        star(
+            b(func(S) = (
+                if next_to_be_copied(B, Victim, S, A) then A else abort)
+            )
+        ) `;`
+        a(end(B, $pred)).
 
 %-----------------------------------------------------------------------------%
 
@@ -259,6 +350,49 @@ match_obs(L, S) :-
     all_true((pred(PD::in) is semidet :-
         match_y(PD, S)
     ), L).
+
+
+/*
+:- func how_matched(assoc_list(agent, info)::in, rstc.sit(N)::in) is semidet
+    <= arithmetic.arithmetic(N).
+
+how_match_obs(L, S) :-
+    fold
+    all_true((pred(PB::in) is semidet :-
+        all_true((pred(PC::in) is semidet :-
+            match_info(PB, PC, S)
+        ), L)
+    ), L),
+    all_true((pred(PD::in) is semidet :-
+        match_y(PD, S)
+    ), L).
+
+
+:- pred match_dist(pair(agent, info)::in, pair(agent, info)::in,
+                   rstc.sit(N)::in) is semidet <= arithmetic.arithmetic(N).
+
+match_dist(PB, PC, S) :-
+    (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+        then    S1 = 
+        else    S1 = 0.0
+    ),
+    (   if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+        then    (   have_common_cat((pred(Cat::out) is multi :-
+                        ttc_cat(Cat)
+                    ), TTC1, TTC2)
+                ;   some[NTG1, NTG2] (
+                        ntgs(PB, PC, S, NTG1, NTG2),
+                        RelV1 = one - NTG1 / TTC1,
+                        RelV2 = one - NTG2 / TTC2,
+                        Eps = max_veloc_discrepancy_to_ignore_ttc,
+                        abs(RelV1 - one) =< number_from_float(Eps),
+                        abs(RelV2 - one) =< number_from_float(Eps)
+                    )
+                )
+        else    true
+    ).
+*/
+
 
 
 :- pred ntgs(pair(agent, info)::in, pair(agent, info)::in, rstc.sit(N)::in,

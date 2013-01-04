@@ -7,8 +7,18 @@
 % File: domain.car.rstc.m.
 % Main author: schwering.
 %
-% Basic action theory (BAT) for driving with two simple actions, set_yaw and
-% set_veloc that control the steering and speed of the vehicle.
+% The foundational part of a basic action theory (BAT) for driving with three
+% core actions: wait to induce time lapse, accel to increase or decrease speed
+% relatively, and lc to change the lane.
+%
+% This module defines the partial functions for net time gap (NTG) and time to
+% collision (TTC). Note that they are transitive and symmetric in the sense
+% that if we know NTG and TTC for the pairs A, B and B, C, we can infer the
+% NTG and TTC of the pair A, C. For details check the RSTC documentation
+% (unpublished).
+%
+% Further fluents and the rest for the BAT typeclass instance are defined in the
+% rstc.bat submodule.
 %
 %-----------------------------------------------------------------------------%
 
@@ -90,20 +100,10 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func rel_v(agent, agent, rstc.sit(N)) = scale(N) <= arithmetic.arithmetic(N).
-:- mode rel_v(in, in, in) = out is semidet.
+:- use_module io.
 
-:- pred opposite_direction(agent::in, agent::in, rstc.sit(N)::in) is semidet
-    <= arithmetic.arithmetic(N).
-
-:- pred same_direction(agent::in, agent::in, rstc.sit(N)::in) is semidet
-    <= arithmetic.arithmetic(N).
-
-:- pred slower(agent::in, agent::in, rstc.sit(N)::in) is semidet
-    <= arithmetic.arithmetic(N).
-
-:- pred faster(agent::in, agent::in, rstc.sit(N)::in) is semidet
-    <= arithmetic.arithmetic(N).
+:- pred print_stats(io.io::di, io.io::uo) is det.
+:- pred reset(io.io::di, io.io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -124,9 +124,9 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pragma memo(ntg/3, [allow_reset, fast_loose]). 
-:- pragma memo(ttc/3, [allow_reset, fast_loose]). 
-:- pragma memo(lane/2, [allow_reset, fast_loose]). 
+:- pragma memo(ntg/3, [allow_reset, statistics, fast_loose]). 
+:- pragma memo(ttc/3, [allow_reset, statistics, fast_loose]). 
+:- pragma memo(lane/2, [allow_reset, statistics, fast_loose]). 
 
 %-----------------------------------------------------------------------------%
 
@@ -319,18 +319,6 @@ start_from_env(env(T, _)) = T.
 
 %-----------------------------------------------------------------------------%
 
-rel_v(C, B, S) = one - ntg(B, C, S) / ttc(B, C, S).
-
-opposite_direction(B, C, S) :- rel_v(B, C, S) > zero.
-
-same_direction(B, C, S) :- rel_v(B, C, S) < zero.
-
-slower(B, C, S) :- rel_v(B, C, S) > -one, rel_v(B, C, S) < one.
-
-faster(B, C, S) :- not slower(B, C, S).
-
-%-----------------------------------------------------------------------------%
-
 :- pred is_match_action(prim(N)::in) is semidet.
 
 is_match_action(match(_)).
@@ -339,6 +327,29 @@ is_match_action(match(_)).
 :- func last_match(rstc.sit(N)) = prim(N) is semidet.
 
 last_match(do(A, S)) = ( if is_match_action(A) then A else last_match(S) ).
+
+%-----------------------------------------------------------------------------%
+
+:- import_module table_statistics.
+
+print_stats(!IO) :-
+    domain.car.rstc.table_statistics_for_ntg_3(NTG, !IO),
+    io.write_string("\nntg/3:\n", !IO),
+    write_table_stats(current_stats(call_table_stats(NTG)), !IO),
+    %
+    domain.car.rstc.table_statistics_for_ttc_3(TTC, !IO),
+    io.write_string("\nttc/3:\n", !IO),
+    write_table_stats(current_stats(call_table_stats(TTC)), !IO),
+    %
+    domain.car.rstc.table_statistics_for_lane_2(Lane, !IO),
+    io.write_string("\nlane/2:\n", !IO),
+    write_table_stats(current_stats(call_table_stats(Lane)), !IO).
+
+
+reset(!IO) :-
+    table_reset_for_ntg_3(!IO),
+    table_reset_for_ttc_3(!IO),
+    table_reset_for_lane_2(!IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.

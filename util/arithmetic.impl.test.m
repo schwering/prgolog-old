@@ -25,6 +25,7 @@
 :- pred test_bin_search_float_sq2(io::di, io::uo) is det.
 :- pred test_bin_search_float_sqrt(io::di, io::uo) is det.
 :- pred test_bin_search_float_fail(io::di, io::uo) is det.
+:- pred test_optimize_float(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -39,13 +40,9 @@
 :- import_module string.
 :- import_module rat.
 :- import_module require.
+:- import_module std_util.
 
 %-----------------------------------------------------------------------------%
-
-:- func max(N, N) = N <= arithmetic(N).
-
-max(X, Y) = ( if X > Y then X else Y ).
-
 
 :- pred in_ball(int::in, N::in, N::in) is semidet <= arithmetic(N).
 
@@ -153,6 +150,14 @@ test_bin_search_float_fail(!IO) :-
       then throw({"found unexpectedly", Goal, F(Min), F(Max)})
       else true
     ),
+    true.
+
+test_optimize_float(!IO) :-
+    some [Min] ( if Min = min(3.0, 4.0), Min \= 3.0 then throw({"min", 3.0, Min}) else true ),
+    some [Max] ( if Max = max(3.0, 4.0), Max \= 4.0 then throw({"max", 4.0, Max}) else true ),
+    P = ( pred(X::out) is multi :- X = 100.0 ; X = 3.0 ; X = -5.0 ; X = 10.0 ),
+    some [Min] ( if Min = minimize(P, id), Min \= -5.0 then throw({"minimize", -5.0, Min}) else true ),
+    some [Max] ( if Max = maximize(P, id), Max \= 100.0 then throw({"maximize", -5.0, Max}) else true ),
     true.
 
 %-----------------------------------------------------------------------------%

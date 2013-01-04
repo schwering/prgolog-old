@@ -139,6 +139,13 @@ print_prog_2(Stream, Map, Op, conc(P1, P2), !IO) :-
     write_string(Stream, " || ", !IO),
     print_prog_2(Stream, Map, ThisOp, P2, !IO),
     ( if Op = "" ; Op \= ThisOp then write_string(")", !IO) else true ).
+print_prog_2(Stream, Map, _, pick(_, X0, P), !IO) :-
+    ThisOp = "pick",
+    write_string(Stream, "pick(", !IO),
+    write(X0, !IO),
+    write_string(Stream, " ..., ", !IO),
+    print_prog_2(Stream, Map, ThisOp, P(X0), !IO),
+    write_string(Stream, ")", !IO).
 print_prog_2(Stream, Map, _, star(P), !IO) :-
     ThisOp = "*",
     write_string(Stream, "(", !IO),

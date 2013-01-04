@@ -78,7 +78,7 @@ test_ntg(!IO) :-
     In(     -1.1, very_close_infront),
     In(     -1.0, very_close_infront),
     In(     -0.9, very_close_infront),
-    NotIn(  -0.5, very_close_infront),
+    In(     -0.5, very_close_infront),
     NotIn(  -0.8,       side_by_side),
     In(     -0.7,       side_by_side),
     In(     -0.1,       side_by_side),
@@ -86,7 +86,7 @@ test_ntg(!IO) :-
     In(      0.1,       side_by_side),
     In(      0.7,       side_by_side),
     NotIn(   0.8,       side_by_side),
-    NotIn(   0.5,  very_close_behind),
+    In(      0.5,  very_close_behind),
     In(      0.9,  very_close_behind),
     In(      1.0,  very_close_behind),
     In(      1.1,  very_close_behind),
@@ -118,6 +118,9 @@ test_ntg(!IO) :-
     ( if n(0.0) `in_any` [very_close_infront, side_by_side, very_close_behind]
       then true else throw({"in_any", 0.0}) ),
     ( if n(0.0) `in_none` [very_close_infront, very_close_behind]
+      then true else throw({"in_none", 0.0}) ),
+    ( if num(1.722887203939369) `in` close_behind,
+         num(2.2212281024223004) `in` close_behind
       then true else throw({"in_none", 0.0}) ),
     true.
 
