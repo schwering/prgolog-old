@@ -106,6 +106,18 @@
 :- mode abs(in(basic_num)) = out(basic_num) is det.
 :- mode abs(in)            = out            is det.
 
+:- func min(num(N), num(N)) = num(N) <= arithmetic.arithmetic(N).
+:- mode min(in(basic_num), in(basic_num)) = out(basic_num) is det.
+:- mode min(in(neg_inf),   in)            = out(neg_inf)   is det.
+:- mode min(in,            in(neg_inf))   = out(neg_inf)   is det.
+:- mode min(in,            in)            = out            is det.
+
+:- func max(num(N), num(N)) = num(N) <= arithmetic.arithmetic(N).
+:- mode max(in(basic_num), in(basic_num)) = out(basic_num) is det.
+:- mode max(in(pos_inf),   in)            = out(neg_inf)   is det.
+:- mode max(in,            in(pos_inf))   = out(neg_inf)   is det.
+:- mode max(in,            in)            = out            is det.
+
 :- func + num(N)        = num(N) <= arithmetic.arithmetic(N).
 :- mode + in(neg_inf)   = out(neg_inf)   is det.
 :- mode + in(basic_num) = out(basic_num) is det.
@@ -284,6 +296,9 @@ zero = num(arithmetic.zero).
 abs(neg_inf) = pos_inf.
 abs(num(N))  = num(arithmetic.abs(N)).
 abs(pos_inf) = pos_inf.
+
+min(X, Y) = ( if X < Y then X else Y ).
+max(X, Y) = ( if X > Y then X else Y ).
 
 + N = N.
 
