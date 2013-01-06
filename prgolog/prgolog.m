@@ -120,7 +120,7 @@
     ;       non_det(prog(A), prog(A))
     ;       conc(prog(A), prog(A))
     ;       star(prog(A))
-    ;       some [T] ( pick(picksucc(A, T), T, pickprog(A, T)) )
+    ;       some [T] pick(picksucc(A, T), T, pickprog(A, T))
     ;       proc(proc(A))
     ;       pseudo_atom(pseudo_atom(A))
     ;       nil.
@@ -180,6 +180,7 @@
 
 :- type pickspec(A) ---> some [T] pickspec(picksucc(A, T), T, pickprog(A, T)).
 :- type pickbest(A) == (func(pickspec(A)) = prog(A)).
+
 :- type tree(A, T) == tree.tree(T, pickbest(A)).
 
 %-----------------------------------------------------------------------------%

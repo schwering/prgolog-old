@@ -30,6 +30,8 @@
 :- inst infinity ---> neg_inf ; pos_inf.
 :- inst neg_inf ---> neg_inf.
 :- inst pos_inf ---> pos_inf.
+:- inst not_neg_inf ---> num(ground) ; pos_inf.
+:- inst not_pos_inf ---> neg_inf ; num(ground).
 :- inst tuple(X, Y) ---> {X, Y}.
 
 %-----------------------------------------------------------------------------%
@@ -55,6 +57,7 @@
 :- mode basic(in(neg_inf))   is failure.
 :- mode basic(in(basic_num)) is det.
 :- mode basic(in(pos_inf))   is failure.
+:- mode basic(in)            is semidet.
 
 :- func det_basic(num(N)) = N.
 :- mode det_basic(in) = out is det.
@@ -100,23 +103,27 @@
 :- func one = num(N) <= arithmetic.arithmetic(N).
 :- mode one = out(basic_num) is det.
 
-:- func abs(num(N))        = num(N) <= arithmetic.arithmetic(N).
-:- mode abs(in(neg_inf))   = out(pos_inf)   is det.
-:- mode abs(in(pos_inf))   = out(pos_inf)   is det.
-:- mode abs(in(basic_num)) = out(basic_num) is det.
-:- mode abs(in)            = out            is det.
+:- func abs(num(N))          = num(N) <= arithmetic.arithmetic(N).
+:- mode abs(in(neg_inf))     = out(pos_inf)     is det.
+:- mode abs(in(pos_inf))     = out(pos_inf)     is det.
+:- mode abs(in(basic_num))   = out(basic_num)   is det.
+:- mode abs(in(not_neg_inf)) = out(not_neg_inf) is det.
+:- mode abs(in(not_pos_inf)) = out(not_neg_inf) is det.
+:- mode abs(in)              = out              is det.
 
-:- func min(num(N), num(N)) = num(N) <= arithmetic.arithmetic(N).
+:- func min(num(N),        num(N))        = num(N) <= arithmetic.arithmetic(N).
 :- mode min(in(basic_num), in(basic_num)) = out(basic_num) is det.
 :- mode min(in(neg_inf),   in)            = out(neg_inf)   is det.
 :- mode min(in,            in(neg_inf))   = out(neg_inf)   is det.
 :- mode min(in,            in)            = out            is det.
 
-:- func max(num(N), num(N)) = num(N) <= arithmetic.arithmetic(N).
+:- func max(num(N),        num(N))       = num(N) <= arithmetic.arithmetic(N).
 :- mode max(in(basic_num), in(basic_num)) = out(basic_num) is det.
 :- mode max(in(pos_inf),   in)            = out(neg_inf)   is det.
 :- mode max(in,            in(pos_inf))   = out(neg_inf)   is det.
 :- mode max(in,            in)            = out            is det.
+
+%-----------------------------------------------------------------------------%
 
 :- func + num(N)        = num(N) <= arithmetic.arithmetic(N).
 :- mode + in(neg_inf)   = out(neg_inf)   is det.
@@ -124,46 +131,52 @@
 :- mode + in(pos_inf)   = out(pos_inf)   is det.
 :- mode + in            = out            is det.
 
-:- func - num(N)        = num(N) <= arithmetic.arithmetic(N).
-:- mode - in(neg_inf)   = out(pos_inf)   is det.
-:- mode - in(basic_num) = out(basic_num) is det.
-:- mode - in(pos_inf)   = out(neg_inf)   is det.
-:- mode - in(infinity)  = out(infinity)  is det.
-:- mode - in            = out            is det.
+:- func - num(N)          = num(N) <= arithmetic.arithmetic(N).
+:- mode - in(neg_inf)     = out(pos_inf)     is det.
+:- mode - in(basic_num)   = out(basic_num)   is det.
+:- mode - in(pos_inf)     = out(neg_inf)     is det.
+:- mode - in(infinity)    = out(infinity)    is det.
+:- mode - in(not_neg_inf) = out(not_pos_inf) is det.
+:- mode - in(not_pos_inf) = out(not_neg_inf) is det.
+:- mode - in              = out              is det.
 
-:- func num(N)        + num(N)        = num(N) <= arithmetic.arithmetic(N).
-:- mode in(neg_inf)   + in(neg_inf)   = out(neg_inf)   is det.
-:- mode in(neg_inf)   + in(basic_num) = out(neg_inf)   is det.
-:- mode in(neg_inf)   + in(pos_inf)   = out(_)         is failure.
-:- mode in(basic_num) + in(neg_inf)   = out(neg_inf)   is det.
-:- mode in(basic_num) + in(basic_num) = out(basic_num) is det.
-:- mode in(basic_num) + in(pos_inf)   = out(pos_inf)   is det.
-:- mode in(pos_inf)   + in(neg_inf)   = out(_)         is failure.
-:- mode in(pos_inf)   + in(basic_num) = out(pos_inf)   is det.
-:- mode in(pos_inf)   + in(pos_inf)   = out(pos_inf)   is det.
-:- mode in(infinity)  + in(infinity)  = out(infinity)  is semidet.
-:- mode in(infinity)  + in(basic_num) = out(infinity)  is det.
-:- mode in(basic_num) + in(infinity)  = out(infinity)  is det.
-:- mode in            + in(basic_num) = out            is det.
-:- mode in(basic_num) + in            = out            is det.
-:- mode in            + in            = out            is semidet.
+:- func num(N)          + num(N)          = num(N) <= arithmetic.arithmetic(N).
+:- mode in(neg_inf)     + in(neg_inf)     = out(neg_inf)     is det.
+:- mode in(neg_inf)     + in(basic_num)   = out(neg_inf)     is det.
+:- mode in(neg_inf)     + in(pos_inf)     = out(_)           is failure.
+:- mode in(basic_num)   + in(neg_inf)     = out(neg_inf)     is det.
+:- mode in(basic_num)   + in(basic_num)   = out(basic_num)   is det.
+:- mode in(basic_num)   + in(pos_inf)     = out(pos_inf)     is det.
+:- mode in(pos_inf)     + in(neg_inf)     = out(_)           is failure.
+:- mode in(pos_inf)     + in(basic_num)   = out(pos_inf)     is det.
+:- mode in(pos_inf)     + in(pos_inf)     = out(pos_inf)     is det.
+:- mode in(infinity)    + in(infinity)    = out(infinity)    is semidet.
+:- mode in(infinity)    + in(basic_num)   = out(infinity)    is det.
+:- mode in(basic_num)   + in(infinity)    = out(infinity)    is det.
+:- mode in(not_neg_inf) + in(not_neg_inf) = out(not_neg_inf) is det.
+:- mode in(not_pos_inf) + in(not_pos_inf) = out(not_pos_inf) is det.
+:- mode in              + in(basic_num)   = out              is det.
+:- mode in(basic_num)   + in              = out              is det.
+:- mode in              + in              = out              is semidet.
 
-:- func num(N)        - num(N)        = num(N) <= arithmetic.arithmetic(N).
-:- mode in(neg_inf)   - in(neg_inf)   = out(_)         is failure.
-:- mode in(neg_inf)   - in(basic_num) = out(neg_inf)   is det.
-:- mode in(neg_inf)   - in(pos_inf)   = out(neg_inf)   is det.
-:- mode in(basic_num) - in(neg_inf)   = out(pos_inf)   is det.
-:- mode in(basic_num) - in(basic_num) = out(basic_num) is det.
-:- mode in(basic_num) - in(pos_inf)   = out(neg_inf)   is det.
-:- mode in(pos_inf)   - in(neg_inf)   = out(pos_inf)   is det.
-:- mode in(pos_inf)   - in(basic_num) = out(pos_inf)   is det.
-:- mode in(pos_inf)   - in(pos_inf)   = out(_)         is failure.
-:- mode in(infinity)  - in(infinity)  = out(infinity)  is semidet.
-:- mode in(infinity)  - in(basic_num) = out(infinity)  is det.
-:- mode in(basic_num) - in(infinity)  = out(infinity)  is det.
-:- mode in            - in(basic_num) = out            is det.
-:- mode in(basic_num) - in            = out            is det.
-:- mode in            - in            = out            is semidet.
+:- func num(N)          - num(N)          = num(N) <= arithmetic.arithmetic(N).
+:- mode in(neg_inf)     - in(neg_inf)     = out(_)           is failure.
+:- mode in(neg_inf)     - in(basic_num)   = out(neg_inf)     is det.
+:- mode in(neg_inf)     - in(pos_inf)     = out(neg_inf)     is det.
+:- mode in(basic_num)   - in(neg_inf)     = out(pos_inf)     is det.
+:- mode in(basic_num)   - in(basic_num)   = out(basic_num)   is det.
+:- mode in(basic_num)   - in(pos_inf)     = out(neg_inf)     is det.
+:- mode in(pos_inf)     - in(neg_inf)     = out(pos_inf)     is det.
+:- mode in(pos_inf)     - in(basic_num)   = out(pos_inf)     is det.
+:- mode in(pos_inf)     - in(pos_inf)     = out(_)           is failure.
+:- mode in(infinity)    - in(infinity)    = out(infinity)    is semidet.
+:- mode in(infinity)    - in(basic_num)   = out(infinity)    is det.
+:- mode in(basic_num)   - in(infinity)    = out(infinity)    is det.
+:- mode in(not_neg_inf) - in(not_pos_inf) = out(not_neg_inf) is det.
+:- mode in(not_pos_inf) - in(not_neg_inf) = out(not_pos_inf) is det.
+:- mode in              - in(basic_num)   = out              is det.
+:- mode in(basic_num)   - in              = out              is det.
+:- mode in              - in              = out              is semidet.
 
 :- func num(N)        * num(N)        = num(N) <= arithmetic.arithmetic(N).
 :- mode in(neg_inf)   * in(neg_inf)   = out(pos_inf)   is det.
@@ -196,6 +209,8 @@
 :- mode in            / in(basic_num) = out            is semidet.
 :- mode in(basic_num) / in            = out            is semidet.
 :- mode in            / in            = out            is semidet.
+
+%-----------------------------------------------------------------------------%
 
 :- pred num(N)        < num(N) <= arithmetic.arithmetic(N).
 :- mode in(neg_inf)   < in(neg_inf)   is failure.
@@ -246,12 +261,33 @@
 :- mode in(pos_inf)   >= in(pos_inf)   is det.
 :- mode in            >= in            is semidet.
 
+%-----------------------------------------------------------------------------%
 
 :- pred num(N)       `in` {num(N), num(N)} <= arithmetic.arithmetic(N).
 :- mode in(pos_inf)  `in` in(tuple(basic_num, basic_num)) is failure.
 :- mode in(neg_inf)  `in` in(tuple(basic_num, basic_num)) is failure.
 %:- mode in(infinity) `in` in(tuple(basic_num, basic_num)) is failure.
 :- mode in           `in` in                              is semidet.
+
+%-----------------------------------------------------------------------------%
+
+:- func minimize(pred(num(N))) = num(N) <= arithmetic.arithmetic(N).
+:- mode minimize(in(pred(out) is nondet)) = out is semidet.
+:- mode minimize(in(pred(out) is multi)) = out is det.
+
+:- func minimize(pred(T), func(T) = num(N)) = num(N)
+    <= arithmetic.arithmetic(N).
+:- mode minimize(in(pred(out) is nondet), in) = out is semidet.
+:- mode minimize(in(pred(out) is multi), in) = out is det.
+
+:- func maximize(pred(num(N))) = num(N) <= arithmetic.arithmetic(N).
+:- mode maximize(in(pred(out) is nondet)) = out is semidet.
+:- mode maximize(in(pred(out) is multi)) = out is det.
+
+:- func maximize(pred(T), func(T) = num(N)) = num(N)
+    <= arithmetic.arithmetic(N).
+:- mode maximize(in(pred(out) is nondet), in) = out is semidet.
+:- mode maximize(in(pred(out) is multi), in) = out is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -265,6 +301,7 @@
 %-----------------------------------------------------------------------------%
 
 :- import_module exception.
+:- import_module std_util.
 
 %-----------------------------------------------------------------------------%
 
@@ -299,6 +336,8 @@ abs(pos_inf) = pos_inf.
 
 min(X, Y) = ( if X < Y then X else Y ).
 max(X, Y) = ( if X > Y then X else Y ).
+
+%-----------------------------------------------------------------------------%
 
 + N = N.
 
@@ -354,6 +393,7 @@ z = arithmetic.zero.
 flip(X, neg_inf) = ( if X `arithmetic.'<'` z then pos_inf else neg_inf ).
 flip(X, pos_inf) = ( if X `arithmetic.'<'` z then neg_inf else pos_inf ).
 
+%-----------------------------------------------------------------------------%
 
 neg_inf < neg_inf :- fail.
 neg_inf < num(_).
@@ -380,6 +420,16 @@ N > M :- M < N.
 N >= M :- M =< N.
 
 N `in` {Lo, Hi} :- Lo < N, N =< Hi.
+
+%-----------------------------------------------------------------------------%
+
+minimize(P) = minimize(P, id).
+
+minimize(P, F) = arithmetic.optimize(func(X, Y) = min(X, Y), P, F).
+
+maximize(P) = maximize(P, id).
+
+maximize(P, F) = arithmetic.optimize(func(X, Y) = max(X, Y), P, F).
 
 %-----------------------------------------------------------------------------%
 :- end_module inf_arithmetic.

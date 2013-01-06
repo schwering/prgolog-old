@@ -76,8 +76,6 @@ append_obs_to_most_right(conc(P1, P2), PA) =
     (   if      Q2 = append_obs_to_most_right(P2, PA)
         then    conc(P1, Q2)
         else    append_obs_to_most_right(P1, PA) ).
-append_obs_to_most_right(star(P), PA) =
-    append_obs_to_most_right(P, PA).
 append_obs_to_most_right(pseudo_atom(PA1), PA2) =
     seq(pseudo_atom(PA1), pseudo_atom(PA2)) :- is_obs_prog(PA1).
 

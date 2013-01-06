@@ -76,6 +76,7 @@
 %-----------------------------------------------------------------------------%
 
 :- func max_width(category) = num(N) <= arithmetic.arithmetic(N).
+:- mode max_width(in) = out(not_neg_inf) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -223,7 +224,7 @@ defuzzify(Cat) = Val :-
 max_width(Cat) = X :-
     mu(Cat) = Mu,
     (   Mu = left_border(_, _),  X = pos_inf
-    ;   Mu = triangle(L, P, R),  X = max(abs(P - L), abs(R - P))
+    ;   Mu = triangle(L, P, R),  X = L + R %max(abs(P - L), abs(R - P))
     ;   Mu = right_border(_, _), X = pos_inf
     ).
 

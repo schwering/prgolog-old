@@ -99,13 +99,21 @@
 :- func min(N, N) = N <= arithmetic(N).
 :- func max(N, N) = N <= arithmetic(N).
 
-:- func optimize(func(N, N) = N, pred(T), func(T) = N) = N <= arithmetic(N).
+:- func optimize(func(N, N) = N, pred(T), func(T) = N) = N.
 :- mode optimize(in, in(pred(out) is nondet), in) = out is semidet.
 :- mode optimize(in, in(pred(out) is multi), in) = out is det.
+
+:- func minimize(pred(N)) = N <= arithmetic(N).
+:- mode minimize(in(pred(out) is nondet)) = out is semidet.
+:- mode minimize(in(pred(out) is multi)) = out is det.
 
 :- func minimize(pred(T), func(T) = N) = N <= arithmetic(N).
 :- mode minimize(in(pred(out) is nondet), in) = out is semidet.
 :- mode minimize(in(pred(out) is multi), in) = out is det.
+
+:- func maximize(pred(N)) = N <= arithmetic(N).
+:- mode maximize(in(pred(out) is nondet)) = out is semidet.
+:- mode maximize(in(pred(out) is multi)) = out is det.
 
 :- func maximize(pred(T), func(T) = N) = N <= arithmetic(N).
 :- mode maximize(in(pred(out) is nondet), in) = out is semidet.
@@ -122,6 +130,7 @@
 
 :- import_module exception.
 :- import_module int.
+:- import_module std_util.
 
 %-----------------------------------------------------------------------------%
 
@@ -231,13 +240,17 @@ min(X, Y) = ( if X < Y then X else Y ).
 max(X, Y) = ( if X > Y then X else Y ).
 
 
-maximize(P, F) = optimize(max, P, F).
-
-minimize(P, F) = optimize(min, P, F).
-
 optimize(O, P, F) = Y :-
     [X|Xs] = solutions(P),
     Y = foldl(func(X1, X2) = O(F(X1), X2), Xs, F(X)).
+
+minimize(P) = minimize(P, id).
+
+minimize(P, F) = optimize(min, P, F).
+
+maximize(P) = maximize(P, id).
+
+maximize(P, F) = optimize(max, P, F).
 
 %-----------------------------------------------------------------------------%
 :- end_module arithmetic.

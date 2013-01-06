@@ -352,47 +352,23 @@ match_obs(L, S) :-
     ), L).
 
 
-/*
-:- func how_matched(assoc_list(agent, info)::in, rstc.sit(N)::in) is semidet
+:- func match_quality(assoc_list(agent, info), rstc.sit(N)) = num(N)
     <= arithmetic.arithmetic(N).
 
-how_match_obs(L, S) :-
-    fold
-    all_true((pred(PB::in) is semidet :-
-        all_true((pred(PC::in) is semidet :-
-            match_info(PB, PC, S)
-        ), L)
-    ), L),
-    all_true((pred(PD::in) is semidet :-
-        match_y(PD, S)
-    ), L).
-
-
-:- pred match_dist(pair(agent, info)::in, pair(agent, info)::in,
-                   rstc.sit(N)::in) is semidet <= arithmetic.arithmetic(N).
-
-match_dist(PB, PC, S) :-
-    (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
-        then    S1 = 
-        else    S1 = 0.0
-    ),
-    (   if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
-        then    (   have_common_cat((pred(Cat::out) is multi :-
-                        ttc_cat(Cat)
-                    ), TTC1, TTC2)
-                ;   some[NTG1, NTG2] (
-                        ntgs(PB, PC, S, NTG1, NTG2),
-                        RelV1 = one - NTG1 / TTC1,
-                        RelV2 = one - NTG2 / TTC2,
-                        Eps = max_veloc_discrepancy_to_ignore_ttc,
-                        abs(RelV1 - one) =< number_from_float(Eps),
-                        abs(RelV2 - one) =< number_from_float(Eps)
-                    )
-                )
-        else    true
-    ).
-*/
-
+match_quality(L, S) =
+    (   if   Len = 0
+        then zero
+        else number(Sum `arithmetic.'/'` arithmetic.from_int(Len))
+    ) :-
+    Zero = {arithmetic.zero, 0},
+    Plus = (func({U, V}, {X, Y}) = {U `arithmetic.'+'` X, V `int.'+'` Y}),
+    {Sum, Len} = foldl((func(PB @ (B - _), SumLen0) = SumLen0 `Plus`
+        foldl((func(PC @ (C - _), SumLen00) =
+            (   if   B \= C
+                then SumLen00
+                else SumLen00 `Plus` {match_dist(PC, PB, S), 1} )
+        ), L, Zero)
+    ), L, Zero).
 
 
 :- pred ntgs(pair(agent, info)::in, pair(agent, info)::in, rstc.sit(N)::in,
@@ -456,7 +432,7 @@ match_info(PB, PC, S) :-
         then    (   have_common_cat((pred(Cat::out) is multi :-
                         ttc_cat(Cat)
                     ), TTC1, TTC2)
-                ;   some[NTG1, NTG2] (
+                ;   some [NTG1, NTG2] (
                         ntgs(PB, PC, S, NTG1, NTG2),
                         RelV1 = one - NTG1 / TTC1,
                         RelV2 = one - NTG2 / TTC2,
@@ -466,6 +442,56 @@ match_info(PB, PC, S) :-
                     )
                 )
         else    true
+    ).
+
+
+:- func match_dist(pair(agent, info), pair(agent, info), rstc.sit(N)) = N
+    <= arithmetic.arithmetic(N).
+
+match_dist(PB, PC, S) = D :-
+    D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+            then    minimize(pred(CatDist::out) is multi :-
+                        (
+                            CatDist = one
+                        ;
+                            ntg_cat(Cat),
+                            NTG1 `in` Cat,
+                            NTG2 `in` Cat,
+                            CatDist = abs(NTG1 - NTG2) / max_width(Cat)
+                        )
+                    )
+            else    zero
+        ),
+    D2 = (  if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+            then    minimize(pred(CatDist::out) is multi :-
+                        (
+                            CatDist = one
+                        ;
+                            ttc_cat(Cat),
+                            TTC1 `in` Cat,
+                            TTC2 `in` Cat,
+                            (
+                                CatDist = abs(TTC1 - TTC2) / max_width(Cat)
+                            ;
+                                % If they have almost same speed, don't punish
+                                % this. See max_veloc_discrepancy_to_ignore_ttc.
+                                some [NTG1, NTG2] (
+                                    ntgs(PB, PC, S, NTG1, NTG2),
+                                    RelV1 = one - NTG1 / TTC1,
+                                    RelV2 = one - NTG2 / TTC2,
+                                    Eps = max_veloc_discrepancy_to_ignore_ttc,
+                                    abs(RelV1 - one) =< number_from_float(Eps),
+                                    abs(RelV2 - one) =< number_from_float(Eps)
+                                ),
+                                CatDist = zero
+                            )
+                        )
+                    )
+            else    zero
+        ),
+    (   if   D3 = D1 + D2, basic(D3)
+        then D = det_basic(D3)
+        else throw({"match_dist/3: sum is not defined", D1, D2})
     ).
 
 
