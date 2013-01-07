@@ -1,7 +1,7 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
-% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
 % File: arithmetic.m.
@@ -128,7 +128,7 @@
 
 :- implementation.
 
-:- import_module exception.
+:- import_module require, string.
 :- import_module int.
 :- import_module std_util.
 
@@ -136,11 +136,7 @@
 
 :- func two = N <= arithmetic(N).
 
-:- pragma type_spec(two/0, N = float).
-
 two = from_int(2).
-
-:- pragma type_spec(pow/2, N = float).
 
 pow(X, N) = (    if N = 0         then  one
             else if N `int.'>'` 0 then  X * pow(X, N - 1)
@@ -150,8 +146,6 @@ pow(X, N) = (    if N = 0         then  one
 
 :- func halfway(N, N) = N <= arithmetic(N).
 
-:- pragma type_spec(halfway/2, N = float).
-
 halfway(X, Y) = Z :-
    ( if X = Y
      then Z = X
@@ -160,12 +154,13 @@ halfway(X, Y) = Z :-
         H2 = X + epsilon(X),
         (    if X < H1, H1  < Y then Z = H1
         else if X < H2, H2 =< Y then Z = H2
-        else throw({"arithmetic.halfway: X+eps > Z?", X, Y, H1, H2}) )
+        else unexpected($module, string.format("%s: %s + eps > %s? %s, %s",
+                        [s($pred), s(string(X)), s(string(Y)),
+                         s(string(H1)), s(string(H2))]))
+        )
    ).
 
 %-----------------------------------------------------------------------------%
-
-:- pragma type_spec(bin_search/5, (X = float, Y = float)).
 
 bin_search(F, XMin, XMax, YGoal, X) :-
     if F(XMin) > F(XMax) then
@@ -178,9 +173,7 @@ bin_search(F, XMin, XMax, YGoal, X) :-
 :- mode bin_search_2(in(func(in) = out is det), in, in, in, out) is semidet.
 :- mode bin_search_2(in(func(in) = out is semidet), in, in, in, out) is semidet.
 
-:- pragma type_spec(bin_search_2/5, (X = float, Y = float)).
-
-:- import_module io.
+%:- import_module io.
 
 bin_search_2(F, XMin, XMax, YGoal, X) :-
     XMid = halfway(XMin, XMax),
@@ -251,6 +244,14 @@ minimize(P, F) = optimize(min, P, F).
 maximize(P) = maximize(P, id).
 
 maximize(P, F) = optimize(max, P, F).
+
+%-----------------------------------------------------------------------------%
+
+:- pragma type_spec(two/0, N = float).
+:- pragma type_spec(pow/2, N = float).
+:- pragma type_spec(halfway/2, N = float).
+:- pragma type_spec(bin_search/5, (X = float, Y = float)).
+:- pragma type_spec(bin_search_2/5, (X = float, Y = float)).
 
 %-----------------------------------------------------------------------------%
 :- end_module arithmetic.

@@ -1,7 +1,7 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
-% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
 % File: inf_arithmetic.m.
@@ -300,7 +300,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- import_module exception.
+:- import_module require, string, list.
 :- import_module std_util.
 
 %-----------------------------------------------------------------------------%
@@ -313,7 +313,12 @@ basic(num(N)) = N.
 
 basic(num(_)).
 
-det_basic(N) = ( if X = basic(N) then X else throw({"det_basic/1", N}) ).
+det_basic(N) =
+    (   if   X = basic(N)
+        then X
+        else func_error(string.format("%s: %s for arg %s",
+                                      [s($module), s($pred), s(string(N))]))
+    ).
 
 negative_infinity = neg_inf.
 positive_infinity = pos_inf.
@@ -430,6 +435,44 @@ minimize(P, F) = arithmetic.optimize(func(X, Y) = min(X, Y), P, F).
 maximize(P) = maximize(P, id).
 
 maximize(P, F) = arithmetic.optimize(func(X, Y) = max(X, Y), P, F).
+
+%-----------------------------------------------------------------------------%
+
+:- pragma type_spec(number/1, N = float).
+:- pragma type_spec(number_from_float/1, N = float).
+:- pragma type_spec(number_from_int/1, N = float).
+:- pragma type_spec(basic/1, N = float).
+:- pragma type_spec(basic/1, N = float).
+:- pragma type_spec(det_basic/1, N = float).
+:- pragma type_spec(negative_infinity/0, N = float).
+:- pragma type_spec(negative_infinity/1, N = float).
+:- pragma type_spec(positive_infinity/0, N = float).
+:- pragma type_spec(positive_infinity/1, N = float).
+:- pragma type_spec(infinity/1, N = float).
+:- pragma type_spec(negative/1, N = float).
+:- pragma type_spec(positive/1, N = float).
+:- pragma type_spec(zero/0, N = float).
+:- pragma type_spec(one/0, N = float).
+:- pragma type_spec(abs/1, N = float).
+:- pragma type_spec(min/2, N = float).
+:- pragma type_spec(max/2, N = float).
+:- pragma type_spec((+)/1, N = float).
+:- pragma type_spec((-)/1, N = float).
+:- pragma type_spec((+)/2, N = float).
+:- pragma type_spec((-)/2, N = float).
+:- pragma type_spec((*)/2, N = float).
+:- pragma type_spec((/)/2, N = float).
+:- pragma type_spec((<)/2, N = float).
+:- pragma type_spec((=<)/2, N = float).
+:- pragma type_spec((>)/2, N = float).
+:- pragma type_spec((>=)/2, N = float).
+:- pragma type_spec(in/2, N = float).
+:- pragma type_spec(minimize/1, N = float).
+:- pragma type_spec(minimize/2, N = float).
+:- pragma type_spec(maximize/1, N = float).
+:- pragma type_spec(maximize/2, N = float).
+:- pragma type_spec(z/0, N = float).
+:- pragma type_spec(flip/2, N = float).
 
 %-----------------------------------------------------------------------------%
 :- end_module inf_arithmetic.

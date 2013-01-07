@@ -1,7 +1,7 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
-% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
 % File: domain.car.rstc.bat.m.
@@ -491,7 +491,9 @@ match_dist(PB, PC, S) = D :-
         ),
     (   if   D3 = D1 + D2, basic(D3)
         then D = det_basic(D3)
-        else throw({"match_dist/3: sum is not defined", D1, D2})
+        else unexpected($module, string.format("%s: sum not defined: %s, %s",
+                                               [s($pred), s(string(D1)),
+                                                s(string(D2))]))
     ).
 
 

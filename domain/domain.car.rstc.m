@@ -1,7 +1,7 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
-% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
 % File: domain.car.rstc.m.

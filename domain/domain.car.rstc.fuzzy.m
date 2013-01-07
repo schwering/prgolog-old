@@ -1,7 +1,7 @@
 %-----------------------------------------------------------------------------%
 % vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
-% Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
+% Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
 % File: domain.car.rstc.fuzzy.m.
@@ -89,7 +89,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- import_module exception.
+:- import_module require, string.
 
 %-----------------------------------------------------------------------------%
 
@@ -130,7 +130,9 @@ ttc_cat(contracting_slowly).
 det_lin_f(Lo, Hi, X) = Y :-
     if      Y1 = (X - Lo) / (Hi - Lo)
     then    Y = Y1
-    else    throw({"Linear function", Lo, Hi, X}).
+    else    error(string.format("%s: %s for args %s, %s, %s",
+                                [s($module), s($pred), s(string(Lo)),
+                                 s(string(Hi)), s(string(X))])).
 
 
 :- func eval_triangle(mu(N), num(N)) = memdeg <= arithmetic.arithmetic(N).
