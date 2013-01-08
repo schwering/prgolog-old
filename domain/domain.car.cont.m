@@ -403,14 +403,9 @@ lookahead(_S) = 4.
 reward(s0) = 0.0.
 reward(do(A, S)) =
     (   if      A = match(_, _, _, _)
-        then    reward(S) + 1.0
-        else    reward(S)
+        then    cont.reward(S) + 1.0
+        else    cont.reward(S)
     ).
-
-:- func reward(prog, sit) = reward.
-:- mode reward(in, in) = out is det.
-
-reward(_, S) = reward(S).
 
 %-----------------------------------------------------------------------------%
 
@@ -559,7 +554,7 @@ obs2match(Obs) = atom(primf(match(Obs, constant(OT)))) :-
 
 :- instance bat(prim) where [
     pred(poss/2) is cont.poss,
-    func(reward/2) is cont.reward,
+    func(reward/1) is cont.reward,
     func(lookahead/1) is cont.lookahead
 ].
 

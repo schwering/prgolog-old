@@ -70,6 +70,11 @@
 :- import_module assoc_list.
 :- import_module list.
 :- import_module pair.
+:- import_module simulated_annealing.
+
+%-----------------------------------------------------------------------------%
+
+:- pragma memo(reward/1, [allow_reset, statistics, fast_loose]). 
 
 %-----------------------------------------------------------------------------%
 
@@ -212,6 +217,9 @@ tailgate(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
             ))) `;`
+            %'new pick'(func(X, Reward) = X, one, func(X) =
+            %    a(accel(B, X))
+            %)
             b(accelf(B, rel_v(Victim, B)))
         ) `;`
         a(end(B, $pred)).
@@ -321,20 +329,17 @@ sitlen(s0) = 0.
     % Therefor we increase the reward with the situation term size by just
     % simply returning sitlen(S).
     % 
-:- func reward(rstc.sit(_)) = reward.
+:- func reward(rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
 
 reward(s0) = 0.0.
-reward(do(A, S)) = reward(S) + float(Rest) :-
+reward(do(A, S)) = bat.reward(S) + New :-
     Bonus = 1000,
-    Rest = ( if A = start(_, _) then max(0, Bonus * lookahead - 2 * sitlen(S))
-        else if A = end(_, _)   then sitlen(S)
-        else if A = match(_)    then 1
-        else                         0 ).
-
-
-:- func reward(rstc.prog(_), rstc.sit(_)) = reward.
-
-reward(_, S) = reward(S).
+    New = (
+        if A = start(_, _) then float(max(0, Bonus*lookahead - 2*sitlen(S)))
+        else if A = end(_, _) then float(sitlen(S))
+        else if A = match(obs(_, D)) then 1.0 - arithmetic.to_float(det_basic(match_dist(D, S)))
+        else 0.0
+    ).
 
 %-----------------------------------------------------------------------------%
 
@@ -352,21 +357,19 @@ match_obs(L, S) :-
     ), L).
 
 
-:- func match_quality(assoc_list(agent, info), rstc.sit(N)) = num(N)
+:- func match_dist(assoc_list(agent, info), rstc.sit(N)) = num(N)
     <= arithmetic.arithmetic(N).
 
-match_quality(L, S) =
+match_dist(L, S) =
     (   if   Len = 0
         then zero
         else number(Sum `arithmetic.'/'` arithmetic.from_int(Len))
     ) :-
     Zero = {arithmetic.zero, 0},
     Plus = (func({U, V}, {X, Y}) = {U `arithmetic.'+'` X, V `int.'+'` Y}),
-    {Sum, Len} = foldl((func(PB @ (B - _), SumLen0) = SumLen0 `Plus`
-        foldl((func(PC @ (C - _), SumLen00) =
-            (   if   B \= C
-                then SumLen00
-                else SumLen00 `Plus` {match_dist(PC, PB, S), 1} )
+    {Sum, Len} = foldl((func(PB, SumLen0) = SumLen0 `Plus`
+        foldl((func(PC, SumLen00) =
+            SumLen00 `Plus` {match_longitudinal_dist(PC, PB, S), 1}
         ), L, Zero)
     ), L, Zero).
 
@@ -445,10 +448,10 @@ match_info(PB, PC, S) :-
     ).
 
 
-:- func match_dist(pair(agent, info), pair(agent, info), rstc.sit(N)) = N
-    <= arithmetic.arithmetic(N).
+:- func match_longitudinal_dist(pair(agent, info), pair(agent, info),
+                                rstc.sit(N)) = N <= arithmetic.arithmetic(N).
 
-match_dist(PB, PC, S) = D :-
+match_longitudinal_dist(PB, PC, S) = D :-
     D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
             then    minimize(pred(CatDist::out) is multi :-
                         (
@@ -531,7 +534,7 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
 
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N) where [
     pred(poss/2) is bat.poss,
-    func(reward/2) is bat.reward,
+    func(reward/1) is bat.reward,
     func(lookahead/1) is bat.lookahead
 ].
 

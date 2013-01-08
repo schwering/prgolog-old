@@ -14,6 +14,7 @@
 :- import_module arithmetic.
 :- import_module inf_arithmetic.
 :- import_module pipe.
+:- import_module simulated_annealing.
 :- import_module times.
 
 :- end_module util.

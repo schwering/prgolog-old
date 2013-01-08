@@ -19,6 +19,7 @@
 
 :- pred test_ntg(io::di, io::uo) is det.
 :- pred test_ttc(io::di, io::uo) is det.
+:- pred test_match_dist(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -28,6 +29,8 @@
 :- import_module arithmetic.impl.
 :- import_module exception.
 :- import_module maybe.
+:- import_module list.
+:- import_module pair.
 :- import_module solutions.
 :- import_module string.
 :- import_module domain.car.obs.
@@ -128,6 +131,30 @@ test_ttc(!IO) :-
         test_loop(ttc, StreamState, _, !IO),
         close_stream(!IO)
     ).
+
+test_match_dist(!IO) :-
+    F = (func(N) = arithmetic.to_float(det_basic(N))),
+    Info1 = [pair(car.h, info(20.729, -2.209e-06, p(0.0, -1.678))),
+             pair(car.d, info(20.741, -1.393e-05, p(12.807, -2.999)))],
+    Info2 = [pair(car.h, info(19.371, -2.209e-06, p(113.999, -1.678))),
+             pair(car.d, info(20.779, -1.182e-05, p(127.967, -2.999)))],
+    Init = init_env(env(5.044, Info1)),
+    Accel = accel(car.h, num(1.0006164907030441)),
+    Obs = match(obs(10.592, Info2)),
+    Sits = [ prgolog.do(Obs, prgolog.do(Accel, prgolog.do(Init, s0)))
+           , prgolog.do(Obs, prgolog.do(Accel, prgolog.do(Init, s0)))
+           , prgolog.do(Obs, prgolog.do(Accel, prgolog.do(Init, s0)))
+           ],
+    Infos = [ Info1, Info2 ],
+    foldl((pred(S::in, !.IO0::di, !:IO0::uo) is det :-
+        foldl((pred(Info::in, !.IO1::di, !:IO1::uo) is det :-
+            D = F(bat.match_dist(Info, S)),
+            ( if D < 0.0 ; D > 1.0 then throw({"distance not in [0, 1]", D, Info, S}) else true ),
+            some [A] ( if S = do(A, _), A = init_env(env(_, Info)), D \= 0.0 then throw({"distance not in 0", D, Info, S}) else true ),
+            some [A] ( if S = do(A, _), A \= init_env(env(_, Info)), D = 0.0 then throw({"distance is 0", D, Info, S}) else true )
+        ), Infos, !IO0)
+    ), Sits, !IO),
+    true.
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.bat.test.

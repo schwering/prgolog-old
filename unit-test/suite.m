@@ -97,6 +97,7 @@ get_tests(Tests, !IO) :-
             , test("rstc", "test_3", ccm(domain.car.rstc.test.test_3))
             , test("bat", "test_ntg", ccm(domain.car.rstc.bat.test.test_ntg))
             , test("bat", "test_ttc", ccm(domain.car.rstc.bat.test.test_ttc))
+            , test("bat", "test_match_dist", ccm(domain.car.rstc.bat.test.test_match_dist))
             , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
             , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))
             , test("arithmetic", "test_bin_search_rat", ccm(arithmetic.impl.test.test_bin_search_rat))

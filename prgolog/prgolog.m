@@ -12,7 +12,7 @@
 %
 % The basic ingredient to write and execute a Golog program, one needs to
 % define a basic action theory, short bat.  A bat consists of a type for
-% primitive actions, a precondition predicate poss/2, a function reward/2,
+% primitive actions, a precondition predicate poss/2, a function reward/1,
 % and a functions lookahead/1.
 %
 % Programs and Execution:
@@ -34,8 +34,8 @@
 %
 % When the interpreter is asked to execute the next action of such a program
 % with the trans/4 predicate, it decomposes the program in all possible ways,
-% computes the reward/2 after lookahead/2 many steps and then opts for the
-% decomposition that promises the highest reward/2.
+% computes the reward/1 after lookahead/2 many steps and then opts for the
+% decomposition that promises the highest reward/1.
 %
 % A program is final/2 if execution may stop, for example because the remaining
 % program is a nondeterministic loop, and if further execution does not improve
@@ -131,8 +131,8 @@
     pred poss(A, sit(A)),
     mode poss(in, in) is semidet,
 
-    func reward(prog(A), sit(A)) = reward,
-    mode reward(in, in) = out is det,
+    func reward(sit(A)) = reward,
+    mode reward(in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
     mode lookahead(in) = out is det
@@ -294,9 +294,9 @@ value(P, S, L) = {V, N} :-
                 else    VN3 = VN2
             ), tree.force(pickbest(S), next2(P)), {min, min_int}),
             {min, min_int} \= {V2, N2},
-            ( final(P) => V2 > reward(P, S) )
+            ( final(P) => V2 > reward(S) )
     then    V = V2, N = N2
-    else    V = reward(P, S), N = ( if final(P) then L else 0 ).
+    else    V = reward(S), N = ( if final(P) then L else 0 ).
 
 %-----------------------------------------------------------------------------%
 
@@ -327,7 +327,7 @@ trans(P, S, P1, S1) :-
 final(P, S) :-
     final(P),
     {V, _} = value(P, S),
-    reward(P, S) >= V.
+    reward(S) >= V.
 
 %-----------------------------------------------------------------------------%
 

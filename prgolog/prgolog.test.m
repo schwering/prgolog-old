@@ -43,8 +43,8 @@
 
 :- instance bat(prim) where [
     poss(A, _) :- A \= impossible,
-    reward(_, s0) = 0.0,
-    reward(P, do(A, S)) = R + reward(P, S) :-
+    reward(s0) = 0.0,
+    reward(do(A, S)) = R + reward(S) :-
         (   A = a, R = 0.0
         ;   A = b, R = 1.0
         ;   A = c, R = 2.0

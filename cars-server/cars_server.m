@@ -162,6 +162,7 @@ stdout_handler(Source, N, I, s_state(conf(P, S), Phase), !IO) :-
         format("%d.%d: Running or Finishing: got a new observation "++
                "(buffered/lookahead: %d/%d) or executed a action\n",
                [i(N), i(I), i(obs_count_in_prog(P)), i(lookahead(S))], !IO),
+        format("%d.%d:     Reward: %s\n", [i(N), i(I), s(string(reward(S)))], !IO),
         (   if      S = do(A, _)
             then    format("%d.%d:     Last action: %s\n",
                            [i(N), i(I), s(string(A))], !IO)
@@ -170,6 +171,7 @@ stdout_handler(Source, N, I, s_state(conf(P, S), Phase), !IO) :-
     ;
         Phase = finished,
         format("%d.%d: Finished: program final and covered\n", [i(N), i(I)], !IO),
+        format("%d.%d:     Reward: %s\n", [i(N), i(I), s(string(reward(S)))], !IO),
         format("%d.%d:     Remaining program:\n", [i(N), i(I)], !IO),
         format("%d.%d:         %s\n", [i(N), i(I), s(string(P))], !IO),
         format("%d.%d:     Situation:\n", [i(N), i(I)], !IO),
@@ -181,6 +183,7 @@ stdout_handler(Source, N, I, s_state(conf(P, S), Phase), !IO) :-
         format("%d.%d: Failure\n", [i(N), i(I)], !IO),
         %PX = subst_obs(nil, P), ( if final(PX, S) then write_string("Final: ", !IO), write(PX, !IO), nl(!IO) else write_string("Not final: ", !IO), write(PX, !IO), nl(!IO) ),
         %( if last_action_covered_by_obs(S) then format("last action covered by observation\n", [], !IO) else format("last action covered by observation\n", [], !IO) ),
+        format("%d.%d:     Reward: %s\n", [i(N), i(I), s(string(reward(S)))], !IO),
         format("%d.%d:     Remaining program:\n", [i(N), i(I)], !IO),
         format("%d.%d:         %s\n", [i(N), i(I), s(string(P))], !IO),
         format("%d.%d:     Situation:\n", [i(N), i(I)], !IO),
@@ -213,7 +216,7 @@ accept_connections(ServerSocket, Areas, !IO) :-
     %Prog = (cruise(b) // overtake(h, b)),% `with_type` prog(prim),
     %Handler = visual.visualize(Areas),
     Progs = [ tailgate(h, d)
-            , follow(h, d)
+            %, follow(h, d)
             ] `with_type` list(rstc.prog(float)),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,
@@ -231,7 +234,7 @@ accept_connections(ServerSocket, Areas, !IO) :-
     ), Sources, Varss, !IO),
     finalize_connection(Socket, !IO),
     reset_all_sources(!IO),
-    print_stats(!IO),
+    %print_stats(!IO),
     accept_connections(ServerSocket, Areas, !IO).
 
 %-----------------------------------------------------------------------------%
