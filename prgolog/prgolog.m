@@ -294,7 +294,6 @@ value(P, S) = value(P, S, lookahead(S)).
 
 value(P, S, L) = {V, N} :-
     if      L > 0,
-%
             {V2, N2} = tree.map_reduce(
                 (func(decomp(C, R)) = {V1, N1 + 1} is semidet :-
                     trans_atom(C, S, S1),
@@ -302,16 +301,14 @@ value(P, S, L) = {V, N} :-
                 max,
                 tree.force(pickbest(S), next2(P))
             ),
-/*
-    Old code, should be totally equivalent:
-            {V2, N2} = tree.foldl((func(decomp(C, R), VN2) = VN3 is det :-
-                if      trans_atom(C, S, S1)
-                then    {V1, N1} = value(R, S1, L - 1),
-                        VN3 = max({V1, N1 + 1}, VN2)
-                else    VN3 = VN2
-            ), tree.force(pickbest(S), next2(P)), min_value),
-            min_value \= {V2, N2},
-*/
+%  Old code, should be totally equivalent:
+%           {V2, N2} = tree.foldl((func(decomp(C, R), VN2) = VN3 is det :-
+%               if      trans_atom(C, S, S1)
+%               then    {V1, N1} = value(R, S1, L - 1),
+%                       VN3 = max({V1, N1 + 1}, VN2)
+%               else    VN3 = VN2
+%           ), tree.force(pickbest(S), next2(P)), min_value),
+%           min_value \= {V2, N2},
             ( final(P) => V2 > reward(S) )
     then    V = V2, N = N2
     else    V = reward(S), N = ( if final(P) then L else 0 ).

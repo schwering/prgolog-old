@@ -39,7 +39,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type prim ---> a ; b ; c ; d ; e ; e2 ; impossible.
+:- type prim ---> a ; b ; c ; d ; e ; e2 ; impossible
+                ; set_val(string, float) ; inc_reward(reward).
 
 :- instance bat(prim) where [
     poss(A, _) :- A \= impossible,
@@ -52,9 +53,26 @@
         ;   A = e, R = 4.0
         ;   A = e2, R = 4.0
         ;   A = impossible, R = 0.0
+        ;   A = set_val(_, _), R = 0.0
+        ;   A = inc_reward(R)
         ),
     lookahead(_) = 3
 ].
+
+
+:- func get_val(string, sit(prim)) = float.
+:- mode get_val(in, in) = out is semidet.
+
+get_val(Key, do(A, S)) =
+    ( if A = set_val(Key, Val) then Val else get_val(Key, S) ).
+
+
+:- func get_val(string, float, sit(prim)) = float.
+:- mode get_val(in, in, in) = out is det.
+
+get_val(_, Default, s0) = Default.
+get_val(Key, Default, do(A, S)) =
+    ( if A = set_val(Key, Val) then Val else get_val(Key, Default, S) ).
 
 %-----------------------------------------------------------------------------%
 
@@ -253,6 +271,44 @@ test_value(!IO) :-
         E = {8.0, 2},
         ( if V = E then true else throw({E, V}) )
     ),
+    % For the following pickbest-tests:
+    % The set_val/2 action stores a float value under a string key.
+    % This value can be accessed with get_val/3 (the second parameter is the
+    % default value).
+    % Now we execute a set_val/2 action in the pick and the set value has effect
+    % on the reward by inc_reward/1 + get_val/3 combination.
+    % The reward is -1*X*X + 10 so that the peak is at X=0.0 and the reward is
+    % at this point is 10.0.
+    some [V, E, Next] (
+        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        V = value(with_type(
+                    pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
+                      a(a) `;`
+                      b(func(S) = inc_reward(-1.0*(R*R)+10.0) is det :- R = get_val("x", -1.0, S))
+                  , prog(prim)), s0, 100),
+        E = {10.0, 100},
+        ( if V = E then true else throw({E, V}) )
+    ),
+    some [V, E, Next] (
+        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        V = value(with_type(
+                    pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
+                      a(a) `;`
+                      b(func(S) = inc_reward(-1.0*(R*R)+10.0) is det :- R = get_val("x", -1.0, S))
+                  , prog(prim)), s0, 3),
+        E = {10.0, 3},
+        ( if V = E then true else throw({E, V}) )
+    ),
+    some [V, E, Next] (
+        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        V = value(with_type(
+                    pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
+                      a(a) `;`
+                      b(func(S) = inc_reward(-1.0*(R*R)+10.0) is det :- R = get_val("x", -1.0, S))
+                  , prog(prim)), s0, 2),
+        E = {0.0, 2},
+        ( if V = E then true else throw({E, V}) )
+    ),
     true.
 
 test_trans_atom(!IO) :-
@@ -290,6 +346,14 @@ test_trans(!IO) :-
     some [P] (
         P = (a(e2) or a(e) or a(d) or a(c) or a(b) or a(a) or a(impossible)) `with_type` prog(prim),
         ( if trans(P, s0, nil, do(e, s0)) then true else throw(P) )
+    ),
+    some [P, Next] (
+        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        P = pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
+            a(a) `;`
+            b(func(S) = inc_reward(-1.0*(R*R)+10.0) is det :- R = get_val("x", 0.0, S))
+            `with_type` prog(prim),
+        ( if trans(P, s0, _, do(set_val("x", 0.0), s0)) then true else throw(P) )
     ),
     true.
 
