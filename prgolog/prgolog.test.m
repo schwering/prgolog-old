@@ -184,13 +184,18 @@ test_final(!IO) :-
 
 test_value(!IO) :-
     some [V, E] (
+        V = value(a(a) `with_type` prog(prim), s0, 1),
+        E = {0.0, 1},
+        ( if V = E then true else throw({E, V}) )
+    ),
+    some [V, E] (
         V = value(((a(a) `;` a(a) `;` a(a)) or a(a)) `with_type` prog(prim), s0, 0),
         E = {0.0, 0},
         ( if V = E then true else throw({E, V}) )
     ),
     some [V, E] (
         V = value(((a(a) `;` a(a) `;` a(a)) or a(a)) `with_type` prog(prim), s0, 10),
-        E = {0.0, 0},
+        E = {0.0, 10},
         ( if V = E then true else throw({E, V}) )
     ),
     some [V, E] (

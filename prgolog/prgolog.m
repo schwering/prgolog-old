@@ -261,6 +261,11 @@ trans_atom(test(T), S, S) :-
 
 %-----------------------------------------------------------------------------%
 
+:- func min_value = value.
+
+min_value = {-1.0 * float.max, int.min_int}.
+
+
 :- pred value > value.
 :- mode in > in is semidet.
 
@@ -274,10 +279,9 @@ max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
 
 :- func pickbest(sit(A)) = tree.force_args(decomp(A), value) <= bat(A).
 
-pickbest(S) = tree.force_args(Val, Cmp, Min) :-
+pickbest(S) = tree.force_args(Val, Cmp, min_value) :-
     Val = (func(decomp(C, R)) = value(seq(pseudo_atom(atom(C)), R), S)),
-    Cmp = (func(V, W) = ( if V > W then (>) else if V = W then (=) else (<) )),
-    Min = {min, min_int}.
+    Cmp = (func(V, W) = ( if V > W then (>) else if V = W then (=) else (<) )).
 
 %-----------------------------------------------------------------------------%
 
@@ -290,6 +294,7 @@ value(P, S) = value(P, S, lookahead(S)).
 
 value(P, S, L) = {V, N} :-
     if      L > 0,
+%
             {V2, N2} = tree.map_reduce(
                 (func(decomp(C, R)) = {V1, N1 + 1} is semidet :-
                     trans_atom(C, S, S1),
@@ -297,6 +302,16 @@ value(P, S, L) = {V, N} :-
                 max,
                 tree.force(pickbest(S), next2(P))
             ),
+/*
+    Old code, should be totally equivalent:
+            {V2, N2} = tree.foldl((func(decomp(C, R), VN2) = VN3 is det :-
+                if      trans_atom(C, S, S1)
+                then    {V1, N1} = value(R, S1, L - 1),
+                        VN3 = max({V1, N1 + 1}, VN2)
+                else    VN3 = VN2
+            ), tree.force(pickbest(S), next2(P)), min_value),
+            min_value \= {V2, N2},
+*/
             ( final(P) => V2 > reward(S) )
     then    V = V2, N = N2
     else    V = reward(S), N = ( if final(P) then L else 0 ).
