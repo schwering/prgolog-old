@@ -4,20 +4,20 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: arithmetic.impl.m.
+% File: util.arithmetic.impl.m.
 % Main author: schwering.
 %
 % Instances of arithmetic typeclass for float, rationals, and some more.
 %
 %-----------------------------------------------------------------------------%
 
-:- module arithmetic.impl.
+:- module util.arithmetic.impl.
 
 :- interface.
 
 :- use_module prgolog.
 :- use_module prgolog.ccfluent.
-:- use_module rat.
+:- use_module util.rat.
 :- use_module rational.
 
 %-----------------------------------------------------------------------------%
@@ -255,5 +255,5 @@ float_to_rational(Float) = rational.rational(Numer, Denom) :-
 */
 
 %-----------------------------------------------------------------------------%
-:- end_module arithmetic.impl.
+:- end_module util.arithmetic.impl.
 %-----------------------------------------------------------------------------%

@@ -11,11 +11,17 @@
 
 :- module util.
 
-:- import_module arithmetic.
-:- import_module inf_arithmetic.
-:- import_module pipe.
-:- import_module simulated_annealing.
-:- import_module times.
+:- interface.
 
+%-----------------------------------------------------------------------------%
+
+:- include_module arithmetic.
+:- include_module inf_arithmetic.
+:- include_module pipe.
+:- include_module simulated_annealing.
+:- include_module rat.
+:- include_module times.
+
+%-----------------------------------------------------------------------------%
 :- end_module util.
-
+%-----------------------------------------------------------------------------%

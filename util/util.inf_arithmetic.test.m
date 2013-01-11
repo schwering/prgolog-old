@@ -4,12 +4,12 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: inf_arithmetic.test.m.
+% File: util.inf_arithmetic.test.m.
 % Main author: schwering.
 %
 %-----------------------------------------------------------------------------%
 
-:- module inf_arithmetic.test.
+:- module util.inf_arithmetic.test.
 
 :- interface.
 
@@ -24,9 +24,9 @@
 
 :- implementation.
 
-:- import_module arithmetic.impl.
 :- import_module exception.
 :- import_module require.
+:- import_module util.arithmetic.impl.
 
 %-----------------------------------------------------------------------------%
 
@@ -130,5 +130,5 @@ test(!IO) :-
     true.
 
 %-----------------------------------------------------------------------------%
-:- end_module inf_arithmetic.test.
+:- end_module util.inf_arithmetic.test.
 %-----------------------------------------------------------------------------%

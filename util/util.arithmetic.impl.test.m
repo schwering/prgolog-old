@@ -4,12 +4,12 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: arithmetic.impl.test.m.
+% File: util.arithmetic.impl.test.m.
 % Main author: schwering.
 %
 %-----------------------------------------------------------------------------%
 
-:- module arithmetic.impl.test.
+:- module util.arithmetic.impl.test.
 
 :- interface.
 
@@ -38,7 +38,7 @@
 :- use_module math.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module rat.
+:- import_module util.rat.
 :- import_module require.
 :- import_module std_util.
 
@@ -161,5 +161,5 @@ test_optimize_float(!IO) :-
     true.
 
 %-----------------------------------------------------------------------------%
-:- end_module arithmetic.impl.test.
+:- end_module util.arithmetic.impl.test.
 %-----------------------------------------------------------------------------%

@@ -44,11 +44,17 @@
 :- pred trans(conf(A), conf(A)) <= bat(A).
 :- mode trans(in, out) is semidet.
 
+:- func trans(conf(A)) = conf(A) <= bat(A).
+:- mode trans(in) = out is semidet.
+
 :- pred final(conf(A)) <= bat(A).
 :- mode final(in) is semidet.
 
 :- pred do(conf(A), sit(A)) <= bat(A).
 :- mode do(in, out) is semidet.
+
+:- func do(conf(A)) = sit(A) <= bat(A).
+:- mode do(in) = out is semidet.
 
 %-----------------------------------------------------------------------------%
 
@@ -79,32 +85,14 @@
 :- func ifthen(relfluent(A), prog(A)) = prog(A) <= bat(A).
 :- mode ifthen(in, in) = out is det.
 
-:- func ifthenelse(relfluent(A), prog(A), prog(A)) = prog(A)
-   <= bat(A).
+:- func ifthenelse(relfluent(A), prog(A), prog(A)) = prog(A) <= bat(A).
 :- mode ifthenelse(in, in, in) = out is det.
 
 :- func while(relfluent(A), prog(A)) = prog(A) <= bat(A).
 :- mode while(in, in) = out is det.
 
-%-----------------------------------------------------------------------------%
-
-/*
-:- typeclass pickable(V, T, A) where [
-    func substitute(V, T, A) = A,
-    mode substitute(in, in, in(I)) = out(I) is det
-].
-
-:- func pick(V, list(T), prog(A)) = prog(A)
-    <= (bat(A),
-        pickable(V, T, A),
-        pickable(V, T, relfluent(A))).
-:- mode pick(in, in(non_empty_list), in) = out is det.
-:- mode pick(in, in, in) = out is semidet.
-
-:- func pick2(term.var(T), list(T), prog(A)) = prog(A) <= bat(A).
-:- mode pick2(in, in(non_empty_list), in) = out is det.
-:- mode pick2(in, in, in) = out is semidet.
-*/
+:- func pickbest(next_func(T), T, pickprog(A, T)) = prog(A).
+:- mode pickbest(in, in, in) = out is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -117,74 +105,28 @@
 
 init(P) = conf(P, s0).
 trans(conf(P, S), conf(P1, S1)) :- trans(P, S, P1, S1).
+trans(Conf) = Conf1 :- trans(Conf, Conf1).
 final(conf(P, S)) :- final(P, S).
 do(conf(P, S), S1) :- do(P, S, S1).
+do(Conf) = S1 :- do(Conf, S1).
 
 %-----------------------------------------------------------------------------%
 
-a(A) = prgolog.pseudo_atom(prgolog.atom(prgolog.prim(A))).
-b(B) = prgolog.pseudo_atom(prgolog.atom(prgolog.primf(B))).
-t(T) = prgolog.pseudo_atom(prgolog.atom(prgolog.test(T))).
-p(P) = prgolog.proc(P).
+a(A) = pseudo_atom(atom(prim(A))).
+b(B) = pseudo_atom(atom(primf(B))).
+t(T) = pseudo_atom(atom(test(T))).
+p(P) = proc(P).
 
 %-----------------------------------------------------------------------------%
 
-P1 `;` P2  = prgolog.seq(P1, P2).
-P1 // P2 = prgolog.conc(P1, P2).
-(P1 or P2)  = prgolog.non_det(P1, P2).
-atomic(P) = prgolog.pseudo_atom(prgolog.complex(P)).
+P1 `;` P2  = seq(P1, P2).
+P1 // P2 = conc(P1, P2).
+(P1 or P2)  = non_det(P1, P2).
+atomic(P) = pseudo_atom(prgolog.complex(P)).
 ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
 while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
-
-%-----------------------------------------------------------------------------%
-
-/*
-:- func subst(term.var(T), T, prog(A)) = prog(A) <= bat(A).
-:- mode subst(in, in, in) = out is det.
-
-subst(V, T, P) = P1 :-
-    ProgTerm = term.type_to_term(P),
-    Replacement = term.type_to_term(T),
-    term.substitute(ProgTerm, V, Replacement, GroundProgTerm),
-    term.det_term_to_type(GroundProgTerm, P1).
-
-
-pick2(V, [T|Ts], P) = P0 :-
-    P1 = subst(V, T, P),
-    (   if      P2 = pick2(V, Ts, P)
-        then    P0 = (P1 or P2)
-        else    P0 = P1
-    ).
-
-
-pick(V, [T|Ts], P) = P1 :-
-    if      P2 = pick(V, Ts, P)
-    then    P1 = (replace(V, T, P) or P2)
-    else    P1 = replace(V, T, P).
-
-
-:- func replace(V, T, prog(A)) = prog(A)
-    <= (bat(A),
-        pickable(V, T, A),
-        pickable(V, T, relfluent(A))).
-:- mode replace(in, in, in) = out is det.
-
-replace(V, T, seq(P0, P1)) = replace(V, T, P0) `seq` replace(V, T, P1).
-replace(V, T, non_det(P0, P1)) = replace(V, T, P0) `non_det` replace(V, T, P1).
-replace(V, T, conc(P0, P1)) = replace(V, T, P0) `conc` replace(V, T, P1).
-replace(V, T, star(P)) = star(replace(V, T, P)).
-replace(V, T, proc(P)) = proc(P). %%% XXX proc(substitute(V, T, P)).
-replace(V, T, pseudo_atom(atom(prim(A)))) =
-    pseudo_atom(atom(prim(substitute(V, T, A)))).
-replace(V, T, pseudo_atom(atom(primf(B)))) =
-    pseudo_atom(atom(primf(B))). %%% XXX pseudo_atom(atom(primf(substitute(V, T, B)))).
-replace(V, T, pseudo_atom(atom(test(G)))) =
-    pseudo_atom(atom(test(substitute(V, T, G)))).
-replace(V, T, pseudo_atom(complex(P))) =
-    pseudo_atom(complex(replace(V, T, P))).
-replace(_, _, nil) = nil.
-*/
+pickbest(F, I, P) = 'new pick'(F, I, P).
 
 %-----------------------------------------------------------------------------%
 :- end_module prgolog.nice.

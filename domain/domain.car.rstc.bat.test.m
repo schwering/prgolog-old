@@ -26,15 +26,15 @@
 
 :- implementation.
 
-:- import_module arithmetic.impl.
+:- import_module domain.car.obs.
+:- import_module domain.car.obs.stdin.
 :- import_module exception.
-:- import_module maybe.
 :- import_module list.
+:- import_module maybe.
 :- import_module pair.
 :- import_module solutions.
 :- import_module string.
-:- import_module domain.car.obs.
-:- import_module domain.car.obs.stdin.
+:- import_module util.arithmetic.impl.
 
 %-----------------------------------------------------------------------------%
 

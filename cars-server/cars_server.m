@@ -44,8 +44,9 @@
 :- import_module prgolog.
 :- import_module prgolog.nice.
 :- import_module string.
-:- use_module arithmetic.
-:- import_module arithmetic.impl.
+:- import_module util.
+:- use_module util.arithmetic.
+:- import_module util.arithmetic.impl.
 :- use_module visual.
 
 %-----------------------------------------------------------------------------%

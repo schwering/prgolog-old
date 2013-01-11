@@ -4,12 +4,12 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: times.m.
+% File: util.times.m.
 % Main author: schwering.
 %
 %-----------------------------------------------------------------------------%
 
-:- module times.
+:- module util.times.
 
 :- interface.
 
@@ -105,5 +105,5 @@ systime(Tms1, Tms2) = Diff :- systime(Tms1, Tms2, Diff).
 ").
 
 %-----------------------------------------------------------------------------%
-:- end_module times.
+:- end_module util.times.
 %-----------------------------------------------------------------------------%

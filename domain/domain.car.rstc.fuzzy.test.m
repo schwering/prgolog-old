@@ -25,15 +25,15 @@
 
 :- implementation.
 
-:- import_module arithmetic.impl.
 :- import_module bool.
 :- import_module exception.
 :- import_module list.
 :- use_module math.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module rat.
 :- import_module require.
+:- import_module util.arithmetic.impl.
+:- import_module util.rat.
 
 %-----------------------------------------------------------------------------%
 

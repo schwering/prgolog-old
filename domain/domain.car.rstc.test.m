@@ -30,9 +30,9 @@
 
 :- implementation.
 
-:- import_module arithmetic.impl.
 :- import_module pair.
 :- import_module string.
+:- import_module util.arithmetic.impl.
 
 %-----------------------------------------------------------------------------%
 

@@ -6,7 +6,7 @@
 % Public License - see the file COPYING.LIB in the Mercury distribution.
 %-----------------------------------------------------------------------------%
 %
-% File: rat.m.
+% File: util.rat.m.
 % Authors: vjteag, juliensf.
 % 
 % Implements a rational number type using fixed precision integers.
@@ -23,7 +23,7 @@
 %
 %-----------------------------------------------------------------------------%
 
-:- module rat.
+:- module util.rat.
 :- interface.
 
 :- import_module io.
@@ -236,5 +236,5 @@ write_rat(r(Numerator, Denominator), !IO) :-
     io.write_char(')', !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module rat.
+:- end_module util.rat.
 %-----------------------------------------------------------------------------%

@@ -33,11 +33,14 @@
 :- import_module list.
 :- import_module string.
 
-:- use_module arithmetic.
-:- use_module arithmetic.impl.
-:- use_module arithmetic.impl.test.
-:- use_module inf_arithmetic.
-:- use_module inf_arithmetic.test.
+:- use_module util.
+:- use_module util.arithmetic.
+:- use_module util.arithmetic.impl.
+:- use_module util.arithmetic.impl.test.
+:- use_module util.inf_arithmetic.
+:- use_module util.inf_arithmetic.test.
+:- use_module util.simulated_annealing.
+:- use_module util.simulated_annealing.test.
 
 :- use_module prgolog.
 :- use_module prgolog.test.
@@ -100,16 +103,18 @@ get_tests(Tests, !IO) :-
             , test("bat", "test_match_dist", ccm(domain.car.rstc.bat.test.test_match_dist))
             , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
             , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))
-            , test("arithmetic", "test_bin_search_rat", ccm(arithmetic.impl.test.test_bin_search_rat))
-            , test("arithmetic", "test_bin_search_rat_sq", ccm(arithmetic.impl.test.test_bin_search_rat_sq))
-            , test("arithmetic", "test_bin_search_float", ccm(arithmetic.impl.test.test_bin_search_float))
-            , test("arithmetic", "test_bin_search_float_inv", ccm(arithmetic.impl.test.test_bin_search_float_inv))
-            , test("arithmetic", "test_bin_search_float_sq", ccm(arithmetic.impl.test.test_bin_search_float_sq))
-            , test("arithmetic", "test_bin_search_float_sq2", ccm(arithmetic.impl.test.test_bin_search_float_sq2))
-            , test("arithmetic", "test_bin_search_float_sqrt", ccm(arithmetic.impl.test.test_bin_search_float_sqrt))
-            , test("arithmetic", "test_bin_search_float_fail", ccm(arithmetic.impl.test.test_bin_search_float_fail))
-            , test("arithmetic", "test_optimize_float", ccm(arithmetic.impl.test.test_optimize_float))
-            , test("inf_arithmetic", "test", ccm(inf_arithmetic.test.test))
+            , test("arithmetic", "test_bin_search_rat", ccm(util.arithmetic.impl.test.test_bin_search_rat))
+            , test("arithmetic", "test_bin_search_rat_sq", ccm(util.arithmetic.impl.test.test_bin_search_rat_sq))
+            , test("arithmetic", "test_bin_search_float", ccm(util.arithmetic.impl.test.test_bin_search_float))
+            , test("arithmetic", "test_bin_search_float_inv", ccm(util.arithmetic.impl.test.test_bin_search_float_inv))
+            , test("arithmetic", "test_bin_search_float_sq", ccm(util.arithmetic.impl.test.test_bin_search_float_sq))
+            , test("arithmetic", "test_bin_search_float_sq2", ccm(util.arithmetic.impl.test.test_bin_search_float_sq2))
+            , test("arithmetic", "test_bin_search_float_sqrt", ccm(util.arithmetic.impl.test.test_bin_search_float_sqrt))
+            , test("arithmetic", "test_bin_search_float_fail", ccm(util.arithmetic.impl.test.test_bin_search_float_fail))
+            , test("arithmetic", "test_optimize_float", ccm(util.arithmetic.impl.test.test_optimize_float))
+            , test("inf_arithmetic", "test", ccm(util.inf_arithmetic.test.test))
+            , test("simulated_annealing", "test_random", ccm(util.simulated_annealing.test.test_random))
+            , test("simulated_annealing", "test_sa", ccm(util.simulated_annealing.test.test_sa))
             ].
 
 %-----------------------------------------------------------------------------%

@@ -41,7 +41,8 @@
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module times.
+:- import_module util.
+:- import_module util.times.
 %:- import_module table_statistics.
 
 %-----------------------------------------------------------------------------%

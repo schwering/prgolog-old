@@ -58,6 +58,22 @@
 
 %-----------------------------------------------------------------------------%
 
+:- func last_action(sit(prim)) = prim.
+:- mode last_action(in) = out is semidet.
+
+last_action(do(A, _)) = A.
+
+%-----------------------------------------------------------------------------%
+
+:- func pseudo_pickbest(sit(A)) =
+    tree.force_args(pseudo_decomp(A), value) <= bat(A).
+
+pseudo_pickbest(S) = tree.force_args(Val, Cmp, Min) :-
+    Val = (func(pseudo_decomp(C, R)) = value(seq(pseudo_atom(C), R), S)),
+    Cmp = (func(V, W) = ( if V > W then (>) else if V = W then (=) else (<) )),
+    Min = {min, min_int}.
+
+
 test_next(!IO) :-
     Decomp = (func(Prim, Prog) = pseudo_decomp(atom(prim(Prim)), Prog)),
     Inputs =
@@ -82,7 +98,7 @@ test_next(!IO) :-
     Test = (pred(P::in, Exp::in, Succ::out) is det :-
         T = next(P),
         S = s0,
-        Ds = tree.tree_to_list(tree.force(pickbest(S), T)),
+        Ds = tree.tree_to_list(tree.force(pseudo_pickbest(S), T)),
         sort(Ds, Ds1),
         sort(Exp, Exp1),
         ( if Ds1 = Exp1 then Succ = yes else throw({Ds, Exp}) )
@@ -123,7 +139,7 @@ test_next2(!IO) :-
     Test = (pred(P::in, Exp::in, Succ::out) is det :-
         T = next2(P),
         S = s0,
-        Ds = tree.tree_to_list(tree.force(pickbest(S), T)),
+        Ds = tree.tree_to_list(tree.force(prgolog.pickbest(S), T)),
         sort(Ds, Ds1),
         sort(Exp, Exp1),
         ( if Ds1 = Exp1 then Succ = yes else throw({Ds, Exp}) )

@@ -26,10 +26,11 @@
 
 :- interface.
 
-:- use_module arithmetic.
-:- import_module inf_arithmetic.
 :- import_module prgolog.
 :- import_module prgolog.nice.
+:- import_module util.
+:- use_module util.arithmetic.
+:- import_module util.inf_arithmetic.
 
 %-----------------------------------------------------------------------------%
 

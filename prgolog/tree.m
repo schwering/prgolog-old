@@ -20,29 +20,24 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type tree(T, U)
+:- type value_func(U, V) == (func(U) = V).
+:- type next_func(U, V) == (func(U, value_func(U, V), comparison_func(V)) = U).
+
+:- type tree(T, V)
     --->    empty
-    ;       value(T)
-    ;       lazy(func(U) = tree(T, U))
-    ;       branch(tree(T, U), tree(T, U)).
+    ;       leaf(T)
+    ;       some [U] lazy(next_func(U, V), U, func(U) = tree(T, V))
+    ;       branch(tree(T, V), tree(T, V)).
 
 :- inst strict(T)
     --->    empty
-    ;       value(T)
+    ;       leaf(T)
     ;       branch(strict(T), strict(T)).
-
-:- inst non_empty_strict(T)
-    --->    value(T)
-    ;       branch(non_empty_strict(T), non_empty_strict(T)).
 
 :- inst strict == strict(ground).
 
-:- inst non_empty_strict == non_empty_strict(ground).
-
-:- inst lazy
-    --->    empty
-    ;       lazy(ground)
-    ;       branch(lazy, lazy).
+:- type force_args(T, V)
+    --->    force_args(value_func(T, V), comparison_func(V), V).
 
 %-----------------------------------------------------------------------------%
 
@@ -54,43 +49,40 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func force(U, tree(T, U)) = tree(T, U).
+:- func force(force_args(T, V), tree(T, V)) = tree(T, V).
 :- mode force(in, in) = out(strict) is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func foldl(func(T, V) = V, tree(T, _), V) = V.
+:- func foldl(func(T, W) = W, tree(T, V), W) = W.
 :- mode foldl(in, in(strict), in) = out is det.
 
-:- func foldr(func(T, V) = V, tree(T, _), V) = V.
+:- func foldr(func(T, W) = W, tree(T, V), W) = W.
 :- mode foldr(in, in(strict), in) = out is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func map(func(T1) = T2, tree(T1, U)) = tree(T2, U).
-:- mode map(in, in(strict)) = out(strict) is det.
-:- mode map(in, in(non_empty_strict)) = out(non_empty_strict) is det.
-:- mode map(in, in(lazy)) = out(lazy) is det.
-:- mode map(in, in) = out is det.
+:- func map(func(T1) = T2, tree(T1, V)) = tree(T2, V).
+:- mode map(func(in) = out is det,     in) = out is det.
+:- mode map(func(in) = out is semidet, in) = out is det.
 
-:- func mapt(func(T1) = tree(T2, U), tree(T1, U)) = tree(T2, U).
-:- mode mapt(in, in) = out is det.
+:- func mapt(func(T1) = tree(T2, V), tree(T1, V)) = tree(T2, V).
+:- mode mapt(func(in) = out is det,     in) = out is det.
+:- mode mapt(func(in) = out is semidet, in) = out is det.
 
 %-----------------------------------------------------------------------------%
 
-:- func reduce(func(T, T) = T, tree(T, U)) = T.
+:- func reduce(func(T, T) = T, tree(T, V)) = T.
 :- mode reduce(in, in(strict)) = out is semidet.
-:- mode reduce(in, in(non_empty_strict)) = out is det.
 
-:- func map_reduce(func(T) = V, func(V, V) = V, tree(T, U)) = V.
-:- mode map_reduce(in, in, in(strict)) = out is semidet.
-:- mode map_reduce(in, in, in(non_empty_strict)) = out is det.
+:- func map_reduce(func(T1) = T2, func(T2, T2) = T2, tree(T1, V)) = T2.
+:- mode map_reduce(func(in) = out is det,     in, in(strict)) = out is semidet.
+:- mode map_reduce(func(in) = out is semidet, in, in(strict)) = out is semidet.
 
 %-----------------------------------------------------------------------------%
 
 :- func tree_to_list(tree(T, _)) = list.list(T).
 :- mode tree_to_list(in(strict)) = out is det.
-:- mode tree_to_list(in(non_empty_strict)) = out(list.non_empty_list) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -107,7 +99,7 @@ empty(empty).
 empty(branch(T1, T2)) :- empty(T1), empty(T2).
 
 
-singleton(value(X), X).
+singleton(leaf(X), X).
 singleton(branch(T1, T2), X) :-
     promise_equivalent_solutions [X]
     (   empty(T1), singleton(T2, X)
@@ -116,37 +108,52 @@ singleton(branch(T1, T2), X) :-
 
 %-----------------------------------------------------------------------------%
 
+:- func fixpoint(func(T) = T, T) = T.
+:- mode fixpoint(in, in) = out is det.
+
+fixpoint(F, X0) = ( if X = X0 then X else fixpoint(F, X) ) :- X = F(X0).
+
+
+:- func max(comparison_func(T), T, T) = T.
+
+max(CmpF, X, Y) = ( if CmpF(X, Y) = (>) then X else Y ).
+
+
 force(_, T @ empty) = T.
-force(_, T @ value(_)) = T.
-force(U, lazy(F)) = force(U, F(U)).
-force(U, branch(T1, T2)) = branch(force(U, T1), force(U, T2)).
+force(_, T @ leaf(_)) = T.
+force(Args @ force_args(Val, Cmp, Min), lazy(Next, X0, G)) = T :-
+    T = force(Args, G(fixpoint(F, X0))),
+    F = (func(X) = Next(X, NewVal, Cmp)),
+    Fold = (func(T1, V) = max(Cmp, Val(T1), V)),
+    NewVal = (func(X) = foldl(Fold, force(Args, G(X)), Min)).
+force(Args, branch(T1, T2)) = branch(force(Args, T1), force(Args, T2)).
 
 %-----------------------------------------------------------------------------%
 
 foldl(_, empty, E) = E.
-foldl(F, value(X), E) = F(X, E).
+foldl(F, leaf(X), E) = F(X, E).
 foldl(F, branch(T1, T2), E) = foldl(F, T2, foldl(F, T1, E)).
 
 foldr(_, empty, E) = E.
-foldr(F, value(X), E) = F(X, E).
+foldr(F, leaf(X), E) = F(X, E).
 foldr(F, branch(T1, T2), E) = foldr(F, T1, foldr(F, T2, E)).
 
 %-----------------------------------------------------------------------------%
 
 map(_, empty) = empty.
-map(F, value(X)) = value(F(X)).
-map(F, lazy(G)) = lazy(func(U) = map(F, G(U))).
+map(F, leaf(X)) = ( if FX = F(X) then leaf(FX) else empty ).
+map(F, lazy(Next, X0, T)) = 'new lazy'(Next, X0, func(U) = map(F, T(U))).
 map(F, branch(T1, T2)) = branch(map(F, T1), map(F, T2)).
 
 
 mapt(_, empty) = empty.
-mapt(F, value(X)) = F(X).
-mapt(F, lazy(G)) = lazy(func(U) = mapt(F, G(U))).
+mapt(F, leaf(X)) = ( if FX = F(X) then FX else empty ).
+mapt(F, lazy(Next, X0, T)) = 'new lazy'(Next, X0, func(U) = mapt(F, T(U))).
 mapt(F, branch(T1, T2)) = branch(mapt(F, T1), mapt(F, T2)).
 
 %-----------------------------------------------------------------------------%
 
-reduce(_, value(X)) = X.
+reduce(_, leaf(X)) = X.
 reduce(F, branch(T1, T2)) =
     (   if      reduce(F, T1) = X1
         then    (   if      reduce(F, T2) = X2
@@ -156,7 +163,16 @@ reduce(F, branch(T1, T2)) =
         else    reduce(F, T2)
     ).
 
-map_reduce(F, G, T) = reduce(G, map(F, T)).
+
+map_reduce(F, _, leaf(X)) = F(X).
+map_reduce(F, G, branch(T1, T2)) =
+    (   if      map_reduce(F, G, T1) = Y1
+        then    (   if      map_reduce(F, G, T2) = Y2
+                    then    G(Y1, Y2)
+                    else    Y1
+                )
+        else    map_reduce(F, G, T2)
+    ).
 
 %-----------------------------------------------------------------------------%
 

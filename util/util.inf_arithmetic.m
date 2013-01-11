@@ -4,7 +4,7 @@
 % Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: inf_arithmetic.m.
+% File: util.inf_arithmetic.m.
 % Main author: schwering.
 %
 % Extension of numbers with positive and negative infinity.
@@ -15,13 +15,13 @@
 %
 %-----------------------------------------------------------------------------%
 
-:- module inf_arithmetic.
+:- module util.inf_arithmetic.
 
 :- interface.
 
 %-----------------------------------------------------------------------------%
 
-:- use_module arithmetic.
+:- use_module util.arithmetic.
 
 %-----------------------------------------------------------------------------%
 
@@ -475,5 +475,5 @@ maximize(P, F) = arithmetic.optimize(func(X, Y) = max(X, Y), P, F).
 :- pragma type_spec(flip/2, N = float).
 
 %-----------------------------------------------------------------------------%
-:- end_module inf_arithmetic.
+:- end_module util.inf_arithmetic.
 %-----------------------------------------------------------------------------%

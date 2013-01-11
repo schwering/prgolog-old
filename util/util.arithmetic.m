@@ -4,7 +4,7 @@
 % Copyright 2012-2013 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: arithmetic.m.
+% File: util.arithmetic.m.
 % Main author: schwering.
 %
 % Typeclass for arithmetic operations.
@@ -15,7 +15,7 @@
 %
 %-----------------------------------------------------------------------------%
 
-:- module arithmetic.
+:- module util.arithmetic.
 
 :- interface.
 
@@ -254,5 +254,5 @@ maximize(P, F) = optimize(max, P, F).
 :- pragma type_spec(bin_search_2/5, (X = float, Y = float)).
 
 %-----------------------------------------------------------------------------%
-:- end_module arithmetic.
+:- end_module util.arithmetic.
 %-----------------------------------------------------------------------------%

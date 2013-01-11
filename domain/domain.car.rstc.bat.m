@@ -70,7 +70,7 @@
 :- import_module assoc_list.
 :- import_module list.
 :- import_module pair.
-:- import_module simulated_annealing.
+:- import_module util.simulated_annealing.
 
 %-----------------------------------------------------------------------------%
 
@@ -217,10 +217,10 @@ tailgate(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
             ))) `;`
-            %'new pick'(func(X, Reward) = X, one, func(X) =
-            %    a(accel(B, X))
-            %)
-            b(accelf(B, rel_v(Victim, B)))
+            pickbest(func(X, _Val, _Cmp) = X, one, func(X) =
+                a(accel(B, X))
+            )
+            %b(accelf(B, rel_v(Victim, B)))
         ) `;`
         a(end(B, $pred)).
 
