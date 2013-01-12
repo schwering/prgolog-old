@@ -39,6 +39,8 @@
 :- use_module util.arithmetic.impl.test.
 :- use_module util.inf_arithmetic.
 :- use_module util.inf_arithmetic.test.
+:- use_module util.pso.
+:- use_module util.pso.test.
 :- use_module util.simulated_annealing.
 :- use_module util.simulated_annealing.test.
 
@@ -115,6 +117,8 @@ get_tests(Tests, !IO) :-
             , test("inf_arithmetic", "test", ccm(util.inf_arithmetic.test.test))
             , test("simulated_annealing", "test_random", ccm(util.simulated_annealing.test.test_random))
             , test("simulated_annealing", "test_sa", ccm(util.simulated_annealing.test.test_sa))
+            , test("pso", "test_random", ccm(util.pso.test.test_random))
+            , test("pso", "test_sa", ccm(util.pso.test.test_pso))
             ].
 
 %-----------------------------------------------------------------------------%

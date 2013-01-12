@@ -18,6 +18,7 @@
 :- include_module arithmetic.
 :- include_module inf_arithmetic.
 :- include_module pipe.
+:- include_module pso.
 :- include_module simulated_annealing.
 :- include_module rat.
 :- include_module times.
