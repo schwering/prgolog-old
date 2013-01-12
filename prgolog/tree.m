@@ -10,6 +10,20 @@
 % A tree container, generally similar to a list except that it also allows
 % lazy entries and is not flat.
 %
+% A lazy entry consists of a function that maps some type U to a sub-tree.
+% The idea is that the optimal -- wrt. some user-specified criterion -- datum
+% of U is plugged in and the sub-tree is hooked in the tree.
+% For this search, each lazy node must further provide a succ_func and an
+% initial datum.
+% The force/2 function does this work. It searches for the optimal datum for
+% each lazy sub-tree.
+% The search is done by invoking the succ_func of the lazy node starting with
+% the specified initial datum and continuing with succ_func's return values
+% until an (`attractive') fixpoint is reached.
+% To make it possible for the succ_func to do an informed choice, it is given
+% the latest datum together with an evaluation function and a comparison
+% function.
+%
 %-----------------------------------------------------------------------------%
 
 :- module tree.
@@ -21,12 +35,12 @@
 %-----------------------------------------------------------------------------%
 
 :- type value_func(U, V) == (func(U) = V).
-:- type next_func(U, V) == (func(U, value_func(U, V), comparison_func(V)) = U).
+:- type succ_func(U, V) == (func(U, value_func(U, V), comparison_func(V)) = U).
 
 :- type tree(T, V)
     --->    empty
     ;       leaf(T)
-    ;       some [U] lazy(next_func(U, V), U, func(U) = tree(T, V))
+    ;       some [U] lazy(succ_func(U, V), U, func(U) = tree(T, V))
     ;       branch(tree(T, V), tree(T, V)).
 
 :- inst strict(T)
@@ -75,9 +89,16 @@
 :- func reduce(func(T, T) = T, tree(T, V)) = T.
 :- mode reduce(in, in(strict)) = out is semidet.
 
+:- func reduce(func(T, T) = T, tree(T, V), T) = T.
+:- mode reduce(in, in(strict), in) = out is det.
+
 :- func map_reduce(func(T1) = T2, func(T2, T2) = T2, tree(T1, V)) = T2.
 :- mode map_reduce(func(in) = out is det,     in, in(strict)) = out is semidet.
 :- mode map_reduce(func(in) = out is semidet, in, in(strict)) = out is semidet.
+
+:- func map_reduce(func(T1) = T2, func(T2, T2) = T2, tree(T1, V), T2) = T2.
+:- mode map_reduce(func(in) = out is det,     in, in(strict), in) = out is det.
+:- mode map_reduce(func(in) = out is semidet, in, in(strict), in) = out is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -121,11 +142,10 @@ max(CmpF, X, Y) = ( if CmpF(X, Y) = (>) then X else Y ).
 
 force(_, T @ empty) = T.
 force(_, T @ leaf(_)) = T.
-force(Args @ force_args(Val, Cmp, Min), lazy(Next, X0, G)) = T :-
+force(Args @ force_args(Val, Cmp, Min), lazy(Succ, X0, G)) = T :-
     T = force(Args, G(fixpoint(F, X0))),
-    F = (func(X) = Next(X, NewVal, Cmp)),
-    Fold = (func(T1, V) = max(Cmp, Val(T1), V)),
-    NewVal = (func(X) = foldl(Fold, force(Args, G(X)), Min)).
+    F = (func(X) = Succ(X, Val1, Cmp)),
+    Val1 = (func(X) = map_reduce(Val, max(Cmp), force(Args, G(X)), Min)).
 force(Args, branch(T1, T2)) = branch(force(Args, T1), force(Args, T2)).
 
 %-----------------------------------------------------------------------------%
@@ -142,13 +162,13 @@ foldr(F, branch(T1, T2), E) = foldr(F, T1, foldr(F, T2, E)).
 
 map(_, empty) = empty.
 map(F, leaf(X)) = ( if FX = F(X) then leaf(FX) else empty ).
-map(F, lazy(Next, X0, T)) = 'new lazy'(Next, X0, func(U) = map(F, T(U))).
+map(F, lazy(Succ, X0, T)) = 'new lazy'(Succ, X0, func(U) = map(F, T(U))).
 map(F, branch(T1, T2)) = branch(map(F, T1), map(F, T2)).
 
 
 mapt(_, empty) = empty.
 mapt(F, leaf(X)) = ( if FX = F(X) then FX else empty ).
-mapt(F, lazy(Next, X0, T)) = 'new lazy'(Next, X0, func(U) = mapt(F, T(U))).
+mapt(F, lazy(Succ, X0, T)) = 'new lazy'(Succ, X0, func(U) = mapt(F, T(U))).
 mapt(F, branch(T1, T2)) = branch(mapt(F, T1), mapt(F, T2)).
 
 %-----------------------------------------------------------------------------%
@@ -173,6 +193,12 @@ map_reduce(F, G, branch(T1, T2)) =
                 )
         else    map_reduce(F, G, T2)
     ).
+
+
+reduce(F, T, Def) = ( if X = reduce(F, T) then X else Def ).
+
+
+map_reduce(F, G, T, Def) = ( if X = map_reduce(F, G, T) then X else Def ).
 
 %-----------------------------------------------------------------------------%
 

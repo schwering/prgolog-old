@@ -68,14 +68,34 @@ test_pso(!IO) :-
             Eps = 0.001,
             ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F2", X0, X}) )
         ),
+        some [F, X, Eps, X0] (
+            F = abs,
+            run_pso(5, 10000, default_params, {-1000.0, 1000.0}, min, F, X, !RandomSupply),
+            X0 = 0.0,
+            Eps = 0.001,
+            ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3.1", X0, X}) )
+        ),
+        some [F, X, Eps, X0] (
+            F = abs,
+            run_pso(5, 100, default_params, {-1000.0, 1000.0}, min, F, X, !RandomSupply),
+            X0 = 0.0,
+            Eps = 0.001,
+            ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3.2", X0, X}) )
+        ),
+        some [F, X, Eps, X0] (
+            F = abs,
+            run_pso(5, 50, default_params, {-2.0, 2.0}, min, F, X, !RandomSupply),
+            X0 = 0.0,
+            Eps = 0.001,
+            ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3.3", X0, X}) )
+        ),
         % This one fails if the lower bound is less than 0.0 (see next one for reason):
         some [F, X, Eps, X0] (
             F = (func(X) = ( if X =< 0.0 then 1.0 else max(-1.0 * ln(X), ln(X)) )),
             run_pso(5, 10000, default_params, {0.0, 1000.0}, min, F, X, !RandomSupply),
-            write(X, !IO), nl(!IO),
             X0 = 1.0,
             Eps = 0.001,
-            ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3", X0, X}) )
+            ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F4", X0, X}) )
         ),
         % This one fails because the probability to hit the small minimal bump
         % is close to zero. Since probably no particle will hit it, the swarm
@@ -86,7 +106,7 @@ test_pso(!IO) :-
 %           run_pso(5, 1000, default_params, {0.0, 1000.0}, min, F, X, !RandomSupply),
 %           X0 = 0.0,
 %           Eps = 0.001,
-%           ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F4", X0, X}) )
+%           ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F5", X0, X}) )
 %       ),
         true
     ),

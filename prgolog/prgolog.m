@@ -104,7 +104,7 @@
 :- type primf(A) == (func(sit(A)) = A).
 
 :- type value_func(U) == (func(U) = value).
-:- type next_func(U) == (func(U, value_func(U), comparison_func(value)) = U).
+:- type succ_func(U) == (func(U, value_func(U), comparison_func(value)) = U).
 
 :- type picksucc(U, V) == (func(U, V) = U).
 :- type pickprog(A, U) == (func(U) = prog(A)).
@@ -123,7 +123,7 @@
     ;       non_det(prog(A), prog(A))
     ;       conc(prog(A), prog(A))
     ;       star(prog(A))
-    ;       some [U] pick(next_func(U), U, pickprog(A, U))
+    ;       some [U] pick(succ_func(U), U, pickprog(A, U))
     ;       proc(proc(A))
     ;       pseudo_atom(pseudo_atom(A))
     ;       nil.
