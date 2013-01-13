@@ -91,7 +91,7 @@
 :- func while(relfluent(A), prog(A)) = prog(A) <= bat(A).
 :- mode while(in, in) = out is det.
 
-:- func pickbest(succ_func(T), T, pickprog(A, T)) = prog(A).
+:- func pickbest(maxi_func(T), T, pickprog(A, T)) = prog(A).
 :- mode pickbest(in, in, in) = out is det.
 
 %-----------------------------------------------------------------------------%

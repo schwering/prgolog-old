@@ -200,6 +200,12 @@ test_final(!IO) :-
 
 %-----------------------------------------------------------------------------%
 
+:- func fixpoint(func(T) = T, T) = T.
+:- mode fixpoint(in, in) = out is det.
+
+fixpoint(F, X0) = ( if X = X0 then X else fixpoint(F, X) ) :- X = F(X0).
+
+
 test_value(!IO) :-
     some [V, E] (
         V = value(a(a) `with_type` prog(prim), s0, 1),
@@ -280,7 +286,8 @@ test_value(!IO) :-
     % The reward is -1*X*X + 10 so that the peak is at X=0.0 and the reward is
     % at this point is 10.0.
     some [V, E, Next] (
-        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        %Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        Next = (func(X0, Val, Cmp) = fixpoint((func(X) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )), X0)),
         V = value(with_type(
                     pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
                       a(a) `;`
@@ -290,7 +297,8 @@ test_value(!IO) :-
         ( if V = E then true else throw({E, V}) )
     ),
     some [V, E, Next] (
-        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        %Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        Next = (func(X0, Val, Cmp) = fixpoint((func(X) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )), X0)),
         V = value(with_type(
                     pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
                       a(a) `;`
@@ -300,7 +308,8 @@ test_value(!IO) :-
         ( if V = E then true else throw({E, V}) )
     ),
     some [V, E, Next] (
-        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        %Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        Next = (func(X0, Val, Cmp) = fixpoint((func(X) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )), X0)),
         V = value(with_type(
                     pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
                       a(a) `;`
@@ -348,7 +357,8 @@ test_trans(!IO) :-
         ( if trans(P, s0, nil, do(e, s0)) then true else throw(P) )
     ),
     some [P, Next] (
-        Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        %Next = (func(X, Val, Cmp) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )),
+        Next = (func(X0, Val, Cmp) = fixpoint((func(X) = ( if Cmp(Val(X+1.0), Val(X)) = (>) then X+1.0 else X )), X0)),
         P = pickbest(Next, -3.0, func(X) = a(set_val("x", X))) `;`
             a(a) `;`
             b(func(S) = inc_reward(-1.0*(R*R)+10.0) is det :- R = get_val("x", 0.0, S))

@@ -26,6 +26,9 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type num_particles == int.
+:- type num_iterations == int.
+
 :- type params ---> params(inertia_weight  :: float,
                            cognitive_param :: float,
                            social_param    :: float).
@@ -33,6 +36,8 @@
 :- type bounds == {float, float}.
 
 :- type direction ---> min ; max.
+
+:- type objective_func(T) == (func(float) = T).
 
 :- type particles.
 
@@ -42,23 +47,36 @@
 
 :- func default_params = params.
 
-:- pred init_pso(int::in, bounds::in, (func(float) = float)::in,
+:- pred init_pso(num_particles::in, bounds::in,
+                 objective_func(T)::in, comparison_func(T)::in,
                  particles::out, best_global_position::out,
                  random.supply::mdi, random.supply::muo) is det.
 
-:- pred pso(params::in, bounds::in, direction::in, (func(float) = float)::in,
-            particles::in, particles::out,
-            best_global_position::in, best_global_position::out,
-            random.supply::mdi, random.supply::muo) is det.
+:- pred pso(params, bounds, direction, objective_func(T), comparison_func(T),
+            particles, particles, best_global_position, best_global_position,
+            random.supply, random.supply).
+:- mode pso(in, in, in, in, in,
+            in, out, in, out,
+            mdi, muo) is det.
+%:- mode pso(in, in, in, in, in,
+%            in, out, in, out,
+%            in, out) is det.
 
 %-----------------------------------------------------------------------------%
 
     % run_pso(M, N, Params, Bounds, Direction, F, G, !RandomSupply):
     % Creates a swarm of M particles and then runs N iterations of optimization.
     % G is the optimal found value (G for global).
+    % The random generator is seeded with the product of M, N and all numbers in
+    % Params and Bounds.
     %
-:- pred run_pso(int::in, int::in, params::in, bounds::in, direction::in,
-                (func(float) = float)::in, best_global_position::out,
+:- pred run_pso(num_particles::in, num_iterations::in, params::in, bounds::in,
+                direction::in, objective_func(T)::in, comparison_func(T)::in,
+                best_global_position::out) is det.
+
+:- pred run_pso(num_particles::in, num_iterations::in, params::in, bounds::in,
+                direction::in, objective_func(T)::in, comparison_func(T)::in,
+                best_global_position::out,
                 random.supply::mdi, random.supply::muo) is det.
 
 %-----------------------------------------------------------------------------%
@@ -106,7 +124,7 @@ random({Lo, Hi}, Outcome, !RandomSupply) :-
 
 %-----------------------------------------------------------------------------%
 
-init_pso(M, Bounds @ {Lo, Hi}, F, Particles, G, !RandomSupply) :-
+init_pso(M, Bounds @ {Lo, Hi}, F, Cmp, Particles, G, !RandomSupply) :-
     Part = particle(X, V, P),
     random(Bounds, P, !RandomSupply),
     random({-1.0 * abs(Hi - Lo), abs(Hi - Lo)}, V, !RandomSupply),
@@ -116,26 +134,42 @@ init_pso(M, Bounds @ {Lo, Hi}, F, Particles, G, !RandomSupply) :-
         else if M = 1
         then    Particles = [Part],
                 G = P
-        else    init_pso(M-1, Bounds, F, Rest, G0, !RandomSupply),
+        else    init_pso(M-1, Bounds, F, Cmp, Rest, G0, !RandomSupply),
                 Particles = [Part|Rest],
-                G = ( if F(P) >= F(G0) then P else G0 )
+                G = ( if Cmp(F(P), F(G0)) = (>) then P else G0 )
     ).
 
 %-----------------------------------------------------------------------------%
 
-pso(Params, Bounds, min, F, !Particles, !G, !RandomSupply) :-
-    G = (func(X) = -1.0 * F(X)),
-    pso(Params, Bounds, max, G, !Particles, !G, !RandomSupply).
-pso(Params, Bounds, max, F, !Particles, !G, !RandomSupply) :-
-    map_foldl2(update(Params, Bounds, F), !Particles, !G, !RandomSupply).
+pso(Params, Bounds, min, F, Cmp, !Particles, !G, !RandomSupply) :-
+    Cmp1 = (func(X, Y) = Res1 is det :-
+        Res = Cmp(X, Y),
+        ( Res = (>), Res1 = (<)
+        ; Res = (=), Res1 = (=)
+        ; Res = (<), Res1 = (>) )
+    ),
+    pso(Params, Bounds, max, F, Cmp1, !Particles, !G, !RandomSupply).
+pso(Params, Bounds, max, F, Cmp, !Particles, !G, !RandomSupply) :-
+    map_foldl2(update(Params, Bounds, F, Cmp), !Particles, !G, !RandomSupply).
 
 
-:- pred update(params::in, bounds::in, (func(float) = float)::in,
-               particle::in, particle::out,
-               best_global_position::in, best_global_position::out,
-               random.supply::mdi, random.supply::muo) is det.
+:- pred update(params, bounds,
+               objective_func(T), comparison_func(T),
+               particle, particle,
+               best_global_position, best_global_position,
+               random.supply, random.supply).
+:- mode update(in, in,
+               in, in,
+               in, out,
+               in, out,
+               mdi, muo) is det.
+%:- mode update(in, in,
+%               in, in,
+%               in, out,
+%               in, out,
+%               in, out) is det.
 
-update(params(InertiaWeight, CognitiveParam, SocialParam), {Lo, Hi}, F,
+update(params(InertiaWeight, CognitiveParam, SocialParam), {Lo, Hi}, F, Cmp,
        particle(X1, V1, P1), particle(X2, V2, P2),
        G1, G2,
        !RandomSupply) :-
@@ -145,35 +179,46 @@ update(params(InertiaWeight, CognitiveParam, SocialParam), {Lo, Hi}, F,
        + CognitiveParam * RP * (P1 - X1)
        + SocialParam * RG * (G1 - X1),
     X2 = X1 + V2,
-    (   if      Lo =< X2, X2 =< Hi, F(X2) >= F(P1)
+    (   if      Lo =< X2, X2 =< Hi, Cmp(F(X2), F(P1)) = (>)
         then    P2 = X2,
-                G2 = ( if F(X2) >= F(G1) then X2 else G1 )
+                G2 = ( if Cmp(F(X2), F(G1)) = (>) then X2 else G1 )
         else    P2 = P1,
                 G2 = G1
     ).
 
 %-----------------------------------------------------------------------------%
 
-run_pso(M, N, Params, Bounds, Direction, F, G, !RandomSupply) :-
-    init_pso(M, Bounds, F, Particles, G0, !RandomSupply),
-    iterate_pso(N, Params, Bounds, Direction, F,
+run_pso(M, N, Params, Bounds, Direction, F, Cmp, G) :-
+    Bounds = {Lo, Hi},
+    Seed = M * N * floor_to_int(Lo * Hi *
+                                inertia_weight(Params) *
+                                cognitive_param(Params) *
+                                social_param(Params)),
+    random.init(Seed, RandomSupply),
+    run_pso(M, N, Params, Bounds, Direction, F, Cmp, G, RandomSupply, _).
+
+
+run_pso(M, N, Params, Bounds, Direction, F, Cmp, G, !RandomSupply) :-
+    init_pso(M, Bounds, F, Cmp, Particles, G0, !RandomSupply),
+    iterate_pso(N, Params, Bounds, Direction, F, Cmp,
                 Particles, _,
                 G0, G,
                 !RandomSupply).
 
 
-:- pred iterate_pso(int::in, params::in, bounds::in, direction::in,
-                    (func(float) = float)::in,
+:- pred iterate_pso(num_particles::in, params::in, bounds::in, direction::in,
+                    objective_func(T)::in, comparison_func(T)::in,
                     particles::in, particles::out,
                     best_global_position::in, best_global_position::out,
                     random.supply::mdi, random.supply::muo) is det.
 
-iterate_pso(N, Params, Bounds, Direction, F,
+iterate_pso(N, Params, Bounds, Direction, F, Cmp,
             !Particles, !G, !RandomSupply) :-
     if      N =< 0
     then    true
-    else    pso(Params, Bounds, Direction, F, !Particles, !G, !RandomSupply),
-            iterate_pso(N-1, Params, Bounds, Direction, F, !Particles, !G,
+    else    pso(Params, Bounds, Direction, F, Cmp, !Particles, !G,
+                !RandomSupply),
+            iterate_pso(N-1, Params, Bounds, Direction, F, Cmp, !Particles, !G,
                         !RandomSupply).
 
 %-----------------------------------------------------------------------------%

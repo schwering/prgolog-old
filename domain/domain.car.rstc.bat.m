@@ -70,7 +70,7 @@
 :- import_module assoc_list.
 :- import_module list.
 :- import_module pair.
-:- import_module util.simulated_annealing.
+:- import_module util.pso.
 
 %-----------------------------------------------------------------------------%
 
@@ -217,8 +217,19 @@ tailgate(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
             ))) `;`
-            pickbest(func(X, _Val, _Cmp) = X, one, func(X) =
-                a(accel(B, X))
+            pickbest(
+                (func(_X0, Val, Cmp) = X is det :-
+                    trace [io(!IO)] (
+                        foldl((pred(XX::in, !.IO1::di, !:IO1::uo) is det :-
+                            format("Val(%f) = %s\n", [f(XX), s(string(Val(XX)))], !IO1)
+                        ), [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.995, 0.9981891210520335, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0], !IO)
+                    ),
+                    run_pso(5, 10, default_params, {0.0, 2.0}, max, Val, Cmp, X)
+                ),
+                1.0,
+                (func(X) =
+                    a(accel(B, number_from_float(X)))
+                )
             )
             %b(accelf(B, rel_v(Victim, B)))
         ) `;`
@@ -255,7 +266,7 @@ imitate(B, Victim) = P :-
 :- pred poss(prim(N), rstc.sit(N)) <= arithmetic.arithmetic(N).
 :- mode poss(in, in) is semidet.
 :- mode poss(in(wait), in) is semidet.
-:- mode poss(in(accel), in) is semidet.
+:- mode poss(in(accel), in) is /*semi*/det.
 :- mode poss(in(lc), in) is semidet.
 :- mode poss(in(senseD), in) is det.
 :- mode poss(in(senseL), in) is det.
@@ -266,7 +277,7 @@ imitate(B, Victim) = P :-
 :- mode poss(in(end), in) is det.
 
 poss(wait(T), _) :- T >= zero.
-poss(accel(_, Q), _) :- Q >= zero.
+poss(accel(_, _Q), _).% :- Q >= zero.
 poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
 poss(senseD(_, _, _, _), _).
@@ -336,7 +347,7 @@ reward(do(A, S)) = bat.reward(S) + New :-
     Bonus = 1000,
     New = (
         if A = start(_, _) then float(max(0, Bonus*lookahead - 2*sitlen(S)))
-        else if A = end(_, _) then float(sitlen(S))
+        else if A = end(_, _) then -1.0% float(sitlen(S))
         else if A = match(obs(_, D)) then 1.0 - arithmetic.to_float(det_basic(match_dist(D, S)))
         else 0.0
     ).
@@ -492,8 +503,55 @@ match_longitudinal_dist(PB, PC, S) = D :-
                     )
             else    zero
         ),
-    (   if   D3 = D1 + D2, basic(D3)
+    (   if   D3 = (D1 + D2) / (one + one), basic(D3)
         then D = det_basic(D3)
+        else unexpected($module, string.format("%s: sum not defined: %s, %s",
+                                               [s($pred), s(string(D1)),
+                                                s(string(D2))]))
+    ).
+
+
+:- func match_longitudinal_dist2(pair(agent, info), pair(agent, info),
+                                 rstc.sit(N)) = N <= arithmetic.arithmetic(N).
+
+match_longitudinal_dist2(PB, PC, S) = D :-
+    Norm = number_from_float(3.0),
+    D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+            then    minimize(pred(CatDist::out) is multi :-
+                        (
+                            CatDist = Norm
+                        ;
+                            CatDist = abs(NTG1 - NTG2) / Norm
+                        )
+                    )
+            else    zero
+        ),
+    D2 = (  if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+            then    minimize(pred(CatDist::out) is multi :-
+                        (
+                            CatDist = Norm
+                        ;
+                            (
+                                CatDist = abs(TTC1 - TTC2) / Norm
+                            ;
+                                % If they have almost same speed, don't punish
+                                % this. See max_veloc_discrepancy_to_ignore_ttc.
+                                some [NTG1, NTG2] (
+                                    ntgs(PB, PC, S, NTG1, NTG2),
+                                    RelV1 = one - NTG1 / TTC1,
+                                    RelV2 = one - NTG2 / TTC2,
+                                    Eps = max_veloc_discrepancy_to_ignore_ttc,
+                                    abs(RelV1 - one) =< number_from_float(Eps),
+                                    abs(RelV2 - one) =< number_from_float(Eps)
+                                ),
+                                CatDist = zero
+                            )
+                        )
+                    )
+            else    zero
+        ),
+    (   if   D3 = (D1 + D2) / (one + one), basic(D3), zero =< D3, D3 =< one
+        then D = det_basic(D3), trace [io(!IO)] ( format("dist = (%s + %s) / 2 = %s\n", [s(string(D1)), s(string(D2)), s(string(D3))], !IO) )
         else unexpected($module, string.format("%s: sum not defined: %s, %s",
                                                [s($pred), s(string(D1)),
                                                 s(string(D2))]))

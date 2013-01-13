@@ -10,19 +10,19 @@
 % A tree container, generally similar to a list except that it also allows
 % lazy entries and is not flat.
 %
-% A lazy entry consists of a function that maps some type U to a sub-tree.
-% The idea is that the optimal -- wrt. some user-specified criterion -- datum
-% of U is plugged in and the sub-tree is hooked in the tree.
-% For this search, each lazy node must further provide a succ_func and an
-% initial datum.
-% The force/2 function does this work. It searches for the optimal datum for
-% each lazy sub-tree.
-% The search is done by invoking the succ_func of the lazy node starting with
-% the specified initial datum and continuing with succ_func's return values
-% until an (`attractive') fixpoint is reached.
-% To make it possible for the succ_func to do an informed choice, it is given
-% the latest datum together with an evaluation function and a comparison
-% function.
+% As a convention, we use T as type variable for the tree element types and
+% V as type for the evaluation result. Further there is an existentially
+% quantified U (see below).
+%
+% A lazy entry consists of a function G that maps some type U to a sub-tree.
+% Furthermore it provides a opti_func Opti and an initial datum X0.
+% The task of Opti is to search for the optimal datum X; the sub-tree G(X) is
+% then hooked in the tree. X0 may serve as a starting point for the search
+% of Opti.
+% To give Opti a hand, it is provided with a value_func that evalutes the
+% quality of potential solutions by returning some value of type U. These
+% values can be compared using the likewise provided comparison_func function.
+% Opti might, for example, maximize value_func.
 %
 %-----------------------------------------------------------------------------%
 
@@ -35,12 +35,12 @@
 %-----------------------------------------------------------------------------%
 
 :- type value_func(U, V) == (func(U) = V).
-:- type succ_func(U, V) == (func(U, value_func(U, V), comparison_func(V)) = U).
+:- type opti_func(U, V) == (func(U, value_func(U, V), comparison_func(V)) = U).
 
 :- type tree(T, V)
     --->    empty
     ;       leaf(T)
-    ;       some [U] lazy(succ_func(U, V), U, func(U) = tree(T, V))
+    ;       some [U] lazy(opti_func(U, V), U, func(U) = tree(T, V))
     ;       branch(tree(T, V), tree(T, V)).
 
 :- inst strict(T)
@@ -129,12 +129,6 @@ singleton(branch(T1, T2), X) :-
 
 %-----------------------------------------------------------------------------%
 
-:- func fixpoint(func(T) = T, T) = T.
-:- mode fixpoint(in, in) = out is det.
-
-fixpoint(F, X0) = ( if X = X0 then X else fixpoint(F, X) ) :- X = F(X0).
-
-
 :- func max(comparison_func(T), T, T) = T.
 
 max(CmpF, X, Y) = ( if CmpF(X, Y) = (>) then X else Y ).
@@ -142,9 +136,8 @@ max(CmpF, X, Y) = ( if CmpF(X, Y) = (>) then X else Y ).
 
 force(_, T @ empty) = T.
 force(_, T @ leaf(_)) = T.
-force(Args @ force_args(Val, Cmp, Min), lazy(Succ, X0, G)) = T :-
-    T = force(Args, G(fixpoint(F, X0))),
-    F = (func(X) = Succ(X, Val1, Cmp)),
+force(Args @ force_args(Val, Cmp, Min), lazy(Opti, X0, G)) = T :-
+    T = force(Args, G(Opti(X0, Val1, Cmp))),
     Val1 = (func(X) = map_reduce(Val, max(Cmp), force(Args, G(X)), Min)).
 force(Args, branch(T1, T2)) = branch(force(Args, T1), force(Args, T2)).
 
@@ -162,13 +155,13 @@ foldr(F, branch(T1, T2), E) = foldr(F, T1, foldr(F, T2, E)).
 
 map(_, empty) = empty.
 map(F, leaf(X)) = ( if FX = F(X) then leaf(FX) else empty ).
-map(F, lazy(Succ, X0, T)) = 'new lazy'(Succ, X0, func(U) = map(F, T(U))).
+map(F, lazy(Opti, X0, T)) = 'new lazy'(Opti, X0, func(U) = map(F, T(U))).
 map(F, branch(T1, T2)) = branch(map(F, T1), map(F, T2)).
 
 
 mapt(_, empty) = empty.
 mapt(F, leaf(X)) = ( if FX = F(X) then FX else empty ).
-mapt(F, lazy(Succ, X0, T)) = 'new lazy'(Succ, X0, func(U) = mapt(F, T(U))).
+mapt(F, lazy(Opti, X0, T)) = 'new lazy'(Opti, X0, func(U) = mapt(F, T(U))).
 mapt(F, branch(T1, T2)) = branch(mapt(F, T1), mapt(F, T2)).
 
 %-----------------------------------------------------------------------------%

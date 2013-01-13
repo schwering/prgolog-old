@@ -55,7 +55,7 @@ test_pso(!IO) :-
         random.init(10, !:RandomSupply),
         some [F, X, Eps, X0, X1] (
             F = (func(X) = X*X*X*X - 5.0 * X*X + 4.0),
-            run_pso(5, 1000, default_params, {-1000.0, 1000.0}, min, F, X, !RandomSupply),
+            run_pso(5, 1000, default_params, {-1000.0, 1000.0}, min, F, ordering, X, !RandomSupply),
             X0 = -1.58113883,
             X1 = 1.58113883,
             Eps = 0.001,
@@ -63,28 +63,28 @@ test_pso(!IO) :-
         ),
         some [F, X, Eps, X0] (
             F = (func(X) = 0.2 * X*X*X*X*X - 5.0 * X*X*X + 4.0 * X),
-            run_pso(5, 100, default_params, {-1000.0, 5.0}, max, F, X, !RandomSupply),
+            run_pso(5, 100, default_params, {-1000.0, 5.0}, max, F, ordering, X, !RandomSupply),
             X0 = -3.837761867,
             Eps = 0.001,
             ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F2", X0, X}) )
         ),
         some [F, X, Eps, X0] (
             F = abs,
-            run_pso(5, 10000, default_params, {-1000.0, 1000.0}, min, F, X, !RandomSupply),
+            run_pso(5, 10000, default_params, {-1000.0, 1000.0}, min, F, ordering, X, !RandomSupply),
             X0 = 0.0,
             Eps = 0.001,
             ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3.1", X0, X}) )
         ),
         some [F, X, Eps, X0] (
             F = abs,
-            run_pso(5, 100, default_params, {-1000.0, 1000.0}, min, F, X, !RandomSupply),
+            run_pso(5, 100, default_params, {-1000.0, 1000.0}, min, F, ordering, X, !RandomSupply),
             X0 = 0.0,
             Eps = 0.001,
             ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3.2", X0, X}) )
         ),
         some [F, X, Eps, X0] (
             F = abs,
-            run_pso(5, 50, default_params, {-2.0, 2.0}, min, F, X, !RandomSupply),
+            run_pso(5, 50, default_params, {-2.0, 2.0}, min, F, ordering, X, !RandomSupply),
             X0 = 0.0,
             Eps = 0.001,
             ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F3.3", X0, X}) )
@@ -92,7 +92,7 @@ test_pso(!IO) :-
         % This one fails if the lower bound is less than 0.0 (see next one for reason):
         some [F, X, Eps, X0] (
             F = (func(X) = ( if X =< 0.0 then 1.0 else max(-1.0 * ln(X), ln(X)) )),
-            run_pso(5, 10000, default_params, {0.0, 1000.0}, min, F, X, !RandomSupply),
+            run_pso(5, 10000, default_params, {0.0, 1000.0}, min, F, ordering, X, !RandomSupply),
             X0 = 1.0,
             Eps = 0.001,
             ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F4", X0, X}) )
@@ -103,7 +103,7 @@ test_pso(!IO) :-
         % such things, right?
 %       some [F, X, Eps, X0] (
 %           F = (func(X) = ( if abs(X) > 0.00001 then 1.0 else 0.0 )),
-%           run_pso(5, 1000, default_params, {0.0, 1000.0}, min, F, X, !RandomSupply),
+%           run_pso(5, 1000, default_params, {0.0, 1000.0}, min, F, ordering, X, !RandomSupply),
 %           X0 = 0.0,
 %           Eps = 0.001,
 %           ( if X0-Eps =< X, X =< X0+Eps then true else throw({"F5", X0, X}) )
