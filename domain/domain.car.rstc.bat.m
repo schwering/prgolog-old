@@ -222,7 +222,7 @@ tailgate(B, Victim) = P :-
                     trace [io(!IO)] (
                         foldl((pred(XX::in, !.IO1::di, !:IO1::uo) is det :-
                             format("Val(%f) = %s\n", [f(XX), s(string(Val(XX)))], !IO1)
-                        ), [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.995, 0.9981891210520335, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0], !IO)
+                        ), [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.9931832986141491, 0.995, 0.9981891210520335, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0], !IO)
                     ),
                     run_pso(5, 10, default_params, {0.0, 2.0}, max, Val, Cmp, X)
                 ),
@@ -293,7 +293,7 @@ poss(end(_, _), _).
 
 :- func lookahead = lookahead is det.
 
-lookahead = 3.
+lookahead = 4.
 
 
 :- func lookahead(rstc.sit(_)) = lookahead is det.
@@ -308,48 +308,93 @@ sitlen(do(_, S)) = 1 + sitlen(S).
 sitlen(s0) = 0.
 
 
-    % Explanation of the reward:
-    % Let's assume that an observation consists of only a single action called
-    % match(_) and since we want to explain as many observations they give a
-    % reward of 1. (In this BAT an observation consists of a wait(_) + match(_),
-    % so we could drop the multiplication with 2 from the code, but it doesn't
-    % hurt either.)
-    % One problem appears though: if all cars maintain their speeds, no actions
-    % are needed to explain all incoming observations, and therefore the actual
-    % hypothesis program is pulled away. For that reason we have this
-    % start(_, _) action which should mark the beginning of the program. Using
-    % complex atomic actions, it could enforce execution of one or more actions
-    % of the hypothesis program early on.
-    % So why not just give start(_, _) a large reward, say, 10? In this case the
-    % interpreter might prefer executing one observation, because after that he
-    % could still execute the start(_, _) action afterwards. But after the
-    % start(_, _) action it needs to execute the real actions of the hypothesis
-    % program which don't increase the reward.
-    % To avoid this effect, we punish delaying the execution of start(_, _).
-    % As the interpreter can not execute more than `lookahead' observations
-    % within its lookahead, it prefers the start(_, _) action because it has
-    % reward `Bonus * lookahead.' The subtraction of `2 * sitlen(S)' punishes
-    % each additional action, particularly observations, by a negative reward
-    % of 2 which is greater than the reward of an observation.
-    % Note that if S is already a large situation term with
-    % Bonus / 2 * lookahead or more actions, this trick obviously doesn't work
-    % anymore!
+    % Explanation of reward computation:
+    % First of all, take the position of the interpreter. You compute the
+    % sequence of actions A_1, ..., A_L for L being the lookahead which yields
+    % the highest reward. Of this sequence, you execute a_1 and then repeat
+    % the procedure.
     %
-    % Since we are interested in keeping plans like `tailgate' alive as long as
-    % possible, we want to defer execution of end(_, _) as long as possible.
-    % Therefor we increase the reward with the situation term size by just
-    % simply returning sitlen(S).
-    % 
+    % This allows for a trick: when an action's A* reward has reward sitlen(S)
+    % (and all others have reward 0), the interpreter will defer A* as far as
+    % possible. So the reward-maximizing sequence would be A_1, ..., A_L-1, A*.
+    % In the next iteration, A* will again be deferred that way. Thus it won't
+    % be exeucted before there's no alternative.
+    %
+    % Similarly, an action can be preferred: just subtract reward(S). To make
+    % the action desirable at all, add some large positive constant which under
+    % normal circumstances is ``guaranteed'' to be bigger than sitlen(S).
+    %
+    % Okay, now why should we want to prefer start(_, _)?
+    % Consider a scenario where all cars simply maintain their respective speed.
+    % Therefore no actions are needed to explain all incoming observations.
+    % However, if the hypothesis is exactly that -- just do nothing -- you want
+    % this hypothesis to occur in the situation term. In fact, it should occur
+    % right before there is indeed no further change needed. This is enforced by
+    % preferring start(_, _) using a reward like N - sitlen(S) for some large
+    % positive constant N.
+    % The start(_, _) action, by the way, also has another use. Since it must
+    % occur somewhere in the hypothesis program, the program may couple it with
+    % some tests. These tests might assert a certain order of vehicles, for
+    % example. By making the start(_, _) and the tests a complex action, the
+    % interpreter is forced to execute them together.
+    %
+    % And why do we want to defer the end(_, _) action?
+    % The occurence of end(_, _) in a situation term should indicate that the
+    % hypothesis explained the world up to this point. Again consider the
+    % scenario where each car maintains its speed, and the hypothesis program
+    % is exactly that. Now you could execute end(_, _) right after start(_, _),
+    % but that's not very informative given that the cars might have maintained
+    % their speeds for the whole next minute. So you want end(_, _) not to be
+    % executed before its inevitable, that is, the hypothesis program doesn't
+    % explain the world anymore.
+    %
+    % So much for the general idea and motivation. In this BAT, an observation
+    % consists of a pair of actions: wait(_) and match(_). The reward of
+    % wait(_) is 0 as it's a general-purpose action; the reward of match(_) is
+    % 1.0 + (1.0 - match_dist) where match_dist is measures how ``badly'' the
+    % the observation is entailed. match_dist is a number between 0 and 1.
+    % Therefore, the reward of any match(_) action is between 1.0 and 2.0.
+    % As a match(_) action never occurs alone but always with an accompanying
+    % wait(_), the reward for any observation ``per action'' is between 0.0 and
+    % 1.0.
+    % With a lookahead of L, the interpreter can thus generate at most a reward
+    % of L only due to observations.
+    % Therefore sitlen(S) is an upper bound of the reward gained in during the
+    % lookahead only due to observations.
+    %
+    % To prefer the start(_, _) action we therefore set its reward to
+    % N - 3.0 * sitlen(S). That is, the punishment of delaying start(_, _) a
+    % single step is 2.0, which is greater than what could be gained by
+    % executing an observation, which is 1.0. (Strictly speaking the observation
+    % would gain a reward 2.0, but distributed over two actions, so the
+    % start(_, _) action would have to be dealyed by two steps which would give
+    % a punishment of 4.0.)
+    %
+    % To defer the end(_, _) action we set the reward to 2.0 * sitlen(S).
+    % Thus the interpreter is awarded for each step it delays end(_, _) by 2.0,
+    % whereas any observation would give him only 1.0.
+    %
+    % Note that these tricks do not work as intended if lookahead L = 1.
+    % In fact, it even earlier breaks: if you have an action A with some effect,
+    % an observation consisting of two actions W and M which is entailed by A's
+    % effect, and an end(_, _) action E, the indended order to compute the
+    % reward should be A; W; M; E because this gives us the reward of the
+    % observation and of a as-late-as-possible E.
+    % However, for a reward less than 4 the interpreter will do things like A; E
+    % because the end(_, _) action E overrules the observation W and M.
+    %
 :- func reward(rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
 
 reward(s0) = 0.0.
 reward(do(A, S)) = bat.reward(S) + New :-
-    Bonus = 1000,
     New = (
-        if A = start(_, _) then float(max(0, Bonus*lookahead - 2*sitlen(S)))
-        else if A = end(_, _) then -1.0% float(sitlen(S))
-        else if A = match(obs(_, D)) then 1.0 - arithmetic.to_float(det_basic(match_dist(D, S)))
-        else 0.0
+        if      A = start(_, _)
+        then    float(max(0, 1000 - 2 * sitlen(S)))
+        else if A = end(_, _)
+        then    float(2 * sitlen(S))
+        else if A = match(obs(_, D))
+        then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
+        else    0.0
     ).
 
 %-----------------------------------------------------------------------------%
@@ -515,42 +560,37 @@ match_longitudinal_dist(PB, PC, S) = D :-
                                  rstc.sit(N)) = N <= arithmetic.arithmetic(N).
 
 match_longitudinal_dist2(PB, PC, S) = D :-
-    Norm = number_from_float(3.0),
     D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
-            then    minimize(pred(CatDist::out) is multi :-
-                        (
-                            CatDist = Norm
-                        ;
-                            CatDist = abs(NTG1 - NTG2) / Norm
+            then    minimize((pred(CatDist::out) is multi :-
+                        CatDist =
+                        (   if      ntg_cat(Cat), NTG1 `in` Cat, NTG2 `in` Cat,
+                                    Tmp = abs(NTG1 - NTG2) / max_width(Cat)
+                            then    Tmp
+                            else if ntg_cat(Cat),
+                                    ( NTG1 `in` Cat ; NTG2 `in` Cat ),
+                                    Tmp = abs(NTG1 - NTG2) / max_width(Cat)
+                            then    Tmp
+                            else    zero
                         )
-                    )
+                    ))
             else    zero
         ),
     D2 = (  if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
-            then    minimize(pred(CatDist::out) is multi :-
-                        (
-                            CatDist = Norm
-                        ;
-                            (
-                                CatDist = abs(TTC1 - TTC2) / Norm
-                            ;
-                                % If they have almost same speed, don't punish
-                                % this. See max_veloc_discrepancy_to_ignore_ttc.
-                                some [NTG1, NTG2] (
-                                    ntgs(PB, PC, S, NTG1, NTG2),
-                                    RelV1 = one - NTG1 / TTC1,
-                                    RelV2 = one - NTG2 / TTC2,
-                                    Eps = max_veloc_discrepancy_to_ignore_ttc,
-                                    abs(RelV1 - one) =< number_from_float(Eps),
-                                    abs(RelV2 - one) =< number_from_float(Eps)
-                                ),
-                                CatDist = zero
-                            )
+            then    minimize((pred(CatDist::out) is multi :-
+                        CatDist =
+                        (   if      ttc_cat(Cat), TTC1 `in` Cat, TTC2 `in` Cat,
+                                    Tmp = abs(TTC1 - TTC2) / max_width(Cat)
+                            then    Tmp
+                            else if ttc_cat(Cat),
+                                    ( TTC1 `in` Cat ; TTC2 `in` Cat ),
+                                    Tmp = abs(TTC1 - TTC2) / max_width(Cat)
+                            then    Tmp
+                            else    zero
                         )
-                    )
+                    ))
             else    zero
         ),
-    (   if   D3 = (D1 + D2) / (one + one), basic(D3), zero =< D3, D3 =< one
+    (   if   D3 = (D1 + D2) / (one + one), basic(D3)%, zero =< D3, D3 =< one
         then D = det_basic(D3), trace [io(!IO)] ( format("dist = (%s + %s) / 2 = %s\n", [s(string(D1)), s(string(D2)), s(string(D3))], !IO) )
         else unexpected($module, string.format("%s: sum not defined: %s, %s",
                                                [s($pred), s(string(D1)),

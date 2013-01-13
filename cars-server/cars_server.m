@@ -38,6 +38,7 @@
 :- import_module domain.car.rstc.bat.
 :- import_module domain.car.obs.
 :- import_module domain.car.obs.torcs.
+:- import_module bool.
 :- import_module int.
 :- import_module list.
 :- import_module planrecog.

@@ -66,7 +66,7 @@ static float max_conf(const struct planrecog_state *msg, const int i)
     return (double) numer / (double) denom;
 }
 
-static void klatschtgleich2(FILE *fp, int sockfd)
+static void klatschtgleich2(FILE *fp, int sockfd, bool do_sleep)
 {
     struct observation_record r;
     struct planrecog_state state;
@@ -82,7 +82,7 @@ static void klatschtgleich2(FILE *fp, int sockfd)
                r.info[0].agent, r.info[0].veloc, r.info[0].rad, r.info[0].x, r.info[0].y,
                r.info[1].agent, r.info[1].veloc, r.info[1].rad, r.info[1].x, r.info[1].y);
         r.n_agents = 2;
-        if (t0 >= 0.0) {
+        if (do_sleep && t0 >= 0.0) {
             usleep((useconds_t) (1e6 * (r.t - t0)));
         }
         t0 = r.t;
@@ -101,68 +101,26 @@ static void klatschtgleich2(FILE *fp, int sockfd)
     }
 }
 
-static void klatschtgleich3(FILE *fp, int sockfd)
-{
-    struct planrecog_state state;
-    double t0 = -1.0;
-    int ret;
-
-    for (;;) {
-        struct observation_record r;
-        int i;
-
-        if (fscanf(fp, "%lf {\n", &r.t) != 1) {
-            break;
-        }
-        printf("%lf {\n", r.t);
-        for (i = 0; i < NAGENTS; ++i) {
-            struct agent_info_record *info = &r.info[i];
-            const int n = fscanf(fp, " %s %lf %lf %lf %lf\n", info->agent,
-                    &info->veloc, &info->rad, &info->x, &info->y);
-            if (n != 5) {
-                if (!(n == 1 && strcmp(info->agent, "}"))) {
-                    fprintf(stderr, "Input format is invalid "
-                            "(%d elements in line).", n);
-                }
-                break;
-            }
-            printf("    %s %lf %lf %lf %lf\n", info->agent, info->veloc,
-                    info->rad, info->x, info->y);
-        }
-        r.n_agents = i;
-
-        if (t0 >= 0.0) {
-            usleep((useconds_t) (1e6 * (r.t - t0)));
-        }
-        t0 = r.t;
-
-        ret = write(sockfd, &r, sizeof(r));
-        if (ret != sizeof(r)) {
-            fprintf(stderr, "Couldn't write %lu bytes\n", sizeof(r));
-            exit(1);
-        }
-
-        ret = read(sockfd, &state, sizeof(state));
-        if (ret != sizeof(state)) {
-            fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));
-            exit(1);
-        }
-        printf("%.2lf =< confidence =< %.2lf\n",
-                min_conf(&state, 0), max_conf(&state, 0));
-    }
-}
-
 int main(int argc, char *argv[])
 {
     int sockfd = make_socket();
+    bool do_sleep = true;
+
+    if (argc >= 2 &&
+            (!strcmp(argv[1], "-n") ||
+             !strcmp(argv[1], "--no-sleep"))) {
+        /* XXX Leads to crash for some reason (don't know why right now). */
+        do_sleep = false;
+    }
+
     if (argc <= 1) {
-        klatschtgleich2(stdin, sockfd);
+        klatschtgleich2(stdin, sockfd, do_sleep);
     } else {
         int i;
 
         for (i = 1; i < argc; ++i) {
             FILE *fp = fopen(argv[i], "r");
-            klatschtgleich2(fp, sockfd);
+            klatschtgleich2(fp, sockfd, do_sleep);
             fclose(fp);
         }
     }
