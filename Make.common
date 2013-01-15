@@ -15,11 +15,13 @@ MMC = mmc
 INSTALL_PREFIX = $(CURDIR)/..
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
+#OPTIMIZATION = -O6 --optimize-duplicate-calls --optimize-unused-args --type-specialization
+
 LIB_FILE = $(LIB_DIR)/lib/$(GRADE)/lib$(GOAL).so
-LIB_MCFLAGS += -E -O2 --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --mercury-linkage $(LINKAGE) --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR)
+LIB_MCFLAGS += -E $(OPTIMIZATION) --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --mercury-linkage $(LINKAGE) --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR)
 
 EXE_FILE = $(GOAL)
-EXE_MCFLAGS += -E -O2 --grade $(GRADE) --mercury-linkage $(LINKAGE) --mld $(LIB_DIR)
+EXE_MCFLAGS += -E $(OPTIMIZATION) --grade $(GRADE) --mercury-linkage $(LINKAGE) --mld $(LIB_DIR)
 
 lib: $(LIB_FILE)
 

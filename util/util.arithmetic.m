@@ -247,11 +247,11 @@ maximize(P, F) = optimize(max, P, F).
 
 %-----------------------------------------------------------------------------%
 
-:- pragma type_spec(two/0, N = float).
-:- pragma type_spec(pow/2, N = float).
-:- pragma type_spec(halfway/2, N = float).
-:- pragma type_spec(bin_search/5, (X = float, Y = float)).
-:- pragma type_spec(bin_search_2/5, (X = float, Y = float)).
+%:- pragma type_spec(two/0, N = float).
+%:- pragma type_spec(pow/2, N = float).
+%:- pragma type_spec(halfway/2, N = float).
+%:- pragma type_spec(bin_search/5, (X = float, Y = float)).
+%:- pragma type_spec(bin_search_2/5, (X = float, Y = float)).
 
 %-----------------------------------------------------------------------------%
 :- end_module util.arithmetic.

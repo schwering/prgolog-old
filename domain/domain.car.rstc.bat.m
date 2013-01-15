@@ -185,12 +185,34 @@ wait_until(F, Goal, S) = A :-
     then A = wait(number(V1))
     else A = abort.
 
+%-----------------------------------------------------------------------------%
 
 :- func basify(func(rstc.sit(N)) = num(N)) = (func(rstc.sit(N)) = N).
 :- mode basify(in(func(in) = out is semidet)) =
                out(func(in) = out is semidet) is det.
 
 basify(F) = ( func(S) = X is semidet :- num(X) = F(S) ).
+
+
+:- func pickaccel(bounds) `with_type` maxi_func(num(N))
+    <= arithmetic.arithmetic(N).
+
+pickaccel(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
+    NewVal = (func(Float) = Val(number_from_float(Float))),
+    run_pso(5, 10, default_params, Bounds, max, NewVal, Cmp, X).
+
+
+:- func pickbest(maxi_func(num(N)), pickprog(A, num(N))) = prgolog.prog(A)
+    <= arithmetic.arithmetic(N).
+
+pickbest(Maxi, Prog) = nice.pickbest(Maxi, one, Prog).
+
+
+:- func picknum(bounds, pickprog(A, num(N))) = prgolog.prog(A)
+    <= arithmetic.arithmetic(N).
+
+picknum(Bounds, Prog) = pickbest(pickaccel(Bounds), Prog).
+
 
 %-----------------------------------------------------------------------------%
 
@@ -203,7 +225,8 @@ follow(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in` close_behind
             ))) `;`
-            b(accelf(B, rel_v(Victim, B)))
+            picknum({0.0, 2.0}, func(X) = a(accel(B, X)))
+            %b(accelf(B, rel_v(Victim, B)))
         ) `;`
         a(end(B, $pred)).
 
@@ -217,39 +240,29 @@ tailgate(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
             ))) `;`
-            pickbest(
-                (func(_X0, Val, Cmp) = X is det :-
-                    trace [io(!IO)] (
-                        foldl((pred(XX::in, !.IO1::di, !:IO1::uo) is det :-
-                            format("Val(%f) = %s\n", [f(XX), s(string(Val(XX)))], !IO1)
-                        ), [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.9931832986141491, 0.995, 0.9981891210520335, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0], !IO)
-                    ),
-                    run_pso(5, 10, default_params, {0.0, 2.0}, max, Val, Cmp, X)
-                ),
-                1.0,
-                (func(X) =
-                    a(accel(B, number_from_float(X)))
-                )
-            )
+            picknum({0.0, 2.0}, func(X) = a(accel(B, X)))
             %b(accelf(B, rel_v(Victim, B)))
         ) `;`
         a(end(B, $pred)).
 
 
-overtake(B, Victim) = P :-
-    P = t(r((pred(S::in) is semidet :-
-            lane(B, S) = right,
-            lane(Victim, S) = right
-        ))) `;`
-        t(r((pred(S::in) is semidet :-
-            ntg(B, Victim, S) `in` close_behind
-        ))) `;`
-        b(accelf(B,
-            func(S) = number_from_float(1.1) * rel_v(Victim, B, S) is semidet
-        )) `;`
-        a(lc(B, left)) `;`
-        b(wait_until(basify(ntg(B, Victim)), basic(defuzzify(infront)))) `;`
-        a(lc(B, right)).
+overtake(B, C) = P :-
+    P = atomic(
+            a(start(B, $pred)) `;`
+            t(r((pred(S::in) is semidet :-
+                lane(B, S) = right,
+                lane(C, S) = right,
+                ntg(B, C, S) `in` close_behind
+            )))
+        ) `;` (
+            (
+                a(lc(B, left)) `;`
+                b(wait_until(basify(ntg(B, C)), basic(defuzzify(infront)))) `;`
+                a(lc(B, right))
+            ) // (
+                picknum({1.0, 2.0}, func(X) = a(accel(B, X)))
+            )
+        ).
 
 
 imitate(B, Victim) = P :-

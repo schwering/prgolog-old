@@ -7,41 +7,99 @@
 % File: prgolog.m.
 % Main author: schwering.
 %
-% A simple Golog interpreter with a decision theory and transition semantics
-% based on program program decomposition.
+% A Golog interpreter with a decision theory and transition semantics based on
+% program program decomposition.
 %
 % The basic ingredient to write and execute a Golog program, one needs to
 % define a basic action theory, short bat.  A bat consists of a type for
 % primitive actions, a precondition predicate poss/2, a function reward/1,
 % and a functions lookahead/1.
 %
-% Programs and Execution:
 %
-% At the lowest level, programs are constituted of primitive actions and test
-% actions which.  The latter are effect-less actions which are executable iff
-% the test condition holds.  Primitive and test actions can be arranged by
-% sequence operators, nondeterminstic branching, nondeterministic looping, and
-% concurrency by interleaving.  Furthermore, (sub-) programs in a concurrent
-% program can be marked as complex action which prevents interleaving.
+% A Note to Prolog Programmers:
+% -----------------------------
 %
-% Traditional constructs like if-then-else and while-loops can be created with
-% the prgolog.nice module.  It also provides a pick operator which basically
-% expands to a nondeterministic branch, one for each element in the domain
-% from which the value is picked.
+% In Mercury we are subordinate to its (Haskell-ish) type system.  You will see
+% that we don't use non-ground terms except variables themselves (Prolog
+% interpreters often that, e.g., to implement the pick operator with Reiter's
+% sub/4 predicate.)
+%
+% On the hand, we make extensive use of Mercury's functional programming
+% capabilities.
+% The simplest example is that we represent procedure calls as higher-order
+% functions.
+% Another example is that we allow actions to depend on the current situations,
+% thus allowing functional fluents.  This turned out to be very useful in many
+% applications, e.g., to compute action parameter values at execution time.
+% In Prolog-based Golog implementations that is often done in the precondition
+% in my experience.  A special case of this is to implement stochastic actions
+% via sampling.
+% Our pick operator makes extensive use of higher-order functions, too, which
+% may not be too easy to grasp, but I think it's still pretty elegant (at least
+% I spend very much time on it).
+%
+%
+% General Idea of Programs and Execution:
+% ---------------------------------------
 %
 % Execution of a program builds up a situation term which is basically a
 % history of executed actions.
 %
 % When the interpreter is asked to execute the next action of such a program
-% with the trans/4 predicate, it decomposes the program in all possible ways,
-% computes the reward/1 after lookahead/2 many steps and then opts for the
-% decomposition that promises the highest reward/1.
+% with the trans/4 predicate, it decomposes the program in all possible ways
+% -- there may be multiple potential ways to execute the program due to
+% nondeterminism --, computes the reward/1 after lookahead/1 many steps and then
+% opts for the decomposition that promises the highest reward/1.
 %
-% A program is final/2 if execution may stop, for example because the remaining
+% A program is final/2 if execution may stop, e.g., because the remaining
 % program is a nondeterministic loop, and if further execution does not improve
 % the reward.
 %
+%
+% Details of Programs and Execution:
+% ----------------------------------
+%
+% At the lowest level, programs are constituted of primitive actions and test
+% actions.  Primitive actions may be either constant or situation-dependent,
+% which allows to use functional fluents in the actions.  Test actions are
+% effect-less actions which are executable iff the test condition holds.
+% Actions can be arranged to form sequences, nondeterministic branches,
+% nondeterministic loops, concurrency by nondeterministic interleaving, complex
+% atomic actions, nondeterministic pick-a-value, and procedure calls.
+%
+% All nondeterministic constructs are in fact deterministic, because we use
+% decision theory to resolve nondeterminism.  I.e., when the interpreter
+% encounters a branching operator (or any other nondeterministic operator), it
+% examines which branch leads to the higher reward/1 within lookahead/1.
+% and chooses that one.
+%
+% Let's consider the pick operator because its implementation differs from the
+% others.
+% The program which depends on the picked variable is represented as unary
+% function of the variable's domain.  The interpreter requires that for
+% different values the returned program always has the same structure and only
+% differs in the occuring actions (ususally their parameters).  If this
+% restriction is violated, final/1 may misbehave causing unintended program
+% execution.
+% Since the interpreter doesn't know the domain of the variable of a pick
+% operator (it's an existential type), it cannot do this optimization task
+% alone.  For that reason the pick operator requires a user-supplied function
+% that searches for the optimal picked value.  However, the interpreter provides
+% this search function with an evaluation function and a comparison function, so
+% that any generic search procedure is easily applicable.
+%
+% The idea of complex atomic actions is that no concurrently running program may
+% interfere with their execution.  I.e., no actions from another program can
+% bet in-between the actions of a complex atomic program.  That's why I call
+% them atomic.
+%
+% Traditional constructs like if-then-else and while-loops can be created with
+% the prgolog.nice module.  They are simple macro-expansions using tests and
+% nondeterministic branches and/or loops.
+%
+%
 % Stochastic Actions:
+% -------------------
 %
 % Nondeterminism in programs like the aforementioned branch and loop and also
 % concurrency represent choice points where the agent might decide what to do
@@ -57,29 +115,26 @@
 % Right before execution, the interpreter evaluates this function for the
 % current situation and executes the returned primitive action.
 %
+%
 % Procedure Calls:
+% ----------------
 %
 % Calls of procedures are represented as nullary higher-order functions which
 % return the body of the procedure.  The program decomposition evaluates these
 % functions and thus replaces the procedure call with the procedure body when
-% needed, that is, lazily.
+% needed, i.e., lazily.
+%
 %
 % Fluent Formulas:
+% ----------------
 %
 % Each fluent formula is represented as a boolean function that returns `yes'
-% if the predicate holds in the given situation and `no' otherwise.  We don't
-% use higher-order predicate terms due to a technicality in Mercury: the inst
-% of a higher-order predicate term is determined by its mode, not by its type,
-% while higher-order functions have a default inst (see Section 8.3
-% (``Higher-order modes'') in the Mercury LRM for details).  If we didn't go
-% with boolean functions but higher-order predicates instead, we would have to
-% add inst definitions for all types just to tell Mercury that relational
-% fluents have the boring inst `pred(in) is semidet'.  Further complication
-% arises when we use higher-order predicates like solutions and foldl which we
-% need to wrap into anonymous lambda expressions to get the modes right.  Some
-% general helper predicates and functions to construct fluents (and abstract
-% from the aforementioned technicality) are defined in the submodule
-% prgolog.fluent.m.
+% if the predicate holds in the given situation and `no' otherwise.
+% We don't use semidet predicates, because then we would have to carry around
+% the program inst's everywhere.  While this might be tolerable, it doesn't work
+% with higher-order predicates and functions like foldr.
+% Some general helper predicates and functions to construct fluents are defined
+% in the submodule prgolog.fluent.m.
 %
 %-----------------------------------------------------------------------------%
 

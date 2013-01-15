@@ -51,6 +51,22 @@ test_random(!IO) :-
 
 
 test_pso(!IO) :-
+%   Just a test whether Mercury optimizes-away duplicate higher-order
+%   function calls (result: yes iff compiled with --optimize-duplicate-calls):
+%   Func = (func(X0) = X1 is semidet :- (
+%       trace [io(!IO)] ( format("Func(%f) = ?\n", [f(X0)], !IO) ),
+%       F = (func(Z) = Z*Z*Z*Z - 5.0 * X0 * Z*Z + 4.0 * X0),
+%       random.init(10, RandomSupply),
+%       run_pso(5, 1000, default_params, {-1000.0, 1000.0}, min, F, ordering, X1, RandomSupply, _),
+%       %XX = -1.58113883,
+%       XX = 1.58113883,
+%       Eps = 0.001,
+%       XX-Eps =< X1, X1 =< XX+Eps
+%   )),
+%   ( if Bla = ( if Func(1.0) >= -20.0 then Func(1.0) else 10000.0 ) then
+%       format("Bla = %f\n", [f(Bla)], !IO)
+%     else true ),
+
     some [!RandomSupply] (
         random.init(10, !:RandomSupply),
         some [F, X, Eps, X0, X1] (
