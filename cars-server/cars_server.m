@@ -151,12 +151,20 @@ sit2list(s0) = [].
 sit2list(do(A, S)) = [A|sit2list(S)].
 
 
+:- func sitlen(prgolog.sit(A)) = int is det.
+
+sitlen(s0) = 0.
+sitlen(do(_, S)) = 1 + sitlen(S).
+
+
 :- pred stdout_handler(source, int) `with_type` handler(rstc.prim(N))
     <= arithmetic.arithmetic(N).
 :- mode stdout_handler(in, in) `with_inst` handler.
 %:- mode stdout_handler(ui, in) `with_inst` handler.
 
-stdout_handler(Source, N, I, s_state(conf(P, S), Phase), !IO) :-
+stdout_handler(Source, N, I,
+               s_state(conf(P, S), Phase),
+               s_state(conf(P, S1), Phase), !IO) :-
     nl(!IO),
     format("%d.%d: %f =< p_%d =< %f\n", [i(N), i(I), f(min_confidence(Source)), i(I), f(max_confidence(Source))], !IO),
     (
@@ -203,7 +211,9 @@ stdout_handler(Source, N, I, s_state(conf(P, S), Phase), !IO) :-
     ( if NTG1 = ntg(d,h,S) then format("%d.%d:     ntg(d,h) = %s\n", [i(N), i(I), s(string(NTG1))], !IO) else true ),
     ( if NTG2 = ntg(h,d,S) then format("%d.%d:     ntg(h,d) = %s\n", [i(N), i(I), s(string(NTG2))], !IO) else true ),
     ( if TTC1 = ttc(d,h,S) then format("%d.%d:     ttc(d,h) = %s\n", [i(N), i(I), s(string(TTC1))], !IO) else true ),
-    ( if TTC2 = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC2))], !IO) else true ).
+    ( if TTC2 = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC2))], !IO) else true ),
+    ( if fail, sitlen(S) > 2 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
+    true.
 
 %-----------------------------------------------------------------------------%
 
@@ -236,7 +246,10 @@ accept_connections(ServerSocket, Areas, !IO) :-
     ), Sources, Varss, !IO),
     finalize_connection(Socket, !IO),
     reset_all_sources(!IO),
-    %print_stats(!IO),
+    %rstc.print_memo_stats(!IO),
+    %bat.print_memo_stats(!IO),
+    rstc.reset_memo(!IO),
+    bat.reset_memo(!IO),
     accept_connections(ServerSocket, Areas, !IO).
 
 %-----------------------------------------------------------------------------%

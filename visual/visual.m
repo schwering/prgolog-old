@@ -256,9 +256,9 @@ finish(!IO) :-
     stop(!IO).
 
 
-visualize(Areas, I, State, !IO) :-
+visualize(Areas, I, !State, !IO) :-
     lock(!IO),
-    State = planrecog.s_state(Conf, Phase),
+    !.State = planrecog.s_state(Conf, Phase),
     Conf = conf(_Prog, Sit),
     (   if      index1(Areas, I, Area)
         then    clear(Area, !IO),

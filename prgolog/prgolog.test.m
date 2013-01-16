@@ -434,7 +434,7 @@ test_final2(!IO) :-
     ),
     some [P] (
         P = star(a(b) `;` a(impossible)) `with_type` prog(prim),
-        % actually this is not the intended outcome
+        % XXX actually this is not the intended outcome, or is it?
         ( if not final(P, s0) then true else throw(P) )
     ),
     true.

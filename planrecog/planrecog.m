@@ -35,8 +35,8 @@
 :- type s_phase ---> running ; finishing ; finished ; failed.
 :- type s_state(A) ---> s_state(conf(A), s_phase).
 
-:- type handler(A) == (pred(int, s_state(A), io, io)).
-:- inst handler == (pred(in, in, di, uo) is det).
+:- type handler(A) == (pred(int, s_state(A), s_state(A), io, io)).
+:- inst handler == (pred(in, in, out, di, uo) is det).
 
 %-----------------------------------------------------------------------------%
 
@@ -80,17 +80,17 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type logger(A) == (pred(s_state(A), io, io)).
-:- inst logger == (pred(in, di, uo) is det).
+:- type logger(A) == (pred(s_state(A), s_state(A), io, io)).
+:- inst logger == (pred(in, out, di, uo) is det).
 
 
 :- pred empty_logger `with_type` logger(_).
 :- mode empty_logger `with_inst` logger.
 
-empty_logger(_, !IO).
+empty_logger(!State, !IO).
 
 
-empty_handler(_, _, !IO).
+empty_handler(_, !State, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -112,7 +112,7 @@ empty_handler(_, _, !IO).
 
 merge_and_trans_loop(Source, Log, !State, !ObsStreamState, !IO) :-
     merge_and_trans(!State, !ObsStreamState, Cont, !IO),
-    Log(!.State, !IO),
+    Log(!State, !IO),
     (   if      Cont = yes
         then    merge_and_trans_loop(Source, Log, !State, !ObsStreamState, !IO)
         else    true
@@ -146,6 +146,7 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         S2 = S,
         !:Phase = finished
     else if
+        not final(subst_obs(nil, P), S), % XXX avoid nontermination due to star
         trans(P, S, P1, S1)
     then
         Continue = yes,
@@ -262,8 +263,8 @@ planrecog(ThreadCount, Source, Prog, Results, !IO) :-
     <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, StreamState)).
 
 opr_thread(Source, Handler, Prog, I, R, !IO) :-
-    Log = (pred(S::in, !.IO::di, !:IO::uo) is det :-
-        Handler(I, S, !IO)
+    Log = (pred(!.State::in, !:State::out, !.IO::di, !:IO::uo) is det :-
+        Handler(I, !State, !IO)
     ),
     InitialState = s_state(conf(Prog, seed_init_sit(I)), running),
     init_obs_stream(Source, I, ObsStreamState, !IO),
