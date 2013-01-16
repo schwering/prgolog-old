@@ -201,7 +201,13 @@ basify(F, S) = X :- num(X) = F(S).
 
 picknum(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
     NewVal = (func(Float) = Val(number_from_float(Float))),
-    run_pso(5, 10, default_params, Bounds, max, NewVal, Cmp, X).
+    run_pso(3, 10, default_params, Bounds, max, NewVal, Cmp, X).
+
+
+:- func pickaccel({float, float}, pickprog(A, num(N))) = prgolog.prog(A)
+    <= arithmetic.arithmetic(N).
+
+pickaccel(Bounds, Prog) = nice.pickbest(picknum(Bounds), one, Prog).
 
 
 :- func picktuple({{float, float}, {float, float}}) `with_type` maxi_func({num(N), num(N)})
@@ -210,12 +216,6 @@ picknum(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
 picktuple(Bounds, _X0, Val, Cmp) = {number_from_float(X), number_from_float(Y)} :-
     NewVal = (func({X1, Y1}) = Val({number_from_float(X1), number_from_float(Y1)})),
     run_pso(5, 10, default_params, Bounds, max, NewVal, Cmp, {X, Y}).
-
-
-:- func pickaccel({float, float}, pickprog(A, num(N))) = prgolog.prog(A)
-    <= arithmetic.arithmetic(N).
-
-pickaccel(Bounds, Prog) = nice.pickbest(picknum(Bounds), one, Prog).
 
 
 :- func pickacceltuple({{float, float}, {float, float}}, pickprog(A, {num(N), num(N)})) = prgolog.prog(A)
@@ -269,11 +269,11 @@ overtake(B, C) = P :-
                 b(wait_until(basify(ntg(B, C)), basic(defuzzify(infront)))) `;`
                 a(lc(B, right))
             ) // (
-                %pickaccel({1.0, 2.0}, func(X) = a(accel(B, X))) `;`
-                %pickaccel({1.0, 2.0}, func(X) = a(accel(B, X))) `;`
-                %pickaccel({1.0, 2.0}, func(X) = a(accel(B, X)))
-                pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
-                    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
+                %pickaccel({1.0, 1.5}, func(X) = a(accel(B, X))) `;`
+                pickaccel({1.0, 1.5}, func(X) = a(accel(B, X))) `;`
+                pickaccel({1.0, 1.5}, func(X) = a(accel(B, X)))
+                %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
+                %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
                 %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
             )
         ).
