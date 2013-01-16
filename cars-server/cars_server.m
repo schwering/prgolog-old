@@ -215,11 +215,11 @@ accept_connections(ServerSocket, Areas, !IO) :-
     % reasonable value for dual core (one free core @ 2.2 GHz): 9
     % reasonable value for core i7 (four free cores @ 3.2 GHz): 27
     NSamples = 1,
-    %Prog = (cruise(b) // overtake(h, b)),% `with_type` prog(prim),
     %Handler = visual.visualize(Areas),
-    Progs = [ tailgate(h, d)
-            %, follow(h, d)
-            ] `with_type` list(rstc.prog(float)),
+    Progs = %[ tailgate(h, d) ] ++
+            %[ follow(h, d) ] ++
+            [ overtake(h, d) ] ++
+            [] `with_type` list(rstc.prog(float)),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,
                  Sources1::in, [Source|Sources1]::out,

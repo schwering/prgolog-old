@@ -152,8 +152,10 @@ halfway(X, Y) = Z :-
      else
         H1 = (X + Y) / two,
         H2 = X + epsilon(X),
-        (    if X < H1, H1  < Y then Z = H1
-        else if X < H2, H2 =< Y then Z = H2
+        H3 = Y - epsilon(Y),
+        (    if X  < H1, H1  < Y then Z = H1
+        else if X  < H2, H2  < Y then Z = H2
+        else if X =< H3, H3 =< Y then Z = H3
         else unexpected($module, string.format("%s: %s + eps > %s? %s, %s",
                         [s($pred), s(string(X)), s(string(Y)),
                          s(string(H1)), s(string(H2))]))
@@ -176,7 +178,7 @@ bin_search(F, XMin, XMax, YGoal, X) :-
 %:- import_module io.
 
 bin_search_2(F, XMin, XMax, YGoal, X) :-
-    XMid = halfway(XMin, XMax),
+     XMid = halfway(XMin, XMax),
 %    trace [io(!IO)] (
 %        write_string("binary_search_2(", !IO),
 %        write(XMin, !IO),
@@ -187,22 +189,22 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
 %        write_string(")    ", !IO),
 %        write(XMid, !IO),
 %        nl(!IO),
-%        write_string("eps = ", !IO), write(float.epsilon, !IO), nl(!IO),
-%        ( if FXMin = F(XMin), FXMax = F(XMax), FXMid = F(XMid) then
-%            write_string("Xmin = ", !IO), write(XMin, !IO), nl(!IO),
-%            write_string("Xmid = ", !IO), write(XMid, !IO), nl(!IO),
-%            write_string("Xmax = ", !IO), write(XMax, !IO), nl(!IO),
-%            write_string("f(Xmin-) = ", !IO), write(FXMin - two * epsilon, !IO), nl(!IO),
-%            write_string("f(Xmin)  = ", !IO), write(FXMin, !IO), nl(!IO),
-%            write_string("f(Xmid)  = ", !IO), write(FXMid, !IO), nl(!IO),
-%            write_string("ygoal    = ", !IO), write(YGoal, !IO), nl(!IO),
-%            write_string("f(Xmax)  = ", !IO), write(FXMax, !IO), nl(!IO),
-%            write_string("f(Xmax+) = ", !IO), write(FXMax + two * epsilon, !IO), nl(!IO),
-%            write_string("2eps = ", !IO), write(2.0 `float.'*'` float.epsilon, !IO), nl(!IO),
-%            write_string("diff = ", !IO), write(XMax - XMin, !IO), nl(!IO),
-%            write_string("minu = ", !IO), write(XMax - XMin - two * epsilon, !IO), nl(!IO),
-%            write_string("f-diff = ", !IO), write(FXMax - FXMin, !IO), nl(!IO)
-%        else true ),
+%        %write_string("eps = ", !IO), write(float.epsilon, !IO), nl(!IO),
+%%        ( if FXMin = F(XMin), FXMax = F(XMax), FXMid = F(XMid) then
+%%            write_string("Xmin = ", !IO), write(XMin, !IO), nl(!IO),
+%%            write_string("Xmid = ", !IO), write(XMid, !IO), nl(!IO),
+%%            write_string("Xmax = ", !IO), write(XMax, !IO), nl(!IO),
+%%            write_string("f(Xmin-) = ", !IO), write(FXMin - two * epsilon(F(XMin)), !IO), nl(!IO),
+%%            write_string("f(Xmin)  = ", !IO), write(FXMin, !IO), nl(!IO),
+%%            write_string("f(Xmid)  = ", !IO), write(FXMid, !IO), nl(!IO),
+%%            write_string("ygoal    = ", !IO), write(YGoal, !IO), nl(!IO),
+%%            write_string("f(Xmax)  = ", !IO), write(FXMax, !IO), nl(!IO),
+%%            write_string("f(Xmax+) = ", !IO), write(FXMax + two * epsilon(F(XMax)), !IO), nl(!IO),
+%%            %write_string("2eps = ", !IO), write(2.0 `float.'*'` float.epsilon(F(XMax)), !IO), nl(!IO),
+%%            write_string("diff = ", !IO), write(XMax - XMin, !IO), nl(!IO),
+%%            %write_string("minu = ", !IO), write(XMax - XMin - two * epsilon(F(XMax)), !IO), nl(!IO),
+%%            write_string("f-diff = ", !IO), write(FXMax - FXMin, !IO), nl(!IO)
+%%        else true ),
 %        true
 %    ),
     (
@@ -219,7 +221,7 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
         then
             X = XMid
         else if
-            XMin = XMax
+            XMin + epsilon(XMin) >= XMax ; XMin >= XMax - epsilon(XMax)
         then
             fail
         else if

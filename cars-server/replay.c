@@ -71,32 +71,52 @@ static void klatschtgleich2(FILE *fp, int sockfd, bool do_sleep)
     struct observation_record r;
     struct planrecog_state state;
     double t0 = -1.0;
-    int ret;
 
     while (fscanf(fp, "%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\n",
                 &r.t,
                 r.info[0].agent, &r.info[0].veloc, &r.info[0].rad, &r.info[0].x, &r.info[0].y,
                 r.info[1].agent, &r.info[1].veloc, &r.info[1].rad, &r.info[1].x, &r.info[1].y) == 11) {
-        printf("%lf '%s' %lf %lf %lf %lf '%s' %lf %lf %lf %lf\n",
-               r.t,
-               r.info[0].agent, r.info[0].veloc, r.info[0].rad, r.info[0].x, r.info[0].y,
-               r.info[1].agent, r.info[1].veloc, r.info[1].rad, r.info[1].x, r.info[1].y);
+        int i, ret;
+
         r.n_agents = 2;
+
+        printf("%lf", r.t);
+        for (i = 0; i < r.n_agents; ++i) {
+            printf(" %lf '%s' %lf %lf %lf %lf",
+                   r.info[i].agent, r.info[i].veloc, r.info[i].rad,
+                   r.info[i].x, r.info[i].y);
+        }
+        printf("\n");
+
         if (do_sleep && t0 >= 0.0) {
             usleep((useconds_t) (1e6 * (r.t - t0)));
         }
         t0 = r.t;
+
         ret = write(sockfd, &r, sizeof(r));
         if (ret != sizeof(r)) {
             fprintf(stderr, "Couldn't write %lu bytes\n", sizeof(r));
             exit(1);
         }
+
         ret = read(sockfd, &state, sizeof(state));
         if (ret != sizeof(state)) {
             fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));
             exit(1);
         }
-        printf("%.2lf =< confidence %d, %d, %d =< %.2lf\n",
+
+        for (i = 0; i < r.n_agents; ++i) {
+            int j;
+            for (j = 0; j < r.n_agents; ++j) {
+                if (i != j) {
+                    const double ntg = (r.info[j].x - r.info[i].x) / r.info[i].veloc;
+                    const double ttc = (r.info[j].x - r.info[i].x) / (r.info[i].veloc - r.info[j].veloc);
+                    printf("ntg('%s', '%s') = %7.2lf\t\t", r.info[i].agent, r.info[j].agent, ntg);
+                    printf("ttc('%s', '%s') = %7.2lf\n", r.info[i].agent, r.info[j].agent, ttc);
+                }
+            }
+        }
+        printf("%.2lf =< confidence working=%d, finished=%d, failed=%d =< %.2lf\n",
                 min_conf(&state, 0), state.sources[0].working, state.sources[0].finished, state.sources[0].failed, max_conf(&state, 0));
     }
 }

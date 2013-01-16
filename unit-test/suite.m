@@ -43,6 +43,8 @@
 :- use_module util.pso.test.
 :- use_module util.simulated_annealing.
 :- use_module util.simulated_annealing.test.
+:- use_module util.rand.
+:- use_module util.rand.test.
 
 :- use_module prgolog.
 :- use_module prgolog.test.
@@ -115,9 +117,9 @@ get_tests(Tests, !IO) :-
             , test("arithmetic", "test_bin_search_float_fail", ccm(util.arithmetic.impl.test.test_bin_search_float_fail))
             , test("arithmetic", "test_optimize_float", ccm(util.arithmetic.impl.test.test_optimize_float))
             , test("inf_arithmetic", "test", ccm(util.inf_arithmetic.test.test))
-            , test("simulated_annealing", "test_random", ccm(util.simulated_annealing.test.test_random))
             , test("simulated_annealing", "test_sa", ccm(util.simulated_annealing.test.test_sa))
-            , test("pso", "test_random", ccm(util.pso.test.test_random))
+            , test("rand", "test_random1", ccm(util.rand.test.test_random1))
+            , test("rand", "test_random2", ccm(util.rand.test.test_random2))
             , test("pso", "test_sa", ccm(util.pso.test.test_pso))
             ].
 

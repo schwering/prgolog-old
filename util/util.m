@@ -21,7 +21,9 @@
 :- include_module pso.
 :- include_module simulated_annealing.
 :- include_module rat.
+:- include_module rand.
 :- include_module times.
+:- include_module vector_space.
 
 %-----------------------------------------------------------------------------%
 :- end_module util.

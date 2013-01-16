@@ -15,7 +15,7 @@
 
 :- interface.
 
-:- use_module random.
+:- import_module util.rand.
 
 %-----------------------------------------------------------------------------%
 
@@ -46,7 +46,7 @@
                             value_func(T)::in,
                             time::in,           time::out,
                             T::in,              T::out,
-                            random.supply::mdi, random.supply::muo) is det.
+                            random_supply::mdi, random_supply::muo) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -65,20 +65,10 @@
 %-----------------------------------------------------------------------------%
 
 simulated_annealing(Seed, Schedule, Next, Value, !State) :-
-    random.init(Seed, Random),
+    init(Seed, Random),
     simulated_annealing(Schedule, Next, Value, 0, _, !State, Random, _).
 
 %-----------------------------------------------------------------------------%
-
-:- pred succeed_with_prob(float::in, bool::out,
-                          random.supply::mdi,
-                          random.supply::muo) is det.
-
-succeed_with_prob(Probability, Outcome, !RandomSupply) :-
-    random.random(0, 100, Random, !RandomSupply),
-    Event = float(Random) / 100.0,
-    Outcome = ( if Event < Probability then yes else no ).
-
 
 simulated_annealing(Schedule, Next, Value, !Time, !State, !RandomSupply) :-
     Temperature = Schedule(!.Time),

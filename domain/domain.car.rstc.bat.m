@@ -71,6 +71,8 @@
 :- import_module list.
 :- import_module pair.
 :- import_module util.pso.
+:- import_module util.vector_space.
+:- import_module util.vector_space.impl.
 
 %-----------------------------------------------------------------------------%
 
@@ -180,39 +182,46 @@ max_search_time = arithmetic.from_int(60).
 :- mode wait_until(in(func(in) = out is det), in, in) = out is det.
 
 wait_until(F, Goal, S) = A :-
-    if   arithmetic.bin_search(func(T) = F(prgolog.do(wait(number(T)), S)) is semidet,
-                               min_search_time, max_search_time, Goal, V1)
+    if   arithmetic.bin_search(
+            func(T) = F(prgolog.do(wait(number(T)), S)) is semidet,
+            min_search_time, max_search_time, Goal, V1)
     then A = wait(number(V1))
     else A = abort.
 
 %-----------------------------------------------------------------------------%
 
-:- func basify(func(rstc.sit(N)) = num(N)) = (func(rstc.sit(N)) = N).
-:- mode basify(in(func(in) = out is semidet)) =
-               out(func(in) = out is semidet) is det.
+:- func basify(func(rstc.sit(N)) = num(N), rstc.sit(N)) = N.
+:- mode basify(in(func(in) = out is semidet), in) = out is semidet.
 
-basify(F) = ( func(S) = X is semidet :- num(X) = F(S) ).
+basify(F, S) = X :- num(X) = F(S).
 
 
-:- func pickaccel(bounds) `with_type` maxi_func(num(N))
+:- func picknum({float, float}) `with_type` maxi_func(num(N))
     <= arithmetic.arithmetic(N).
 
-pickaccel(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
+picknum(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
     NewVal = (func(Float) = Val(number_from_float(Float))),
     run_pso(5, 10, default_params, Bounds, max, NewVal, Cmp, X).
 
 
-:- func pickbest(maxi_func(num(N)), pickprog(A, num(N))) = prgolog.prog(A)
+:- func picktuple({{float, float}, {float, float}}) `with_type` maxi_func({num(N), num(N)})
     <= arithmetic.arithmetic(N).
 
-pickbest(Maxi, Prog) = nice.pickbest(Maxi, one, Prog).
+picktuple(Bounds, _X0, Val, Cmp) = {number_from_float(X), number_from_float(Y)} :-
+    NewVal = (func({X1, Y1}) = Val({number_from_float(X1), number_from_float(Y1)})),
+    run_pso(5, 10, default_params, Bounds, max, NewVal, Cmp, {X, Y}).
 
 
-:- func picknum(bounds, pickprog(A, num(N))) = prgolog.prog(A)
+:- func pickaccel({float, float}, pickprog(A, num(N))) = prgolog.prog(A)
     <= arithmetic.arithmetic(N).
 
-picknum(Bounds, Prog) = pickbest(pickaccel(Bounds), Prog).
+pickaccel(Bounds, Prog) = nice.pickbest(picknum(Bounds), one, Prog).
 
+
+:- func pickacceltuple({{float, float}, {float, float}}, pickprog(A, {num(N), num(N)})) = prgolog.prog(A)
+    <= arithmetic.arithmetic(N).
+
+pickacceltuple(Bounds, Prog) = nice.pickbest(picktuple(Bounds), {one, one}, Prog).
 
 %-----------------------------------------------------------------------------%
 
@@ -225,7 +234,7 @@ follow(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in` close_behind
             ))) `;`
-            picknum({0.0, 2.0}, func(X) = a(accel(B, X)))
+            pickaccel({0.0, 2.0}, func(X) = a(accel(B, X)))
             %b(accelf(B, rel_v(Victim, B)))
         ) `;`
         a(end(B, $pred)).
@@ -240,7 +249,7 @@ tailgate(B, Victim) = P :-
             t(r((pred(S::in) is semidet :-
                 ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
             ))) `;`
-            picknum({0.0, 2.0}, func(X) = a(accel(B, X)))
+            pickaccel({0.0, 2.0}, func(X) = a(accel(B, X)))
             %b(accelf(B, rel_v(Victim, B)))
         ) `;`
         a(end(B, $pred)).
@@ -260,7 +269,12 @@ overtake(B, C) = P :-
                 b(wait_until(basify(ntg(B, C)), basic(defuzzify(infront)))) `;`
                 a(lc(B, right))
             ) // (
-                picknum({1.0, 2.0}, func(X) = a(accel(B, X)))
+                %pickaccel({1.0, 2.0}, func(X) = a(accel(B, X))) `;`
+                %pickaccel({1.0, 2.0}, func(X) = a(accel(B, X))) `;`
+                %pickaccel({1.0, 2.0}, func(X) = a(accel(B, X)))
+                pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
+                    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
+                %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
             )
         ).
 
