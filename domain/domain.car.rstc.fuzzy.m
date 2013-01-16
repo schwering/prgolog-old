@@ -15,6 +15,7 @@
 
 :- interface.
 
+:- use_module util.arithmetic.
 :- import_module list.
 
 %-----------------------------------------------------------------------------%

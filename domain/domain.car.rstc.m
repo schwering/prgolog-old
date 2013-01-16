@@ -47,6 +47,11 @@
     ;       senseD(agent, agent, ntg(N), ttc(N))
     ;       senseL(agent, lane)
     ;       init_env(env)
+    ;       progress(s(N),
+                     assoc_list({agent, agent}, ntg(N)),
+                     assoc_list({agent, agent}, ttc(N)),
+                     assoc_list(agent, lane),
+                     reward)
     ;       match(obs)
     ;       seed(int)
     ;       abort
@@ -59,6 +64,7 @@
 :- inst senseD ---> senseD(ground, ground, ground, ground).
 :- inst senseL ---> senseL(ground, ground).
 :- inst init_env ---> init_env(ground).
+:- inst progress ---> progress(ground,ground, ground, ground, ground).
 :- inst match ---> match(ground).
 :- inst seed ---> seed(ground).
 :- inst abort ---> abort.
@@ -72,6 +78,7 @@
     ;       senseD(ground, ground, ground, ground)
     ;       senseL(ground, ground)
     ;       init_env(ground)
+    ;       progress(basic_num, ground, ground, ground, ground)
     ;       match(ground)
     ;       seed(ground)
     ;       abort
@@ -103,8 +110,8 @@
 
 :- use_module io.
 
-:- pred print_stats(io.io::di, io.io::uo) is det.
-:- pred reset(io.io::di, io.io::uo) is det.
+:- pred print_memo_stats(io.io::di, io.io::uo) is det.
+:- pred reset_memo(io.io::di, io.io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -181,11 +188,15 @@ ntg(B, D, do(A, S)) = R :-
         A = init_env(Env),
         R = ntg_from_env(B, D, Env)
     ;
+        A = progress(_, NTGs, _, _, _),
+        search(NTGs, {B, D}, R)
+    ;
         A \= wait(_),
         A \= accel(B, _),
         A \= senseD(B, D, _, _),
         A \= senseD(D, B, _, _),
         A \= init_env(_),
+        A \= progress(_, _, _, _, _),
         R = ntg(B, D, S)
     ).
 
@@ -252,12 +263,16 @@ ttc(B, D, do(A, S)) = R :-
         A = init_env(Env),
         R = ttc_from_env(B, D, Env)
     ;
+        A = progress(_, _, TTCs, _, _),
+        search(TTCs, {B, D}, R)
+    ;
         A \= wait(_),
         A \= accel(B, _),
         A \= accel(D, _),
         A \= senseD(B, D, _, _),
         A \= senseD(D, B, _, _),
         A \= init_env(_),
+        A \= progress(_, _, _, _, _),
         R = ttc(B, D, S)
     ).
 
@@ -265,8 +280,10 @@ ttc(B, D, do(A, S)) = R :-
 
 lane(_, s0) = right.
 lane(B, do(A, S)) = L :-
-    if      A = init_env(Env)
-    then    L = lane_from_env(B, Env)
+    if      A = init_env(Env), L0 = lane_from_env(B, Env)
+    then    L = L0
+    else if A = progress(_, _, _, Lanes, _), search(Lanes, B, L0)
+    then    L = L0
     else if A = lc(B, L0)
     then    L = L0
     else    L = lane(B, S).
@@ -277,6 +294,8 @@ start(s0) = zero.
 start(do(A, S)) = T :-
     if      A = init_env(Env)
     then    T = number_from_float(start_from_env(Env))
+    else if A = progress(T0, _, _, _, _)
+    then    T = T0
     else if A = wait(D)
     then    T = start(S) + D
     else    T = start(S).
@@ -287,8 +306,8 @@ start(do(A, S)) = T :-
 :- mode ntg_from_env(in, in, in) = out is semidet.
 
 ntg_from_env(B, D, env(_, Map)) = R :-
-    info(FVB, _, PosB) = Map^det_elem(B),
-    info(_, _, PosD) = Map^det_elem(D),
+    info(FVB, _, PosB) = Map^elem(B),
+    info(_, _, PosD) = Map^elem(D),
     XB = number_from_float(x(PosB)),
     XD = number_from_float(x(PosD)),
     VB = number_from_float(FVB),
@@ -299,8 +318,8 @@ ntg_from_env(B, D, env(_, Map)) = R :-
 :- mode ttc_from_env(in, in, in) = out is semidet.
 
 ttc_from_env(B, D, env(_, Map)) = R :-
-    info(FVB, _, PosB) = Map^det_elem(B),
-    info(FVD, _, PosD) = Map^det_elem(D),
+    info(FVB, _, PosB) = Map^elem(B),
+    info(FVD, _, PosD) = Map^elem(D),
     XB = number_from_float(x(PosB)),
     XD = number_from_float(x(PosD)),
     VB = number_from_float(FVB),
@@ -308,10 +327,10 @@ ttc_from_env(B, D, env(_, Map)) = R :-
     R = (XD - XB) / (VB - VD).
 
 
-:- func lane_from_env(agent, env) = lane is det.
+:- func lane_from_env(agent, env) = lane is semidet.
 
 lane_from_env(B, env(_, Map)) = ( if Y `float.'<'` 0.0 then right else left ) :-
-    info(_, _, p(_, Y)) = Map^det_elem(B).
+    info(_, _, p(_, Y)) = Map^elem(B).
 
 
 :- func start_from_env(env) = s is det.
@@ -333,24 +352,26 @@ last_match(do(A, S)) = ( if is_match_action(A) then A else last_match(S) ).
 
 :- import_module table_statistics.
 
-print_stats(!IO) :-
-    domain.car.rstc.table_statistics_for_ntg_3(NTG, !IO),
+print_memo_stats(!IO) :-
+    table_statistics_for_ntg_3(NTG, !IO),
     io.write_string("\nntg/3:\n", !IO),
     write_table_stats(current_stats(call_table_stats(NTG)), !IO),
     %
-    domain.car.rstc.table_statistics_for_ttc_3(TTC, !IO),
+    table_statistics_for_ttc_3(TTC, !IO),
     io.write_string("\nttc/3:\n", !IO),
     write_table_stats(current_stats(call_table_stats(TTC)), !IO),
     %
-    domain.car.rstc.table_statistics_for_lane_2(Lane, !IO),
+    table_statistics_for_lane_2(Lane, !IO),
     io.write_string("\nlane/2:\n", !IO),
-    write_table_stats(current_stats(call_table_stats(Lane)), !IO).
+    write_table_stats(current_stats(call_table_stats(Lane)), !IO),
+    true.
 
 
-reset(!IO) :-
+reset_memo(!IO) :-
     table_reset_for_ntg_3(!IO),
     table_reset_for_ttc_3(!IO),
-    table_reset_for_lane_2(!IO).
+    table_reset_for_lane_2(!IO),
+    true.
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.

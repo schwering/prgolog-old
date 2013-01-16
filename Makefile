@@ -1,4 +1,4 @@
-DIRS = cars-server cars-main domain lp-server osi planrecog prgolog util visual unit-test
+DIRS = cars-server domain lp-server osi planrecog prgolog util visual
 MAINS = $(shell find $(DIRS) -maxdepth 1 -name \*.m -or -name \*.c -or -name \*.cc | xargs grep -l '\(^:- pred main\|int main\)' | sed -e 's/\/.\+$$//g' | uniq)
 
 all:

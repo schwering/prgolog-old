@@ -15,6 +15,8 @@
 
 :- interface.
 
+:- use_module util.arithmetic.
+
 %-----------------------------------------------------------------------------%
 
 :- func rel_v(agent, agent, rstc.sit(N)) = scale(N) <= arithmetic.arithmetic(N).
@@ -34,8 +36,6 @@
 
 %-----------------------------------------------------------------------------%
 
-%-----------------------------------------------------------------------------%
-
 :- func follow(agent, agent) `with_type` rstc.proc(N)
     <= arithmetic.arithmetic(N).
 
@@ -50,9 +50,25 @@
 
 %-----------------------------------------------------------------------------%
 
+:- pred progress(rstc.sit(N), rstc.sit(N)) <= arithmetic.arithmetic(N).
+:- mode progress(in(finite_time_sit), out) is det.
+:- mode progress(in, out) is semidet.
+
+:- pred progress(rstc.sit(N), rstc.sit(N), io, io) <= arithmetic.arithmetic(N).
+:- mode progress(in, out, di, uo) is det.
+
+%-----------------------------------------------------------------------------%
+
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N).
 :- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N).
 :- instance pr_bat(prim(N), obs, env) <= arithmetic.arithmetic(N).
+
+%-----------------------------------------------------------------------------%
+
+:- use_module io.
+
+:- pred print_memo_stats(io.io::di, io.io::uo) is det.
+:- pred reset_memo(io.io::di, io.io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -201,7 +217,7 @@ basify(F, S) = X :- num(X) = F(S).
 
 picknum(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
     NewVal = (func(Float) = Val(number_from_float(Float))),
-    run_pso(3, 10, default_params, Bounds, max, NewVal, Cmp, X).
+    run_pso(1, 10, default_params, Bounds, max, NewVal, Cmp, X).
 
 
 :- func pickaccel({float, float}, pickprog(A, num(N))) = prgolog.prog(A)
@@ -269,9 +285,11 @@ overtake(B, C) = P :-
                 b(wait_until(basify(ntg(B, C)), basic(defuzzify(infront)))) `;`
                 a(lc(B, right))
             ) // (
-                %pickaccel({1.0, 1.5}, func(X) = a(accel(B, X))) `;`
-                pickaccel({1.0, 1.5}, func(X) = a(accel(B, X))) `;`
-                pickaccel({1.0, 1.5}, func(X) = a(accel(B, X)))
+                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
+                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
+                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)))
+                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)) `;` a(accel(B, X)) `;` a(accel(B, X)))
+                pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
                 %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
                 %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
                 %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
@@ -298,6 +316,7 @@ imitate(B, Victim) = P :-
 :- mode poss(in(senseD), in) is det.
 :- mode poss(in(senseL), in) is det.
 :- mode poss(in(init_env), in) is det.
+:- mode poss(in(progress), in) is det.
 :- mode poss(in(seed), in) is det.
 :- mode poss(in(abort), in) is failure.
 :- mode poss(in(start), in) is det.
@@ -310,6 +329,7 @@ poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
+poss(progress(_, _, _, _, _), _).
 poss(match(obs(_, D)), S) :- match_obs(D, S).
 poss(seed(_), _).
 poss(abort, _) :- fail.
@@ -415,11 +435,13 @@ sitlen(s0) = 0.
 reward(s0) = 0.0.
 reward(do(A, S)) = bat.reward(S) + New :-
     New = (
-        if      A = start(_, _)
+        if      some [Reward] A = progress(_, _, _, _, Reward)
+        then    Reward
+        else if A = start(_, _)
         then    float(max(0, 1000 - 2 * sitlen(S)))
         else if A = end(_, _)
-        then    float(2 * sitlen(S))
-        else if A = match(obs(_, D))
+        then    -1.0 %float(2 * sitlen(S))
+        else if some [D] A = match(obs(_, D))
         then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
         else    0.0
     ).
@@ -635,6 +657,28 @@ match_y((B - info(_, _, p(_, Y))), S) :-
 
 %-----------------------------------------------------------------------------%
 
+progress(S, do(progress(Time, NTGs, TTCs, Lanes, Reward), s0)) :-
+    Time = start(S),
+    Reward = bat.reward(S),
+    solutions(agent, Agents),
+    NTGs = condense(map(func(B) = condense(map(func(C) =
+        ( if NTG = ntg(B, C, S) then [pair({B, C}, NTG)] else [] )
+    , Agents)), Agents)),
+    TTCs = condense(map(func(B) = condense(map(func(C) =
+        ( if TTC = ttc(B, C, S) then [pair({B, C}, TTC)] else [] )
+    , Agents)), Agents)),
+    Lanes = map(func(B) = pair(B, lane(B, S)), Agents).
+
+
+progress(S, S1, !IO) :-
+    if      progress(S, S0)
+    then    bat.reset_memo(!IO),
+            rstc.reset_memo(!IO),
+            S1 = S0
+    else    unexpected($module, "progression failed (start(S) undefined?)").
+
+%-----------------------------------------------------------------------------%
+
 :- pred is_obs_prog(pseudo_atom(prim(N))::in) is semidet
     <= arithmetic.arithmetic(N).
 
@@ -677,6 +721,21 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
     seed_init_sit(I) = do(seed(I), s0),
     init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
 ].
+
+%-----------------------------------------------------------------------------%
+
+:- import_module table_statistics.
+
+print_memo_stats(!IO) :-
+    table_statistics_for_reward_1(Lane, !IO),
+    io.write_string("\nreward/1:\n", !IO),
+    write_table_stats(current_stats(call_table_stats(Lane)), !IO),
+    true.
+
+
+reset_memo(!IO) :-
+    table_reset_for_reward_1(!IO),
+    true.
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.bat.
