@@ -289,7 +289,8 @@ overtake(B, C) = P :-
                 %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
                 %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)))
                 %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)) `;` a(accel(B, X)) `;` a(accel(B, X)))
-                pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
+                %pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
+                star(pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))))
                 %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
                 %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
                 %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
@@ -311,7 +312,7 @@ imitate(B, Victim) = P :-
 :- pred poss(prim(N), rstc.sit(N)) <= arithmetic.arithmetic(N).
 :- mode poss(in, in) is semidet.
 :- mode poss(in(wait), in) is semidet.
-:- mode poss(in(accel), in) is /*semi*/det.
+:- mode poss(in(accel), in) is semidet.
 :- mode poss(in(lc), in) is semidet.
 :- mode poss(in(senseD), in) is det.
 :- mode poss(in(senseL), in) is det.
@@ -323,8 +324,23 @@ imitate(B, Victim) = P :-
 :- mode poss(in(end), in) is det.
 
 poss(wait(T), _) :- T >= zero.
-poss(accel(_, _Q), _).% :- Q >= zero.
-poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
+poss(A @ accel(B, _Q), S) :-
+    (   S = s0
+    ;   S = do(A1, S1),
+        (   A1 = wait(_)
+        ;   A1 \= accel(B, _), bat.poss(A, S1)
+        )
+    ).
+%poss(accel(_, _Q), _).% :- Q >= zero.
+poss(A @ lc(B, L), S) :-
+    ( lane(B, S) = left <=> L = right ),
+    (   S = s0
+    ;   S = do(A1, S1),
+        (   A1 = wait(_)
+        ;   A1 \= lc(B, _), bat.poss(A, S1)
+        )
+    ).
+%poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
@@ -652,7 +668,7 @@ match_longitudinal_dist2(PB, PC, S) = D :-
 match_y((B - info(_, _, p(_, Y))), S) :-
     Lane = lane(B, S),
     (   Lane = right, Y < 0.0
-    ;   Lane = left,  Y > 0.0
+    ;   Lane = left, Y > -0.0
     ).
 
 %-----------------------------------------------------------------------------%
