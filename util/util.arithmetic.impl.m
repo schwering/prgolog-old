@@ -78,7 +78,6 @@
     X / Y = float.'/'(X, Y),
     unchecked_quotient(X, Y) = float.unchecked_quotient(X, Y),
     epsilon(X) = Eps :- eps(X, Eps),
-    %epsilon = float.epsilon,
     from_float(F) = F,
     from_int(I) = float.float(I),
     to_float(F) = F,

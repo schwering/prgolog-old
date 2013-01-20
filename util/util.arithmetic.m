@@ -22,6 +22,8 @@
 :- import_module list.
 :- import_module solutions.
 
+%-----------------------------------------------------------------------------%
+
 :- typeclass arithmetic(N) where [
     func zero = N,
     func one = N,
@@ -48,6 +50,11 @@
 :- func pow(N, int) = N <= arithmetic(N).
 
 %-----------------------------------------------------------------------------%
+
+:- pred lin_search(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
+:- mode lin_search(in(func(in) = out is det), in, in, in, out) is semidet.
+:- mode lin_search(in(func(in) = out is semidet), in, in, in, out) is semidet.
+
 
     % bin_search(F, XMin, XMax, Y, X) determines the value X that such that F(X)
     % matches Y with accuracy 4*eps for a monotone function F.
@@ -88,7 +95,7 @@
     %   XMax - XMin =< 2 * eps
     % by multiplying the first line with (-1) and adding the result to the
     % second line. Thus, the precision of our computation is 2 * eps.
-    % (TODO Does this really apply to the conditions for slope > 1?)
+    % (XXX Does this really apply to the conditions for slope > 1?)
     %
 :- pred bin_search(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
 :- mode bin_search(in(func(in) = out is det), in, in, in, out) is semidet.
@@ -128,8 +135,10 @@
 
 :- implementation.
 
-:- import_module require, string.
-:- import_module int.
+:- use_module float.
+:- use_module int.
+:- import_module require.
+:- import_module string.
 :- import_module std_util.
 
 %-----------------------------------------------------------------------------%
@@ -139,8 +148,8 @@
 two = from_int(2).
 
 pow(X, N) = (    if N = 0         then  one
-            else if N `int.'>'` 0 then  X * pow(X, N - 1)
-            else                        one / pow(X, -N) ).
+            else if N `int.'>'` 0 then  X * pow(X, N `int.'-'` 1)
+            else                        one / pow(X, int.'-'(N)) ).
 
 %-----------------------------------------------------------------------------%
 
@@ -164,9 +173,31 @@ halfway(X, Y) = Z :-
 
 %-----------------------------------------------------------------------------%
 
+%:- import_module io, string, list.
+
+lin_search(F, XMin, XMax, YGoal, X) :-
+    if F(XMin) > F(XMax) then
+        lin_search(func(X1) = -F(X1) is semidet, XMin, XMax, -YGoal, X)
+    else if F(XMin) = F(XMax) then
+        YGoal = F(XMin),
+        X = XMin
+    else
+        F(XMin) =< YGoal, YGoal =< F(XMax),
+        Rel = to_float((YGoal - F(XMin)) / (F(XMax) - F(XMin))),
+        X = XMin + from_float(Rel) * (XMax - XMin).
+        %( F(X) - epsilon(F(X)) =< YGoal, YGoal =< F(X) + epsilon(F(X))
+        %; F(X  - epsilon(X))   =< YGoal, YGoal =< F(X  + epsilon(X)) ),
+        %FX = F(X),
+        %trace [io(!IO)] ( format("F(%s) = %s = %s\n", [s(string(X)), s(string(FX)), s(string(YGoal))], !IO) ).
+        
+
+%-----------------------------------------------------------------------------%
+
 bin_search(F, XMin, XMax, YGoal, X) :-
     if F(XMin) > F(XMax) then
         bin_search_2(func(X1) = -F(X1) is semidet, XMin, XMax, -YGoal, X)
+    else if YGoal < F(XMin) ; F(XMax) < YGoal then
+        fail
     else
         bin_search_2(F, XMin, XMax, YGoal, X).
 
@@ -174,8 +205,6 @@ bin_search(F, XMin, XMax, YGoal, X) :-
 :- pred bin_search_2(func(X) = Y, X, X, Y, X) <= (arithmetic(X), arithmetic(Y)).
 :- mode bin_search_2(in(func(in) = out is det), in, in, in, out) is semidet.
 :- mode bin_search_2(in(func(in) = out is semidet), in, in, in, out) is semidet.
-
-%:- import_module io.
 
 bin_search_2(F, XMin, XMax, YGoal, X) :-
      XMid = halfway(XMin, XMax),
@@ -207,6 +236,8 @@ bin_search_2(F, XMin, XMax, YGoal, X) :-
 %%        else true ),
 %        true
 %    ),
+    %EpsX = (func(XX) = max(from_float(0.001), epsilon(XX))) `with_type` (func(X) = X),
+    %EpsY = (func(YY) = max(from_float(0.001), epsilon(YY))) `with_type` (func(Y) = Y),
     (
         if
             F(XMin) =< YGoal, YGoal =< F(XMax),

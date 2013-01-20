@@ -208,10 +208,12 @@ stdout_handler(Source, N, I,
         else    true
     ),
     format("%d.%d:     start = %s\n", [i(N), i(I), s(if Start = start(S) then string(Start) else "undef")], !IO),
-    ( if NTG1 = ntg(d,h,S) then format("%d.%d:     ntg(d,h) = %s\n", [i(N), i(I), s(string(NTG1))], !IO) else true ),
-    ( if NTG2 = ntg(h,d,S) then format("%d.%d:     ntg(h,d) = %s\n", [i(N), i(I), s(string(NTG2))], !IO) else true ),
-    ( if TTC1 = ttc(d,h,S) then format("%d.%d:     ttc(d,h) = %s\n", [i(N), i(I), s(string(TTC1))], !IO) else true ),
-    ( if TTC2 = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC2))], !IO) else true ),
+    some [NTG] ( if NTG = ntg(d,h,S) then format("%d.%d:     ntg(d,h) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
+    some [NTG] ( if NTG = ntg(h,d,S) then format("%d.%d:     ntg(h,d) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
+    some [TTC] ( if TTC = ttc(d,h,S) then format("%d.%d:     ttc(d,h) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
+    some [TTC] ( if TTC = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
+    some [Lane] ( if Lane = lane(d,S) then format("%d.%d:     lane(d) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
+    some [Lane] ( if Lane = lane(h,S) then format("%d.%d:     lane(h) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
     ( if fail, sitlen(S) > 2 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
     true.
 

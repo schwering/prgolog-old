@@ -55,6 +55,7 @@
     ;       match(obs)
     ;       seed(int)
     ;       abort
+    ;       noop
     ;       start(agent, string)
     ;       end(agent, string).
 

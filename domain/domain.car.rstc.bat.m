@@ -192,16 +192,25 @@ min_search_time = arithmetic.zero.
 max_search_time = arithmetic.from_int(60).
 
 
+:- pred search(func(rstc.sit(N)) = N, N, N, rstc.sit(N))
+    <= arithmetic.arithmetic(N).
+:- mode search(in(func(in) = out is semidet), in, out, in) is semidet.
+:- mode search(in(func(in) = out is det), in, out, in) is semidet.
+
+search(F, Goal, X, S) :-
+    arithmetic.lin_search(
+        func(T) = F(prgolog.do(wait(number(T)), S)) is semidet,
+        min_search_time, max_search_time, Goal, X).
+
+
 :- func wait_until(func(rstc.sit(N)) = N, N)
     `with_type` primf(rstc.prim(N)) <= arithmetic.arithmetic(N).
 :- mode wait_until(in(func(in) = out is semidet), in, in) = out is det.
 :- mode wait_until(in(func(in) = out is det), in, in) = out is det.
 
 wait_until(F, Goal, S) = A :-
-    if   arithmetic.bin_search(
-            func(T) = F(prgolog.do(wait(number(T)), S)) is semidet,
-            min_search_time, max_search_time, Goal, V1)
-    then A = wait(number(V1))
+    if   search(F, Goal, T, S)
+    then A = wait(number(T))
     else A = abort.
 
 %-----------------------------------------------------------------------------%
@@ -212,12 +221,45 @@ wait_until(F, Goal, S) = A :-
 basify(F, S) = X :- num(X) = F(S).
 
 
+:- pragma foreign_decl("C", "static int counter = 0;").
+
+
+:- pred inc_counter(int::out) is det.
+
+:- pragma foreign_proc("C",
+    inc_counter(I::out),
+    [will_not_call_mercury, promise_pure],
+"
+    ++counter;
+    I = counter;
+").
+
+
+:- pred dec_counter(io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    dec_counter(IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure],
+"
+    --counter;
+    IO1 = IO0;
+").
+
+
 :- func picknum({float, float}) `with_type` maxi_func(num(N))
     <= arithmetic.arithmetic(N).
 
-picknum(Bounds, _X0, Val, Cmp) = number_from_float(X) :-
+picknum(Bounds, X0, Val, Cmp) = X1 :-
     NewVal = (func(Float) = Val(number_from_float(Float))),
-    run_pso(1, 10, default_params, Bounds, max, NewVal, Cmp, X).
+    inc_counter(I), % XXX ugly hack!!!
+    M = 1,
+    N = 10 / (I*I),
+    (   if      M > 0, N > 0
+        then    run_pso(M, N, default_params, Bounds, max, NewVal, Cmp, X),
+                X1 = number_from_float(X)
+        else    X1 = X0
+    ),
+    trace [io(!IO)] ( dec_counter(!IO) ). % XXX ugly hack!!!
 
 
 :- func pickaccel({float, float}, pickprog(A, num(N))) = prgolog.prog(A)
@@ -282,7 +324,16 @@ overtake(B, C) = P :-
         ) `;` (
             (
                 a(lc(B, left)) `;`
-                b(wait_until(basify(ntg(B, C)), basic(defuzzify(infront)))) `;`
+                %b(wait_until(basify(ntg(B, C)), basic(defuzzify(very_close_infront)))) `;`
+                b(wait_until(basify(ntg(B, C)), basic(number_from_float(-0.6)))) `;`
+                %b(func(S) = ( if T1 = number_from_float(17.5), T0 = start(S), T0 = num(_), T1 >= T0 then wait(T1 - T0) else noop )) `;`
+                b(func(S) = (
+                    if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+                    then    noop
+                    else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
+                    then    wait(number(T))
+                    else    abort
+                )) `;`
                 a(lc(B, right))
             ) // (
                 %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
@@ -290,12 +341,13 @@ overtake(B, C) = P :-
                 %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)))
                 %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)) `;` a(accel(B, X)) `;` a(accel(B, X)))
                 %pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
-                star(pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))))
+                star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
                 %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
                 %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
                 %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
             )
-        ).
+        ) `;`
+        a(end(B, $pred)).
 
 
 imitate(B, Victim) = P :-
@@ -349,6 +401,7 @@ poss(progress(_, _, _, _, _), _).
 poss(match(obs(_, D)), S) :- match_obs(D, S).
 poss(seed(_), _).
 poss(abort, _) :- fail.
+poss(noop, _).
 poss(start(_, _), _).
 poss(end(_, _), _).
 
@@ -447,16 +500,18 @@ sitlen(s0) = 0.
     % because the end(_, _) action E overrules the observation W and M.
     %
 :- func reward(rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
+:- mutable(counter, int, 0, ground, [attach_to_io_state, untrailed]).
 
 reward(s0) = 0.0.
 reward(do(A, S)) = bat.reward(S) + New :-
+    trace [io(!IO)] ( get_counter(I, !IO), set_counter(I+1, !IO) ),
     New = (
         if      some [Reward] A = progress(_, _, _, _, Reward)
         then    Reward
         else if A = start(_, _)
         then    float(max(0, 1000 - 2 * sitlen(S)))
         else if A = end(_, _)
-        then    -1.0 %float(2 * sitlen(S))
+        then    0.0% -1.0% float(2 * sitlen(S))
         else if some [D] A = match(obs(_, D))
         then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
         else    0.0
@@ -549,13 +604,13 @@ match_info(PB, PC, S) :-
     (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
         then    have_common_cat((pred(Cat::out) is multi :-
                     ntg_cat(Cat)
-                ), NTG1, NTG2)
+                ), NTG1, NTG2) %%% -> true ; trace [io(!IO)] ( format("no category NTG %s %s\n", [s(string(NTG1)), s(string(NTG2))], !IO) ), false
         else    true
     ),
     (   if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
         then    (   have_common_cat((pred(Cat::out) is multi :-
                         ttc_cat(Cat)
-                    ), TTC1, TTC2)
+                    ), TTC1, TTC2) %%% -> true ; trace [io(!IO)] ( format("no category TTC %s %s\n", [s(string(TTC1)), s(string(TTC2))], !IO) ), false
                 ;   some [NTG1, NTG2] (
                         ntgs(PB, PC, S, NTG1, NTG2),
                         RelV1 = one - NTG1 / TTC1,
@@ -563,7 +618,7 @@ match_info(PB, PC, S) :-
                         Eps = max_veloc_discrepancy_to_ignore_ttc,
                         abs(RelV1 - one) =< number_from_float(Eps),
                         abs(RelV2 - one) =< number_from_float(Eps)
-                    )
+                    ) %%% -> true ; trace [io(!IO)] ( format("no blabla %s %s\n", [s(string(TTC1)), s(string(TTC2))], !IO) ), false
                 )
         else    true
     ).
@@ -621,54 +676,12 @@ match_longitudinal_dist(PB, PC, S) = D :-
     ).
 
 
-:- func match_longitudinal_dist2(pair(agent, info), pair(agent, info),
-                                 rstc.sit(N)) = N <= arithmetic.arithmetic(N).
-
-match_longitudinal_dist2(PB, PC, S) = D :-
-    D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
-            then    minimize((pred(CatDist::out) is multi :-
-                        CatDist =
-                        (   if      ntg_cat(Cat), NTG1 `in` Cat, NTG2 `in` Cat,
-                                    Tmp = abs(NTG1 - NTG2) / max_width(Cat)
-                            then    Tmp
-                            else if ntg_cat(Cat),
-                                    ( NTG1 `in` Cat ; NTG2 `in` Cat ),
-                                    Tmp = abs(NTG1 - NTG2) / max_width(Cat)
-                            then    Tmp
-                            else    zero
-                        )
-                    ))
-            else    zero
-        ),
-    D2 = (  if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
-            then    minimize((pred(CatDist::out) is multi :-
-                        CatDist =
-                        (   if      ttc_cat(Cat), TTC1 `in` Cat, TTC2 `in` Cat,
-                                    Tmp = abs(TTC1 - TTC2) / max_width(Cat)
-                            then    Tmp
-                            else if ttc_cat(Cat),
-                                    ( TTC1 `in` Cat ; TTC2 `in` Cat ),
-                                    Tmp = abs(TTC1 - TTC2) / max_width(Cat)
-                            then    Tmp
-                            else    zero
-                        )
-                    ))
-            else    zero
-        ),
-    (   if   D3 = (D1 + D2) / (one + one), basic(D3)%, zero =< D3, D3 =< one
-        then D = det_basic(D3), trace [io(!IO)] ( format("dist = (%s + %s) / 2 = %s\n", [s(string(D1)), s(string(D2)), s(string(D3))], !IO) )
-        else unexpected($module, string.format("%s: sum not defined: %s, %s",
-                                               [s($pred), s(string(D1)),
-                                                s(string(D2))]))
-    ).
-
-
 :- pred match_y(pair(agent, info)::in, rstc.sit(_)::in) is semidet.
 
 match_y((B - info(_, _, p(_, Y))), S) :-
-    Lane = lane(B, S),
-    (   Lane = right, Y < 0.0
-    ;   Lane = left, Y > -0.0
+    (   Y =< 0.0, lane(B, S) = right
+    ;   Y >= 0.0, lane(B, S) = left
+    %%% ;   trace [io(!IO)] ( format("Y = %f, lane = %s\n", [f(Y), s(string(lane(B, S)))], !IO) ), fail
     ).
 
 %-----------------------------------------------------------------------------%
@@ -751,6 +764,8 @@ print_memo_stats(!IO) :-
 
 reset_memo(!IO) :-
     table_reset_for_reward_1(!IO),
+    get_counter(I, !IO),
+    format("COUNTER = %d\n", [i(I)], !IO),
     true.
 
 %-----------------------------------------------------------------------------%
