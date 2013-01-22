@@ -2,6 +2,7 @@
 
 # Mercury grade we want to compile to (asm_fast leads to segfaults caused by addresses not mapped to objects)
 GRADE = hlc.par.gc
+#GRADE = asm_fast.par.gc
 LINKAGE = shared
 # LINKAGE = static
 

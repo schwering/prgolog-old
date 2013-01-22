@@ -28,7 +28,7 @@
 :- import_module domain.
 :- import_module prgolog.
 :- import_module prgolog.nice.
-:- import_module thread.mvar.
+:- use_module thread.mvar.
 
 %-----------------------------------------------------------------------------%
 
@@ -54,13 +54,13 @@
 
 :- pred online_planrecog(int::in,
                          Source::in,
-                         list(mvar(s_state(A)))::out,
+                         list(mvar.mvar(s_state(A)))::out,
                          handler(A)::in(handler),
                          prog(A)::in,
                          io::di, io::uo) is cc_multi
     <= (pr_bat(A, Obs, Env), obs_source(Obs, Env, Source, _)).
 
-:- pred wait_for_planrecog_finish(Source::in, list(mvar(s_state(A)))::in,
+:- pred wait_for_planrecog_finish(Source::in, list(mvar.mvar(s_state(A)))::in,
                                   io::di, io::uo) is det
     <= obs_source(_, _, Source, _).
 
@@ -73,8 +73,10 @@
 :- import_module int.
 :- import_module domain.car.
 :- import_module domain.car.obs.
+:- import_module list.
 :- import_module prgolog.
 :- import_module prgolog.nice.
+:- import_module require.
 :- import_module thread.
 :- import_module string.
 
@@ -161,82 +163,67 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
 
 %-----------------------------------------------------------------------------%
 
-:- pred run_concurrently_par_conj(int::in,
-                                  pred(int, s_state(A))
-                                    ::in(pred(in, out) is det),
-                                  list(s_state(A))::out) is det.
+    % The problem with built-in parallel conjunction is that it's
+    % for pure/non-IO code, but P needs IO parameters.
+:- pred run_par_conj(int::in,
+                     pred(int, s_state(A))::in(pred(in, out) is det),
+                     list(s_state(A))::out) is det.
 
-run_concurrently_par_conj(I, P, Rs) :-
+run_par_conj(I, P, Rs) :-
     if      I > 0
-    then    ( P(I, R) & run_concurrently_par_conj(I - 1, P, Rs0) ),
+    then    ( P(I, R) & run_par_conj(I - 1, P, Rs0) ),
             Rs = [R | Rs0]
     else    Rs = [].
 
 
-:- pred run_sequentially(int::in,
-                         pred(int, s_state(A))::in(pred(in, out) is det),
-                         list(s_state(A))::out) is det.
+:- pred run_seq(Source::in, int::in,
+                list(mvar.mvar(s_state(A)))::out,
+                pred(int, s_state(A), io, io)::in(pred(in, out, di, uo) is det),
+                io::di, io::uo) is cc_multi <= obs_source(_, _, Source, _).
 
-run_sequentially(I, P, Rs) :-
-    if      I > 0
-    then    P(I, R), run_sequentially(I - 1, P, Rs0),
-            Rs = [R | Rs0]
-    else    Rs = [].
-
-
-:- pred init_vars(int::in, list(mvar(T))::out, io::di, io::uo) is det.
-
-init_vars(N, Vs, !IO) :-
-    if      N > 0
-    then    Vs = [V | Vs0],
-            init(V, !IO),
-            init_vars(N - 1, Vs0, !IO)
-    else    Vs = [].
-
-
-:- pred take_vars(list(mvar(T))::in, list(T)::out, io::di, io::uo) is det.
-
-take_vars([], [], !IO).
-take_vars([V | Vs], [R | Rs], !IO) :-
-    take(V, R, !IO),
-    take_vars(Vs, Rs, !IO).
-
-
-:- pred run_concurrently_thread(Source::in, int::in,
-                                list(mvar(s_state(A)))::in,
-                                pred(int, s_state(A), io, io)
-                                    ::in(pred(in, out, di, uo) is det),
-                                io::di, io::uo) is cc_multi
-                                <= obs_source(_, _, Source, _).
-
-run_concurrently_thread(_, _, [], _, !IO).
-run_concurrently_thread(Source, N, [V | Vs], P, !IO) :-
-    spawn((pred(!.SubIO::di, !:SubIO::uo) is cc_multi :-
-        P(N, R, !SubIO),
+run_seq(Source, N, Vars, P, !IO) :-
+    if N = 0 then
+        Vars = []
+    else if N > 0 then
+        mvar.init(V, !IO),
+        P(N, R, !IO),
         R = s_state(_, Phase),
-        (   Phase = running,   update_state(Source, N, working,  !SubIO)
-        ;   Phase = finishing, update_state(Source, N, working,  !SubIO)
-        ;   Phase = finished,  update_state(Source, N, finished, !SubIO)
-        ;   Phase = failed,    update_state(Source, N, failed,   !SubIO)
+        (   Phase = running,   update_state(Source, N, working,  !IO)
+        ;   Phase = finishing, update_state(Source, N, working,  !IO)
+        ;   Phase = finished,  update_state(Source, N, finished, !IO)
+        ;   Phase = failed,    update_state(Source, N, failed,   !IO)
         ),
-        put(V, R, !SubIO)
-    ), !IO),
-    run_concurrently_thread(Source, N - 1, Vs, P, !IO).
+        mvar.put(V, R, !IO),
+        run_seq(Source, N - 1, Vs, P, !IO),
+        Vars = [V|Vs]
+    else
+        unexpected($module, $pred, "negative number of executions").
 
 
-:- pred run_concurrently(Source::in, int::in,
-                         pred(int, s_state(A), io, io)
-                            ::in(pred(in, out, di, uo) is det),
-                         list(s_state(A))::out,
-                         io::di, io::uo) is cc_multi
-                         <= obs_source(_, _, Source, _).
+:- pred run_threads(Source::in, int::in,
+                    list(mvar.mvar(s_state(A)))::out,
+                    pred(int, s_state(A), io, io)::in(pred(in, out, di, uo) is det),
+                    io::di, io::uo) is cc_multi <= obs_source(_, _, Source, _).
 
-%run_concurrently(N, P, Rs, !IO) :- run_concurrently_par_conj(N, P, Rs).
-%run_concurrently(N, P, Rs, !IO) :- run_sequentially(N, P, Rs).
-run_concurrently(Source, N, P, Rs, !IO) :-
-    init_vars(N, Vs, !IO),
-    run_concurrently_thread(Source, N, Vs, P, !IO),
-    take_vars(Vs, Rs, !IO).
+run_threads(Source, N, Vars, P, !IO) :-
+    if N = 0 then
+        Vars = []
+    else if N > 0 then
+        mvar.init(V, !IO),
+        spawn((pred(!.SubIO::di, !:SubIO::uo) is cc_multi :-
+            P(N, R, !SubIO),
+            R = s_state(_, Phase),
+            (   Phase = running,   update_state(Source, N, working,  !SubIO)
+            ;   Phase = finishing, update_state(Source, N, working,  !SubIO)
+            ;   Phase = finished,  update_state(Source, N, finished, !SubIO)
+            ;   Phase = failed,    update_state(Source, N, failed,   !SubIO)
+            ),
+            mvar.put(V, R, !SubIO)
+        ), !IO),
+        run_threads(Source, N - 1, Vs, P, !IO),
+        Vars = [V|Vs]
+    else
+        unexpected($module, $pred, "negative number of threads to start").
 
 %-----------------------------------------------------------------------------%
 
@@ -253,7 +240,8 @@ pr_thread(Source, Prog, I, R, !IO) :-
 
 planrecog(ThreadCount, Source, Prog, Results, !IO) :-
     Thread = pr_thread(Source, Prog),
-    run_concurrently(Source, ThreadCount, Thread, Results, !IO).
+    run_threads(Source, ThreadCount, Vars, Thread, !IO),
+    map_foldl(mvar.take, Vars, Results, !IO).
 
 %-----------------------------------------------------------------------------%
 
@@ -272,14 +260,13 @@ opr_thread(Source, Handler, Prog, I, R, !IO) :-
 
 
 online_planrecog(ThreadCount, Source, Vars, Handler, Prog, !IO) :-
-    init_vars(ThreadCount, Vars, !IO),
     Thread = opr_thread(Source, Handler, Prog),
-    run_concurrently_thread(Source, ThreadCount, Vars, Thread, !IO).
+    run_threads(Source, ThreadCount, Vars, Thread, !IO).
 
 
 wait_for_planrecog_finish(Source, Vars, !IO) :-
     mark_obs_end(Source, !IO),
-    take_vars(Vars, _, !IO).
+    map_foldl(mvar.take, Vars, _, !IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module planrecog.

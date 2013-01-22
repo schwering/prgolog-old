@@ -7,7 +7,8 @@
 % File: domain.car.rstc.bat.m.
 % Main author: schwering.
 %
-% Fuzzy layer ontop of the RSTC.
+% The (rest of the) basic action theory based on RSTC.
+% The action type and fundamental fluents are defined in the parent module.
 %
 %-----------------------------------------------------------------------------%
 
