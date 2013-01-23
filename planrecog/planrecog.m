@@ -140,6 +140,8 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         S2 = ( if ObsMsg = init_msg(E) then init_env_sit(E, S) else S ),
         !:Phase = ( if ObsMsg = end_of_obs then finishing else running )
     else if
+        % XXX tricky
+        % final(substf_obs(func(Obs) = non_det(nil, Obs), P), S),
         final(subst_obs(nil, P), S),
         last_action_covered_by_obs(S)
     then
@@ -148,6 +150,8 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
         S2 = S,
         !:Phase = finished
     else if
+        % XXX tricky
+        % not final(substf_obs(func(Obs) = non_det(nil, Obs), P), S),
         not final(subst_obs(nil, P), S), % XXX avoid nontermination due to star
         trans(P, S, P1, S1)
     then

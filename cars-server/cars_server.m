@@ -36,6 +36,7 @@
 %:- import_module domain.car.cont.
 :- import_module domain.car.rstc.
 :- import_module domain.car.rstc.bat.
+:- import_module domain.car.rstc.debug_bat.
 :- import_module domain.car.obs.
 :- import_module domain.car.obs.torcs.
 :- import_module bool.
@@ -157,6 +158,27 @@ sitlen(s0) = 0.
 sitlen(do(_, S)) = 1 + sitlen(S).
 
 
+:- pred debug_conf(rstc.prog(N)::in, rstc.sit(N)::in,
+                   io::di, io::uo) is det <= arithmetic.arithmetic(N).
+
+debug_conf(P, S, !IO) :-
+    (
+        if      some [S0, P1, S1, _P2, S2]
+                ( S = do(_, S0), trans(P, S0, P1, S1), trans(P1, S1, _P2, S2) )
+        then    format("trans/4 succeeded\n", [], !IO),
+                format("reward S: %f\n", [f(reward(S))], !IO),
+                format("reward S0: %f\n", [f(reward(S0))], !IO),
+                format("reward S1: %f\n", [f(reward(S1))], !IO),
+                format("reward S2: %f\n", [f(reward(S2))], !IO)
+        else    format("trans/4 failed\n", [], !IO)
+    ),
+    (
+        if      n_trans(2, wrap_prog(P), wrap_sit(S), _, _)
+        then    format("n_trans/5 succeeded\n", [], !IO)
+        else    format("n_trans/5 failed\n", [], !IO)
+    ).
+
+
 :- pred stdout_handler(source, int) `with_type` handler(rstc.prim(N))
     <= arithmetic.arithmetic(N).
 :- mode stdout_handler(in, in) `with_inst` handler.
@@ -187,7 +209,8 @@ stdout_handler(Source, N, I,
         format("%d.%d:     Situation:\n", [i(N), i(I)], !IO),
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             format("%d.%d:         %s\n", [i(N), i(I), s(string(A))], !SubIO)
-        ), reverse(sit2list(S)), !.IO, !:IO)
+        ), reverse(sit2list(S)), !.IO, !:IO),
+        true% debug_conf(P, S, !IO)
     ;
         Phase = failed,
         format("%d.%d: Failure\n", [i(N), i(I)], !IO),
@@ -199,7 +222,8 @@ stdout_handler(Source, N, I,
         format("%d.%d:     Situation:\n", [i(N), i(I)], !IO),
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             format("%d.%d:         %s\n", [i(N), i(I), s(string(A))], !SubIO)
-        ), reverse(sit2list(S)), !.IO, !:IO)
+        ), reverse(sit2list(S)), !.IO, !:IO),
+        true% debug_conf(P, S, !IO)
     ),
     (
         if      Phase = finishing

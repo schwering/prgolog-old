@@ -326,7 +326,7 @@ overtake(B, C) = P :-
             (
                 a(lc(B, left)) `;`
                 %b(wait_until(basify(ntg(B, C)), basic(defuzzify(very_close_infront)))) `;`
-                b(wait_until(basify(ntg(B, C)), basic(number_from_float(-0.6)))) `;`
+                %b(wait_until(basify(ntg(B, C)), basic(number_from_float(-0.6)))) `;`
                 %b(func(S) = ( if T1 = number_from_float(17.5), T0 = start(S), T0 = num(_), T1 >= T0 then wait(T1 - T0) else noop )) `;`
                 b(func(S) = (
                     if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
@@ -491,6 +491,20 @@ sitlen(s0) = 0.
     % Thus the interpreter is awarded for each step it delays end(_, _) by 2.0,
     % whereas any observation would give him only 1.0.
     %
+    % There's one caveat with this theory with the end(_, _) action: the
+    % interpreter might see the end(_, _) action at the end of its lookahead and
+    % be tempted by its sweet reward. Thus it decides to simply execute the
+    % candidate program quickly just to as quickly get to the end(_, _) action.
+    % We avoid this effect with the hack that we return 2.0 * sitlen(S) only
+    % if the last executed action was a match(_) action. For this means that
+    % the whole candidate program except for the end(_, _) action is covered
+    % by match(_) actions. Thus if it can't execute the next match(_) action,
+    % the interpreter will go for the end(_, _) action, whereas before it
+    % executed the next observation's wait(_) and then failed at match(_).
+    % On the other hand, if it can execute the next match(_) action, it will
+    % do so for the reasons above. Therefore:
+    % It will opt for end(_, _) iff it cannot explain the next observation.
+    %
     % Note that these tricks do not work as intended if lookahead L = 1.
     % In fact, it even earlier breaks: if you have an action A with some effect,
     % an observation consisting of two actions W and M which is entailed by A's
@@ -512,7 +526,8 @@ reward(do(A, S)) = bat.reward(S) + New :-
         else if A = start(_, _)
         then    float(max(0, 1000 - 2 * sitlen(S)))
         else if A = end(_, _)
-        then    0.0% -1.0% float(2 * sitlen(S))
+        then    ( S = do(match(_), _) -> float(2 * sitlen(S)) ; 0.0 )
+        %then    0.0% -1.0% float(2 * sitlen(S))
         else if some [D] A = match(obs(_, D))
         then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
         else    0.0

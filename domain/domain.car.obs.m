@@ -30,6 +30,10 @@
     % Does not substitute observations in called procedures!
 :- func subst_obs(prog(A), prog(A)) = prog(A) is det <= obs_bat(A, O).
 
+    % Does not substitute observations in called procedures!
+:- func substf_obs(func(prog(A)) = prog(A), prog(A)) = prog(A) is det
+    <= obs_bat(A, O).
+
 :- func last_obs(sit(A)) = A is semidet <= obs_bat(A, O).
 
 :- pred last_action_covered_by_obs(sit(A)::in) is semidet <= obs_bat(A, O).
@@ -112,6 +116,13 @@ subst_obs(New, P) = map_prog(Pred, P) :-
     Pred = (pred(pseudo_atom(PA)::in, New1::out) is semidet :-
         is_obs_prog(PA),
         New1 = New
+    ).
+
+
+substf_obs(NewF, P) = map_prog(Pred, P) :-
+    Pred = (pred(pseudo_atom(PA)::in, New1::out) is semidet :-
+        is_obs_prog(PA),
+        New1 = NewF(pseudo_atom(PA))
     ).
 
 

@@ -117,6 +117,7 @@
 %-----------------------------------------------------------------------------%
 
 :- include_module bat.
+:- include_module debug_bat.
 :- include_module fuzzy.
 :- include_module test.
 
