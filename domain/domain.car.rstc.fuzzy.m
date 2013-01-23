@@ -227,7 +227,7 @@ defuzzify(Cat) = Val :-
 max_width(Cat) = X :-
     mu(Cat) = Mu,
     (   Mu = left_border(_, _),  X = pos_inf
-    ;   Mu = triangle(L, _, R),  X = L + R %max(abs(P - L), abs(R - P))
+    ;   Mu = triangle(L, _, R),  X = R - L %max(abs(P - L), abs(R - P))
     ;   Mu = right_border(_, _), X = pos_inf
     ).
 
