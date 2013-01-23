@@ -1,7 +1,7 @@
 #where-am-i = $(shell dirname $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)) | sed -e 's/^.\+\/\//\//g')
 
 # Mercury grade we want to compile to (asm_fast leads to segfaults caused by addresses not mapped to objects)
-GRADE = hlc.par.gc
+GRADE = hlc.par.gc.prof
 #GRADE = asm_fast.par.gc
 LINKAGE = shared
 # LINKAGE = static
@@ -17,6 +17,7 @@ INSTALL_PREFIX = $(CURDIR)/..
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
 OPTIMIZATION = -O6 --optimize-duplicate-calls --optimize-unused-args --type-specialization
+#OPTIMIZATION += --profiling
 
 LIB_FILE = $(LIB_DIR)/lib/$(GRADE)/lib$(GOAL).so
 LIB_MCFLAGS += -E $(OPTIMIZATION) --no-libgrade --libgrade $(GRADE) --grade $(GRADE) --mercury-linkage $(LINKAGE) --install-prefix=$(INSTALL_PREFIX) --mld $(LIB_DIR)
