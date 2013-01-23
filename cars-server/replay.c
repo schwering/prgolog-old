@@ -82,7 +82,7 @@ static void klatschtgleich2(FILE *fp, int sockfd, bool do_sleep)
 
         printf("%lf", r.t);
         for (i = 0; i < r.n_agents; ++i) {
-            printf(" %lf '%s' %lf %lf %lf %lf",
+            printf(" '%s' %lf %lf %lf %lf",
                    r.info[i].agent, r.info[i].veloc, r.info[i].rad,
                    r.info[i].x, r.info[i].y);
         }
