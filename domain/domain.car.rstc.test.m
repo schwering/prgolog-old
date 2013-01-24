@@ -67,7 +67,7 @@ v(h) = 0.0.
 
 :- func init_sit = rstc.sit(float).
 
-init_sit = do(init_env(env(0.0, L)), s0) :-
+init_sit = do(init_env(abs_env(env(0.0, L))), s0) :-
     L = [ (b - info(v(b), 0.0, p(x(b), 1.0)))
         , (c - info(v(c), 0.0, p(x(c), 1.0)))
         , (d - info(v(d), 0.0, p(x(d), 1.0)))

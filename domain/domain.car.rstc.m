@@ -46,12 +46,7 @@
     ;       lc(agent, lane)
     ;       senseD(agent, agent, ntg(N), ttc(N))
     ;       senseL(agent, lane)
-    ;       init_env(env)
-    ;       progress(s(N),
-                     assoc_list({agent, agent}, ntg(N)),
-                     assoc_list({agent, agent}, ttc(N)),
-                     assoc_list(agent, lane),
-                     reward)
+    ;       init_env(ext_env(N))
     ;       match(obs)
     ;       seed(int)
     ;       abort
@@ -59,13 +54,20 @@
     ;       start(agent, string)
     ;       end(agent, string).
 
+:- type ext_env(N)
+    --->    abs_env(env)        % for situation initialization from simulator
+    ;       rel_env(s(N),       % for progression; entries for all fluents
+                    assoc_list({agent, agent}, ntg(N)),
+                    assoc_list({agent, agent}, ttc(N)),
+                    assoc_list(agent, lane),
+                    reward).
+
 :- inst wait ---> wait(ground).
 :- inst accel ---> accel(ground, ground).
 :- inst lc ---> lc(ground, ground).
 :- inst senseD ---> senseD(ground, ground, ground, ground).
 :- inst senseL ---> senseL(ground, ground).
 :- inst init_env ---> init_env(ground).
-:- inst progress ---> progress(ground,ground, ground, ground, ground).
 :- inst match ---> match(ground).
 :- inst seed ---> seed(ground).
 :- inst abort ---> abort.
@@ -78,13 +80,16 @@
     ;       lc(ground, ground)
     ;       senseD(ground, ground, ground, ground)
     ;       senseL(ground, ground)
-    ;       init_env(ground)
-    ;       progress(basic_num, ground, ground, ground, ground)
+    ;       init_env(finite_time_ext_env)
     ;       match(ground)
     ;       seed(ground)
     ;       abort
     ;       start(ground, ground)
     ;       end(ground, ground).
+
+:- inst finite_time_ext_env
+    --->    abs_env(ground)
+    ;       rel_env(basic_num, ground, ground, ground, ground).
 
 :- inst finite_time_sit ---> s0 ; do(finite_time_action, finite_time_sit).
 
@@ -119,6 +124,7 @@
 :- include_module bat.
 :- include_module debug_bat.
 :- include_module fuzzy.
+:- include_module progression.
 :- include_module test.
 
 %-----------------------------------------------------------------------------%
@@ -190,15 +196,11 @@ ntg(B, D, do(A, S)) = R :-
         A = init_env(Env),
         R = ntg_from_env(B, D, Env)
     ;
-        A = progress(_, NTGs, _, _, _),
-        search(NTGs, {B, D}, R)
-    ;
         A \= wait(_),
         A \= accel(B, _),
         A \= senseD(B, D, _, _),
         A \= senseD(D, B, _, _),
         A \= init_env(_),
-        A \= progress(_, _, _, _, _),
         R = ntg(B, D, S)
     ).
 
@@ -265,16 +267,12 @@ ttc(B, D, do(A, S)) = R :-
         A = init_env(Env),
         R = ttc_from_env(B, D, Env)
     ;
-        A = progress(_, _, TTCs, _, _),
-        search(TTCs, {B, D}, R)
-    ;
         A \= wait(_),
         A \= accel(B, _),
         A \= accel(D, _),
         A \= senseD(B, D, _, _),
         A \= senseD(D, B, _, _),
         A \= init_env(_),
-        A \= progress(_, _, _, _, _),
         R = ttc(B, D, S)
     ).
 
@@ -283,8 +281,6 @@ ttc(B, D, do(A, S)) = R :-
 lane(_, s0) = right.
 lane(B, do(A, S)) = L :-
     if      A = init_env(Env), L0 = lane_from_env(B, Env)
-    then    L = L0
-    else if A = progress(_, _, _, Lanes, _), search(Lanes, B, L0)
     then    L = L0
     else if A = lc(B, L0)
     then    L = L0
@@ -295,31 +291,33 @@ lane(B, do(A, S)) = L :-
 start(s0) = zero.
 start(do(A, S)) = T :-
     if      A = init_env(Env)
-    then    T = number_from_float(start_from_env(Env))
-    else if A = progress(T0, _, _, _, _)
-    then    T = T0
+    then    T = start_from_env(Env)
     else if A = wait(D)
     then    T = start(S) + D
     else    T = start(S).
 
 %-----------------------------------------------------------------------------%
 
-:- func ntg_from_env(agent, agent, env) = ntg(N) <= arithmetic.arithmetic(N).
+:- func ntg_from_env(agent, agent, ext_env(N)) = ntg(N)
+    <= arithmetic.arithmetic(N).
 :- mode ntg_from_env(in, in, in) = out is semidet.
 
-ntg_from_env(B, D, env(_, Map)) = R :-
+ntg_from_env(B, D, abs_env(env(_, Map))) = R :-
     info(FVB, _, PosB) = Map^elem(B),
     info(_, _, PosD) = Map^elem(D),
     XB = number_from_float(x(PosB)),
     XD = number_from_float(x(PosD)),
     VB = number_from_float(FVB),
     R = (XD - XB) / VB.
+ntg_from_env(B, D, rel_env(_, NTGs, _, _, _)) = R :-
+    search(NTGs, {B, D}, R).
 
 
-:- func ttc_from_env(agent, agent, env) = ttc(N) <= arithmetic.arithmetic(N).
+:- func ttc_from_env(agent, agent, ext_env(N)) = ttc(N)
+    <= arithmetic.arithmetic(N).
 :- mode ttc_from_env(in, in, in) = out is semidet.
 
-ttc_from_env(B, D, env(_, Map)) = R :-
+ttc_from_env(B, D, abs_env(env(_, Map))) = R :-
     info(FVB, _, PosB) = Map^elem(B),
     info(FVD, _, PosD) = Map^elem(D),
     XB = number_from_float(x(PosB)),
@@ -327,17 +325,23 @@ ttc_from_env(B, D, env(_, Map)) = R :-
     VB = number_from_float(FVB),
     VD = number_from_float(FVD),
     R = (XD - XB) / (VB - VD).
+ttc_from_env(B, D, rel_env(_, _, TTCs, _, _)) = R :-
+    search(TTCs, {B, D}, R).
 
 
-:- func lane_from_env(agent, env) = lane is semidet.
+:- func lane_from_env(agent, ext_env(N)) = lane is semidet.
 
-lane_from_env(B, env(_, Map)) = ( if Y `float.'<'` 0.0 then right else left ) :-
-    info(_, _, p(_, Y)) = Map^elem(B).
+lane_from_env(B, abs_env(env(_, Map))) = L0 :-
+    info(_, _, p(_, Y)) = Map^elem(B),
+    L0 = ( if Y `float.'<'` 0.0 then right else left ).
+lane_from_env(B, rel_env(_, _, _, Lanes, _)) = L0 :-
+    search(Lanes, B, L0).
 
 
-:- func start_from_env(env) = s is det.
+:- func start_from_env(ext_env(N)) = s(N) is det <= arithmetic.arithmetic(N).
 
-start_from_env(env(T, _)) = T.
+start_from_env(abs_env(env(T, _))) = number_from_float(T).
+start_from_env(rel_env(T, _, _, _, _)) = T.
 
 %-----------------------------------------------------------------------------%
 

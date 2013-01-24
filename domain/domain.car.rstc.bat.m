@@ -51,15 +51,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred progress(rstc.sit(N), rstc.sit(N)) <= arithmetic.arithmetic(N).
-:- mode progress(in(finite_time_sit), out) is det.
-:- mode progress(in, out) is semidet.
-
-:- pred progress(rstc.sit(N), rstc.sit(N), io, io) <= arithmetic.arithmetic(N).
-:- mode progress(in, out, di, uo) is det.
-
-%-----------------------------------------------------------------------------%
-
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N).
 :- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N).
 :- instance pr_bat(prim(N), obs, env) <= arithmetic.arithmetic(N).
@@ -370,7 +361,6 @@ imitate(B, Victim) = P :-
 :- mode poss(in(senseD), in) is det.
 :- mode poss(in(senseL), in) is det.
 :- mode poss(in(init_env), in) is det.
-:- mode poss(in(progress), in) is det.
 :- mode poss(in(seed), in) is det.
 :- mode poss(in(abort), in) is failure.
 :- mode poss(in(start), in) is det.
@@ -398,7 +388,6 @@ poss(A @ lc(B, L), S) :-
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
-poss(progress(_, _, _, _, _), _).
 poss(match(obs(_, D)), S) :- match_obs(D, S).
 poss(seed(_), _).
 poss(abort, _) :- fail.
@@ -521,7 +510,7 @@ reward(s0) = 0.0.
 reward(do(A, S)) = bat.reward(S) + New :-
     trace [io(!IO)] ( get_counter(I, !IO), set_counter(I+1, !IO) ),
     New = (
-        if      some [Reward] A = progress(_, _, _, _, Reward)
+        if      some [Reward] A = init_env(rel_env(_, _, _, _, Reward))
         then    Reward
         else if A = start(_, _)
         then    float(max(0, 1000 - 2 * sitlen(S)))
@@ -702,28 +691,6 @@ match_y((B - info(_, _, p(_, Y))), S) :-
 
 %-----------------------------------------------------------------------------%
 
-progress(S, do(progress(Time, NTGs, TTCs, Lanes, Reward), s0)) :-
-    Time = start(S),
-    Reward = bat.reward(S),
-    solutions(agent, Agents),
-    NTGs = condense(map(func(B) = condense(map(func(C) =
-        ( if NTG = ntg(B, C, S) then [pair({B, C}, NTG)] else [] )
-    , Agents)), Agents)),
-    TTCs = condense(map(func(B) = condense(map(func(C) =
-        ( if TTC = ttc(B, C, S) then [pair({B, C}, TTC)] else [] )
-    , Agents)), Agents)),
-    Lanes = map(func(B) = pair(B, lane(B, S)), Agents).
-
-
-progress(S, S1, !IO) :-
-    if      progress(S, S0)
-    then    bat.reset_memo(!IO),
-            rstc.reset_memo(!IO),
-            S1 = S0
-    else    unexpected($module, "progression failed (start(S) undefined?)").
-
-%-----------------------------------------------------------------------------%
-
 :- pred is_obs_prog(pseudo_atom(prim(N))::in) is semidet
     <= arithmetic.arithmetic(N).
 
@@ -764,7 +731,7 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
 
 :- instance pr_bat(prim(N), obs, env) <= arithmetic.arithmetic(N) where [
     seed_init_sit(I) = do(seed(I), s0),
-    init_env_sit(env(T, Map), S) = do(init_env(env(T, Map)), S)
+    init_env_sit(env(T, Map), S) = do(init_env(abs_env(env(T, Map))), S)
 ].
 
 %-----------------------------------------------------------------------------%

@@ -118,7 +118,6 @@ poss(lc(_, _), _).
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
-poss(progress(_, _, _, _, _), _).
 poss(match(obs(T, D)), S) :-
     trace [io(!IO)] ( format("poss(match(%s, ...))\n", [s(string(T))], !IO) ),
     check_obs(D, S).

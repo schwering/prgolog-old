@@ -37,6 +37,7 @@
 :- import_module domain.car.rstc.
 :- import_module domain.car.rstc.bat.
 :- import_module domain.car.rstc.debug_bat.
+:- import_module domain.car.rstc.progression.
 :- import_module domain.car.obs.
 :- import_module domain.car.obs.torcs.
 :- import_module bool.
@@ -179,8 +180,8 @@ debug_conf(P, S, !IO) :-
     ).
 
 
-:- pred stdout_handler(source, int) `with_type` handler(rstc.prim(N))
-    <= arithmetic.arithmetic(N).
+:- pred stdout_handler(source, int) `with_type` handler(rstc.prim(float))
+    <= arithmetic.arithmetic(float).
 :- mode stdout_handler(in, in) `with_inst` handler.
 %:- mode stdout_handler(ui, in) `with_inst` handler.
 
@@ -238,7 +239,9 @@ stdout_handler(Source, N, I,
     some [TTC] ( if TTC = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
     some [Lane] ( if Lane = lane(d,S) then format("%d.%d:     lane(d) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
     some [Lane] ( if Lane = lane(h,S) then format("%d.%d:     lane(h) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
-    ( if fail, sitlen(S) > 2 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
+    % Progression is currently broken because sitlen/1 is not not handled as
+    % fluent and thus breaks the reward computation.
+    ( if fail, sitlen(S) > 3 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
     true.
 
 %-----------------------------------------------------------------------------%
