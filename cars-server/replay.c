@@ -66,19 +66,36 @@ static float max_conf(const struct planrecog_state *msg, const int i)
     return (double) numer / (double) denom;
 }
 
-static void klatschtgleich2(FILE *fp, int sockfd, bool do_sleep)
+static bool scan(FILE *fp, int n_agents, struct observation_record *r)
+{
+    int i;
+
+    if (fscanf(fp, "%*c %lf", &r->t) != 1) {
+        return false;
+    }
+    for (i = 0; i < n_agents; ++i) {
+        if (fscanf(fp, "%s %lf %lf %lf %lf",
+                    r->info[i].agent, &r->info[i].veloc,
+                    &r->info[i].rad, &r->info[i].x, &r->info[i].y) != 5) {
+            return false;
+        }
+    }
+    if (fscanf(fp, "\n") != 0) {
+        return false;
+    }
+    n_agents = i;
+    r->n_agents = n_agents;
+    return true;
+}
+
+static void klatschtgleich2(FILE *fp, int sockfd, int n_agents, bool do_sleep)
 {
     struct observation_record r;
     struct planrecog_state state;
     double t0 = -1.0;
 
-    while (fscanf(fp, "%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\n",
-                &r.t,
-                r.info[0].agent, &r.info[0].veloc, &r.info[0].rad, &r.info[0].x, &r.info[0].y,
-                r.info[1].agent, &r.info[1].veloc, &r.info[1].rad, &r.info[1].x, &r.info[1].y) == 11) {
+    while (scan(fp, n_agents, &r)) {
         int i, ret;
-
-        r.n_agents = 2;
 
         printf("%lf", r.t);
         for (i = 0; i < r.n_agents; ++i) {
@@ -124,23 +141,29 @@ static void klatschtgleich2(FILE *fp, int sockfd, bool do_sleep)
 int main(int argc, char *argv[])
 {
     int sockfd = make_socket();
+    int n_agents = 2;
     bool do_sleep = true;
+    int i;
 
-    if (argc >= 2 &&
-            (!strcmp(argv[1], "-n") ||
-             !strcmp(argv[1], "--no-sleep"))) {
-        /* XXX Leads to crash for some reason (don't know why right now). */
-        do_sleep = false;
+    for (i = 1; i < argc; ++i) {
+        const char *s = argv[i];
+        int tmp;
+
+        if (!strcmp(s, "-n") || !strcmp(s, "--no-sleep"))
+            /* XXX Leads to crash for some reason (don't know why right now). */
+            do_sleep = false;
+        else if (sscanf(s, "-%d", &tmp) == 1)
+            n_agents = tmp;
+        else
+            break;
     }
 
-    if (argc <= 1) {
-        klatschtgleich2(stdin, sockfd, do_sleep);
+    if (i == argc) {
+        klatschtgleich2(stdin, sockfd, n_agents, do_sleep);
     } else {
-        int i;
-
-        for (i = 1; i < argc; ++i) {
+        for (; i < argc; ++i) {
             FILE *fp = fopen(argv[i], "r");
-            klatschtgleich2(fp, sockfd, do_sleep);
+            klatschtgleich2(fp, sockfd, n_agents, do_sleep);
             fclose(fp);
         }
     }

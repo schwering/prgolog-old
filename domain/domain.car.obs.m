@@ -20,8 +20,8 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pragma obsolete(remove_obs_sequence/1).
 :- func remove_obs_sequence(prog(A)) = prog(A) is semidet <= obs_bat(A, O).
+:- pragma obsolete(remove_obs_sequence/1).
 
     % Does not substitute anything in called procedures!
 :- func map_prog(pred(prog(A), prog(A)), prog(A)) = prog(A) <= obs_bat(A, O).

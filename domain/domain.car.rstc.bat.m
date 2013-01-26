@@ -43,7 +43,13 @@
 :- func tailgate(agent, agent) `with_type` rstc.proc(N)
     <= arithmetic.arithmetic(N).
 
+:- func pass(agent, agent) `with_type` rstc.proc(N)
+    <= arithmetic.arithmetic(N).
+
 :- func overtake(agent, agent) `with_type` rstc.proc(N)
+    <= arithmetic.arithmetic(N).
+
+:- func approach(agent, agent) `with_type` rstc.proc(N)
     <= arithmetic.arithmetic(N).
 
 :- func imitate(agent, agent) `with_type` rstc.proc(N)
@@ -275,81 +281,116 @@ pickacceltuple(Bounds, Prog) = nice.pickbest(picktuple(Bounds), {one, one}, Prog
 
 %-----------------------------------------------------------------------------%
 
-follow(B, Victim) = P :-
-    P = atomic(
-            a(start(B, $pred)) `;`
-            t(r((pred(S::in) is semidet :-
-                lane(B, S) = lane(Victim, S)
-            ))) `;`
-            t(r((pred(S::in) is semidet :-
-                ntg(B, Victim, S) `in` close_behind
-            ))) `;`
-            pickaccel({0.0, 2.0}, func(X) = a(accel(B, X)))
-            %b(accelf(B, rel_v(Victim, B)))
-        ) `;`
-        a(end(B, $pred)).
+follow(B, Victim) =
+    atomic(
+        a(start(B, $pred)) `;`
+        t(r((pred(S::in) is semidet :-
+            lane(B, S) = lane(Victim, S)
+        ))) `;`
+        t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in` close_behind
+        ))) `;`
+        pickaccel({0.0, 2.0}, func(X) = a(accel(B, X)))
+        %b(accelf(B, rel_v(Victim, B)))
+    ) `;`
+    a(end(B, $pred)).
 
 
-tailgate(B, Victim) = P :-
-    P = atomic(
-            a(start(B, $pred)) `;`
-            t(r((pred(S::in) is semidet :-
-                lane(B, S) = lane(Victim, S)
-            ))) `;`
-            t(r((pred(S::in) is semidet :-
-                ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
-            ))) `;`
-            pickaccel({0.0, 2.0}, func(X) = a(accel(B, X)))
-            %b(accelf(B, rel_v(Victim, B)))
-        ) `;`
-        a(end(B, $pred)).
+tailgate(B, Victim) =
+    atomic(
+        a(start(B, $pred)) `;`
+        t(r((pred(S::in) is semidet :-
+            lane(B, S) = lane(Victim, S)
+        ))) `;`
+        t(r((pred(S::in) is semidet :-
+            ntg(B, Victim, S) `in_any` [close_behind, very_close_behind]
+        )))
+    ) `;`
+        pickaccel({0.0, 2.0}, func(X) = a(accel(B, X))) `;`
+        %b(accelf(B, rel_v(Victim, B)))
+    a(end(B, $pred)).
 
 
-overtake(B, C) = P :-
-    P = atomic(
-            a(start(B, $pred)) `;`
-            t(r((pred(S::in) is semidet :-
-                lane(B, S) = right,
-                lane(C, S) = right,
-                ntg(B, C, S) `in` close_behind
-            )))
-        ) `;` (
-            (
-                a(lc(B, left)) `;`
-                %b(wait_until(basify(ntg(B, C)), basic(defuzzify(very_close_infront)))) `;`
-                %b(wait_until(basify(ntg(B, C)), basic(number_from_float(-0.6)))) `;`
-                %b(func(S) = ( if T1 = number_from_float(17.5), T0 = start(S), T0 = num(_), T1 >= T0 then wait(T1 - T0) else noop )) `;`
-                b(func(S) = (
-                    if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
-                    then    noop
-                    else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
-                    then    wait(number(T))
-                    else    abort
-                )) `;`
-                a(lc(B, right))
-            ) // (
-                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
-                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
-                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)))
-                %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)) `;` a(accel(B, X)) `;` a(accel(B, X)))
-                %pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
-                star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
-                %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
-                %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
-                %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
-            )
-        ) `;`
-        a(end(B, $pred)).
+pass(B, C) =
+    atomic(
+        a(start(B, $pred)) `;`
+        t(r((pred(S::in) is semidet :-
+            lane(B, S) \= lane(C, S),
+            ntg(B, C, S) >= zero,
+            ttc(B, C, S) > zero
+        )))
+    ) `;` (
+%        b(func(S) = (
+%            if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+%            then    noop
+%            else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
+%            then    wait(number(T))
+%            else    abort
+%        ))
+%    //
+%        star(pickaccel({0.95, 1.05}, func(X) = atomic(a(accel(B, X)) `;` t(r((pred(S::in) is semidet :- ttc(B, C, S) > zero))))))
+        star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
+    ) `;`
+    a(end(B, $pred)).
 
 
-imitate(B, Victim) = P :-
-    P = a(start(B, $pred)) `;`
-        star(
+overtake(B, C) =
+    atomic(
+        a(start(B, $pred)) `;`
+        t(r((pred(S::in) is semidet :-
+            lane(B, S) = right,
+            lane(C, S) = right,
+            ntg(B, C, S) `in` close_behind
+        )))
+    ) `;` (
+        (
+            a(lc(B, left)) `;`
+            %b(wait_until(basify(ntg(B, C)), basic(defuzzify(very_close_infront)))) `;`
+            %b(wait_until(basify(ntg(B, C)), basic(number_from_float(-0.6)))) `;`
+            %b(func(S) = ( if T1 = number_from_float(17.5), T0 = start(S), T0 = num(_), T1 >= T0 then wait(T1 - T0) else noop )) `;`
             b(func(S) = (
-                if next_to_be_copied(B, Victim, S, A) then A else abort)
-            )
-        ) `;`
-        a(end(B, $pred)).
+                if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+                then    noop
+                else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
+                then    wait(number(T))
+                else    abort
+            )) `;`
+            a(lc(B, right))
+        ) // (
+            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
+            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
+            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)))
+            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)) `;` a(accel(B, X)) `;` a(accel(B, X)))
+            %pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
+            star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
+            %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
+            %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
+            %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
+        )
+    ) `;`
+    a(end(B, $pred)).
+
+
+approach(B, C) =
+    atomic(
+        a(start(B, $pred)) `;`
+        t(r((pred(S::in) is semidet :-
+            ntg(B, C, S) > zero,
+            ttc(B, C, S) > zero
+        )))
+    ) `;`
+    star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X)))) `;`
+    a(end(B, $pred)).
+
+
+imitate(B, Victim) =
+    a(start(B, $pred)) `;`
+    star(
+        b(func(S) = (
+            if next_to_be_copied(B, Victim, S, A) then A else abort)
+        )
+    ) `;`
+    a(end(B, $pred)).
 
 %-----------------------------------------------------------------------------%
 

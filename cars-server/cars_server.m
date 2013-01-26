@@ -257,7 +257,8 @@ accept_connections(ServerSocket, Areas, !IO) :-
     %Handler = visual.visualize(Areas),
     Progs = %[ tailgate(h, d) ] ++
             %[ follow(h, d) ] ++
-            [ overtake(h, d) ] ++
+            %[ overtake(h, d) ] ++
+            [ pass(d, b) // (approach(h, b) `;` overtake(h, b)) ] ++
             [] `with_type` list(rstc.prog(float)),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,
