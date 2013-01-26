@@ -57,6 +57,10 @@
 
 %-----------------------------------------------------------------------------%
 
+:- func sitlen(rstc.sit(_)) = int.
+
+%-----------------------------------------------------------------------------%
+
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N).
 :- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N).
 :- instance pr_bat(prim(N), obs, env) <= arithmetic.arithmetic(N).
@@ -320,14 +324,14 @@ pass(B, C) =
             ttc(B, C, S) > zero
         )))
     ) `;` (
-%        b(func(S) = (
-%            if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
-%            then    noop
-%            else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
-%            then    wait(number(T))
-%            else    abort
-%        ))
-%    //
+        b(func(S) = (
+            if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+            then    noop
+            else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
+            then    wait(number(T))
+            else    abort
+        ))
+    //
 %        star(pickaccel({0.95, 1.05}, func(X) = atomic(a(accel(B, X)) `;` t(r((pred(S::in) is semidet :- ttc(B, C, S) > zero))))))
         star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
     ) `;`
@@ -408,22 +412,12 @@ imitate(B, Victim) =
 :- mode poss(in(end), in) is det.
 
 poss(wait(T), _) :- T >= zero.
-poss(A @ accel(B, _Q), S) :-
-    (   S = s0
-    ;   S = do(A1, S1),
-        (   A1 = wait(_)
-        ;   A1 \= accel(B, _), bat.poss(A, S1)
-        )
-    ).
+poss(accel(B, Q), S) :-
+    no_duplicate(accel(B, Q), S).
 %poss(accel(_, _Q), _).% :- Q >= zero.
-poss(A @ lc(B, L), S) :-
+poss(lc(B, L), S) :-
     ( lane(B, S) = left <=> L = right ),
-    (   S = s0
-    ;   S = do(A1, S1),
-        (   A1 = wait(_)
-        ;   A1 \= lc(B, _), bat.poss(A, S1)
-        )
-    ).
+    no_duplicate(lc(B, L), S).
 %poss(lc(B, L), S) :- lane(B, S) = left <=> L = right.
 %poss(lc(B, L), lc(B, L), S) :- abs(lane(B, S) - L) = 1.
 poss(senseD(_, _, _, _), _).
@@ -435,6 +429,19 @@ poss(abort, _) :- fail.
 poss(noop, _).
 poss(start(_, _), _).
 poss(end(_, _), _).
+
+
+:- pred no_duplicate(prim(N), rstc.sit(N)) <= arithmetic.arithmetic(N).
+:- mode no_duplicate(in(accel), in) is semidet.
+:- mode no_duplicate(in(lc), in) is semidet.
+
+no_duplicate(_, s0).
+no_duplicate(A @ accel(B, _), do(A1, S1)) :-
+        A1 = wait(_) %; A1 @< A, A1 \= accel(B, _), no_duplicate(A, S1).
+    ;   ( A1 = accel(C, _) -> B @< C ; A1 \= accel(_, _) ), no_duplicate(A, S1).
+no_duplicate(A @ lc(B, _), do(A1, S1)) :-
+        A1 = wait(_) %; A1 @< A, A1 \= lc(B, _), no_duplicate(A, S1).
+    ;   ( A1 = lc(C, _) -> B @< C ; A1 \= lc(_, _) ), no_duplicate(A, S1).
 
 %-----------------------------------------------------------------------------%
 
@@ -449,10 +456,12 @@ lookahead(_S) = lookahead.
 
 %-----------------------------------------------------------------------------%
 
-:- func sitlen(rstc.sit(_)) = int.
-
-sitlen(do(_, S)) = 1 + sitlen(S).
 sitlen(s0) = 0.
+sitlen(do(A, S)) =
+    (   if      A = init_env(rel_env(_, _, _, _, _, Sitlen))
+        then    Sitlen
+        else    1 + sitlen(S)
+    ).
 
 
     % Explanation of reward computation:
@@ -551,7 +560,7 @@ reward(s0) = 0.0.
 reward(do(A, S)) = bat.reward(S) + New :-
     trace [io(!IO)] ( get_counter(I, !IO), set_counter(I+1, !IO) ),
     New = (
-        if      some [Reward] A = init_env(rel_env(_, _, _, _, Reward))
+        if      some [Reward] A = init_env(rel_env(_, _, _, _, Reward, _))
         then    Reward
         else if A = start(_, _)
         then    float(max(0, 1000 - 2 * sitlen(S)))

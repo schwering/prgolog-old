@@ -60,7 +60,8 @@
                     assoc_list({agent, agent}, ntg(N)),
                     assoc_list({agent, agent}, ttc(N)),
                     assoc_list(agent, lane),
-                    reward).
+                    reward,
+                    int).
 
 :- inst wait ---> wait(ground).
 :- inst accel ---> accel(ground, ground).
@@ -89,7 +90,7 @@
 
 :- inst finite_time_ext_env
     --->    abs_env(ground)
-    ;       rel_env(basic_num, ground, ground, ground, ground).
+    ;       rel_env(basic_num, ground, ground, ground, ground, ground).
 
 :- inst finite_time_sit ---> s0 ; do(finite_time_action, finite_time_sit).
 
@@ -309,7 +310,7 @@ ntg_from_env(B, D, abs_env(env(_, Map))) = R :-
     XD = number_from_float(x(PosD)),
     VB = number_from_float(FVB),
     R = (XD - XB) / VB.
-ntg_from_env(B, D, rel_env(_, NTGs, _, _, _)) = R :-
+ntg_from_env(B, D, rel_env(_, NTGs, _, _, _, _)) = R :-
     search(NTGs, {B, D}, R).
 
 
@@ -325,7 +326,7 @@ ttc_from_env(B, D, abs_env(env(_, Map))) = R :-
     VB = number_from_float(FVB),
     VD = number_from_float(FVD),
     R = (XD - XB) / (VB - VD).
-ttc_from_env(B, D, rel_env(_, _, TTCs, _, _)) = R :-
+ttc_from_env(B, D, rel_env(_, _, TTCs, _, _, _)) = R :-
     search(TTCs, {B, D}, R).
 
 
@@ -334,14 +335,14 @@ ttc_from_env(B, D, rel_env(_, _, TTCs, _, _)) = R :-
 lane_from_env(B, abs_env(env(_, Map))) = L0 :-
     info(_, _, p(_, Y)) = Map^elem(B),
     L0 = ( if Y `float.'<'` 0.0 then right else left ).
-lane_from_env(B, rel_env(_, _, _, Lanes, _)) = L0 :-
+lane_from_env(B, rel_env(_, _, _, Lanes, _, _)) = L0 :-
     search(Lanes, B, L0).
 
 
 :- func start_from_env(ext_env(N)) = s(N) is det <= arithmetic.arithmetic(N).
 
 start_from_env(abs_env(env(T, _))) = number_from_float(T).
-start_from_env(rel_env(T, _, _, _, _)) = T.
+start_from_env(rel_env(T, _, _, _, _, _)) = T.
 
 %-----------------------------------------------------------------------------%
 

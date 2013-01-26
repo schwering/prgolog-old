@@ -10,7 +10,7 @@
 % Simple progression interface.
 % The progress/2 predicate simply queries the start/1, reward/1, NTG/3, TTC/3,
 % and lane/2 functional fluents and stores the result in a situation term
-%   do(init_env(rel_env(_, _, _, _, _)), s0).
+%   do(init_env(rel_env(_, _, _, _, _, _)), s0).
 %
 % progress/4 additionally calls reset_memo/2 for some tabled predicates.
 % When memoization is enabled or disabled for fluents, this should obvioulsy
@@ -29,6 +29,8 @@
 :- module domain.car.rstc.progression.
 
 :- interface.
+
+:- use_module util.arithmetic.
 
 %-----------------------------------------------------------------------------%
 
@@ -70,7 +72,7 @@
 
 %-----------------------------------------------------------------------------%
 
-progress(S, do(init_env(rel_env(Time, NTGs, TTCs, Lanes, Reward)), s0)) :-
+progress(S, do(init_env(rel_env(Time, NTGs, TTCs, Lanes, Reward, Sitlen)), s0)) :-
     Time = start(S),
     Reward = reward(S),
     solutions(agent, Agents),
@@ -80,7 +82,8 @@ progress(S, do(init_env(rel_env(Time, NTGs, TTCs, Lanes, Reward)), s0)) :-
     TTCs = condense(map(func(B) = condense(map(func(C) =
         ( if TTC = ttc(B, C, S) then [pair({B, C}, TTC)] else [] )
     , Agents)), Agents)),
-    Lanes = map(func(B) = pair(B, lane(B, S)), Agents).
+    Lanes = map(func(B) = pair(B, lane(B, S)), Agents),
+    Sitlen = sitlen(S).
 
 
 progress(S, S1, !IO) :-
@@ -102,13 +105,17 @@ save_sit(S, !IO) :-
 
 unprogress(S, S1, !IO) :-
     get_sit(S0, !IO),
-    S1 = replace_s0(S, S0).
+    S1 = unprogress(S, S0).
 
 
-:- func replace_s0(prgolog.sit(A), prgolog.sit(A)) = prgolog.sit(A).
+:- func unprogress(rstc.sit(N), rstc.sit(N)) = rstc.sit(N).
 
-replace_s0(s0, S0) = S0.
-replace_s0(do(A, S), S0) = do(A, replace_s0(S, S0)).
+unprogress(s0, S0) = S0.
+unprogress(do(A, S), S0) =
+    (   if   A = init_env(rel_env(_, _, _, _, _, _))
+        then unprogress(S, S0)
+        else do(A, unprogress(S, S0))
+    ).
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.rstc.progression.

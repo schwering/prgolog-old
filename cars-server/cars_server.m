@@ -153,12 +153,6 @@ sit2list(s0) = [].
 sit2list(do(A, S)) = [A|sit2list(S)].
 
 
-:- func sitlen(prgolog.sit(A)) = int is det.
-
-sitlen(s0) = 0.
-sitlen(do(_, S)) = 1 + sitlen(S).
-
-
 :- pred debug_conf(rstc.prog(N)::in, rstc.sit(N)::in,
                    io::di, io::uo) is det <= arithmetic.arithmetic(N).
 
@@ -211,7 +205,7 @@ stdout_handler(Source, N, I,
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             format("%d.%d:         %s\n", [i(N), i(I), s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
-        true% debug_conf(P, S, !IO)
+        debug_conf(P, S, !IO)
     ;
         Phase = failed,
         format("%d.%d: Failure\n", [i(N), i(I)], !IO),
@@ -224,7 +218,7 @@ stdout_handler(Source, N, I,
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             format("%d.%d:         %s\n", [i(N), i(I), s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
-        true% debug_conf(P, S, !IO)
+        debug_conf(P, S, !IO)
     ),
     (
         if      Phase = finishing
@@ -233,15 +227,18 @@ stdout_handler(Source, N, I,
         else    true
     ),
     format("%d.%d:     start = %s\n", [i(N), i(I), s(if Start = start(S) then string(Start) else "undef")], !IO),
-    some [NTG] ( if NTG = ntg(d,h,S) then format("%d.%d:     ntg(d,h) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
+    %some [NTG] ( if NTG = ntg(d,h,S) then format("%d.%d:     ntg(d,h) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
+    some [NTG] ( if NTG = ntg(h,b,S) then format("%d.%d:     ntg(h,b) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
     some [NTG] ( if NTG = ntg(h,d,S) then format("%d.%d:     ntg(h,d) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
-    some [TTC] ( if TTC = ttc(d,h,S) then format("%d.%d:     ttc(d,h) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
+    %some [TTC] ( if TTC = ttc(d,h,S) then format("%d.%d:     ttc(d,h) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
+    some [TTC] ( if TTC = ttc(h,b,S) then format("%d.%d:     ttc(h,b) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
     some [TTC] ( if TTC = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
+    some [Lane] ( if Lane = lane(b,S) then format("%d.%d:     lane(b) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
     some [Lane] ( if Lane = lane(d,S) then format("%d.%d:     lane(d) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
     some [Lane] ( if Lane = lane(h,S) then format("%d.%d:     lane(h) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
     % Progression is currently broken because sitlen/1 is not not handled as
     % fluent and thus breaks the reward computation.
-    ( if fail, sitlen(S) > 3 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
+    ( if fail, sitlen(S) > 6 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
     true.
 
 %-----------------------------------------------------------------------------%
