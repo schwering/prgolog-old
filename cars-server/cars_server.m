@@ -45,6 +45,7 @@
 :- import_module list.
 :- import_module planrecog.
 :- import_module prgolog.
+:- import_module prgolog.debug.
 :- import_module prgolog.nice.
 :- import_module string.
 :- import_module util.
@@ -182,60 +183,82 @@ debug_conf(P, S, !IO) :-
 stdout_handler(Source, N, I,
                s_state(conf(P, S), Phase),
                s_state(conf(P, S1), Phase), !IO) :-
+    Fmt = (pred(FormatString::in, Args::in, !.SubIO::di, !:SubIO::uo) is det :-
+        format("%d.%d: " ++ FormatString, [i(N), i(I)] ++ Args, !SubIO)
+    ),
     nl(!IO),
-    format("%d.%d: %f =< p_%d =< %f\n", [i(N), i(I), f(min_confidence(Source)), i(I), f(max_confidence(Source))], !IO),
+    Fmt("%f =< p_%d =< %f\n", [f(min_confidence(Source)), i(I), f(max_confidence(Source))], !IO),
     (
         ( Phase = running ; Phase = finishing ),
-        format("%d.%d: Running or Finishing: got a new observation "++
-               "(buffered/lookahead: %d/%d) or executed a action\n",
-               [i(N), i(I), i(obs_count_in_prog(P)), i(lookahead(S))], !IO),
-        format("%d.%d:     Reward: %s\n", [i(N), i(I), s(string(reward(S)))], !IO),
+        Fmt("Running or Finishing: got a new observation "++
+            "(buffered/lookahead: %d/%d) or executed a action\n",
+            [i(obs_count_in_prog(P) * obs_prog_length(P)), i(lookahead(S))], !IO),
+        Fmt("    Reward: %s\n", [s(string(reward(S)))], !IO),
         (   if      S = do(A, _)
-            then    format("%d.%d:     Last action: %s\n",
-                           [i(N), i(I), s(string(A))], !IO)
+            then    Fmt("    Last action: %s\n",
+                           [s(string(A))], !IO)
             else    true
-        )
+        ),
+        Fmt("    Remaining program:\n", [], !IO),
+        Fmt("        %s\n", [s(string(P))], !IO),
+        print_decomps(S, P, !IO)
+        %foldl((pred(decomp(C, R)::in, !.SubIO::di, !:SubIO::uo) is det :-
+        %    Fmt("    *** %s\n", [s(if C = primf(AF) then string(AF(S)) else string(C))], !SubIO)
+        %), tree_to_list(tree.force(pickbest(S), next2(P))), !IO)
+        % XXX Interesting Mercury bug (or what else?):
+        % Let's assume that P contains a star(pickbest(...)).
+        % In the following code, next2(P) has inst non-strict.
+        % Although tree_to_list/1 requires inst strict (there's no mode
+        % declaration for other insts), the compiler allows the call.
+        % This by the way has really bad side-effects. Apparently subsequent
+        % calls to next2(P) omit the lazy parts of the tree.
+        % foldl((pred(decomp(C, _R)::in, !.SubIO::di, !:SubIO::uo) is det :-
+        %     Fmt("    *** %s\n", [s(if C = primf(AF) then string(AF(S)) else string(C))], !SubIO)
+        % ), reverse(tree_to_list(next2(P))), !.IO, !:IO)
+        % XXX You should investigate on this. Maybe the mode declarations
+        % aren't that definitive?
     ;
         Phase = finished,
-        format("%d.%d: Finished: program final and covered\n", [i(N), i(I)], !IO),
-        format("%d.%d:     Reward: %s\n", [i(N), i(I), s(string(reward(S)))], !IO),
-        format("%d.%d:     Remaining program:\n", [i(N), i(I)], !IO),
-        format("%d.%d:         %s\n", [i(N), i(I), s(string(P))], !IO),
-        format("%d.%d:     Situation:\n", [i(N), i(I)], !IO),
+        Fmt("Finished: program final and covered\n", [], !IO),
+        Fmt("    Reward: %s\n", [s(string(reward(S)))], !IO),
+        Fmt("    Remaining program:\n", [], !IO),
+        Fmt("        %s\n", [s(string(P))], !IO),
+        Fmt("    Situation:\n", [], !IO),
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
-            format("%d.%d:         %s\n", [i(N), i(I), s(string(A))], !SubIO)
+            Fmt("        %s\n", [s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
         debug_conf(P, S, !IO)
     ;
         Phase = failed,
-        format("%d.%d: Failure\n", [i(N), i(I)], !IO),
+        Fmt("Failure\n", [], !IO),
         %PX = subst_obs(nil, P), ( if final(PX, S) then write_string("Final: ", !IO), write(PX, !IO), nl(!IO) else write_string("Not final: ", !IO), write(PX, !IO), nl(!IO) ),
         %( if last_action_covered_by_obs(S) then format("last action covered by observation\n", [], !IO) else format("last action covered by observation\n", [], !IO) ),
-        format("%d.%d:     Reward: %s\n", [i(N), i(I), s(string(reward(S)))], !IO),
-        format("%d.%d:     Remaining program:\n", [i(N), i(I)], !IO),
-        format("%d.%d:         %s\n", [i(N), i(I), s(string(P))], !IO),
-        format("%d.%d:     Situation:\n", [i(N), i(I)], !IO),
+        Fmt("    Reward: %s\n", [s(string(reward(S)))], !IO),
+        Fmt("    Remaining program:\n", [], !IO),
+        Fmt("        %s\n", [s(string(P))], !IO),
+        Fmt("    Situation:\n", [], !IO),
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
-            format("%d.%d:         %s\n", [i(N), i(I), s(string(A))], !SubIO)
+            Fmt("        %s\n", [s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
         debug_conf(P, S, !IO)
     ),
     (
         if      Phase = finishing
-        then    format("%d.%d: All observations received, finishing\n",
-                       [i(N), i(I)], !IO)
+        then    Fmt("All observations received, finishing\n", [], !IO)
         else    true
     ),
-    format("%d.%d:     start = %s\n", [i(N), i(I), s(if Start = start(S) then string(Start) else "undef")], !IO),
-    %some [NTG] ( if NTG = ntg(d,h,S) then format("%d.%d:     ntg(d,h) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
-    some [NTG] ( if NTG = ntg(h,b,S) then format("%d.%d:     ntg(h,b) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
-    some [NTG] ( if NTG = ntg(h,d,S) then format("%d.%d:     ntg(h,d) = %s\n", [i(N), i(I), s(string(NTG))], !IO) else true ),
-    %some [TTC] ( if TTC = ttc(d,h,S) then format("%d.%d:     ttc(d,h) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
-    some [TTC] ( if TTC = ttc(h,b,S) then format("%d.%d:     ttc(h,b) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
-    some [TTC] ( if TTC = ttc(h,d,S) then format("%d.%d:     ttc(h,d) = %s\n", [i(N), i(I), s(string(TTC))], !IO) else true ),
-    some [Lane] ( if Lane = lane(b,S) then format("%d.%d:     lane(b) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
-    some [Lane] ( if Lane = lane(d,S) then format("%d.%d:     lane(d) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
-    some [Lane] ( if Lane = lane(h,S) then format("%d.%d:     lane(h) = %s\n", [i(N), i(I), s(string(Lane))], !IO) else true ),
+    Fmt("    start = %s\n", [s(if Start = start(S) then string(Start) else "undef")], !IO),
+    %some [NTG] ( if NTG = ntg(d,h,S) then Fmt("    ntg(d,h) = %s\n", [s(string(NTG))], !IO) else true ),
+    some [NTG] ( if NTG = ntg(h,b,S) then Fmt("    ntg(h,b) = %s\n", [s(string(NTG))], !IO) else true ),
+    some [NTG] ( if NTG = ntg(h,d,S) then Fmt("    ntg(h,d) = %s\n", [s(string(NTG))], !IO) else true ),
+    some [NTG] ( if NTG = ntg(b,d,S) then Fmt("    ntg(b,d) = %s\n", [s(string(NTG))], !IO) else true ),
+    %some [TTC] ( if TTC = ttc(d,h,S) then Fmt("    ttc(d,h) = %s\n", [s(string(TTC))], !IO) else true ),
+    some [TTC] ( if TTC = ttc(h,b,S) then Fmt("    ttc(h,b) = %s\n", [s(string(TTC))], !IO) else true ),
+    some [TTC] ( if TTC = ttc(h,d,S) then Fmt("    ttc(h,d) = %s\n", [s(string(TTC))], !IO) else true ),
+    some [TTC] ( if TTC = ttc(b,d,S) then Fmt("    ttc(b,d) = %s\n", [s(string(TTC))], !IO) else true ),
+    some [Lane] ( if Lane = lane(b,S) then Fmt("    lane(b) = %s\n", [s(string(Lane))], !IO) else true ),
+    some [Lane] ( if Lane = lane(d,S) then Fmt("    lane(d) = %s\n", [s(string(Lane))], !IO) else true ),
+    some [Lane] ( if Lane = lane(h,S) then Fmt("    lane(h) = %s\n", [s(string(Lane))], !IO) else true ),
     % Progression is currently broken because sitlen/1 is not not handled as
     % fluent and thus breaks the reward computation.
     ( if fail, sitlen(S) > 6 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
@@ -255,7 +278,8 @@ accept_connections(ServerSocket, Areas, !IO) :-
     Progs = %[ tailgate(h, d) ] ++
             %[ follow(h, d) ] ++
             %[ overtake(h, d) ] ++
-            [ pass(d, b) // (approach(h, b) `;` overtake(h, b)) ] ++
+            [ pass(d, b) ] ++
+            %[ pass(d, b) // (approach(h, b) `;` overtake(h, b)) ] ++
             [] `with_type` list(rstc.prog(float)),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,

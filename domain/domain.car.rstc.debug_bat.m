@@ -136,6 +136,12 @@ poss(end(_, _), _).
 
 lookahead(_) = 0.
 
+
+:- func new_lookahead(lookahead, rstc.sit(N)) = lookahead is det
+    <= arithmetic.arithmetic(N).
+
+new_lookahead(L, _) = L - 1.
+
 %-----------------------------------------------------------------------------%
 
 :- func reward(rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
@@ -245,7 +251,7 @@ max_veloc_discrepancy_to_ignore_ttc = 0.1.
 :- func check_info(pair(agent, info), pair(agent, info),
                    rstc.sit(N)) = bool <= arithmetic.arithmetic(N).
 
-check_info(PB, PC, S) = and(Outcome1, Outcome2) :-
+check_info(PB @ (B - _), PC @ (C - _), S) = and(Outcome1, Outcome2) :-
     (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
         then    Outcome1 = pred_to_bool((pred) is semidet :-
                     (
@@ -255,7 +261,7 @@ check_info(PB, PC, S) = and(Outcome1, Outcome2) :-
                     ->
                         true
                     ;   trace [io(!IO)] (
-                            format("no category NTG %s %s\n", [s(string(NTG1)), s(string(NTG2))], !IO)
+                            format("no category for ntg(%s, %s): %s %s\n", [s(string(B)), s(string(C)), s(string(NTG1)), s(string(NTG2))], !IO)
                         ),
                         false
                     )
@@ -268,7 +274,7 @@ check_info(PB, PC, S) = and(Outcome1, Outcome2) :-
                         have_common_cat((pred(Cat::out) is multi :- ttc_cat(Cat)), TTC1, TTC2)
                     ->
                         true
-                    ;   trace [io(!IO)] ( format("no category TTC %s %s\n", [s(string(TTC1)), s(string(TTC2))], !IO) ),
+                    ;   trace [io(!IO)] ( format("no category ttc(%s, %s): %s %s\n", [s(string(B)), s(string(C)), s(string(TTC1)), s(string(TTC2))], !IO) ),
                         false
                     ;   some [NTG1, NTG2] (
                             ntgs(PB, PC, S, NTG1, NTG2),
@@ -277,7 +283,7 @@ check_info(PB, PC, S) = and(Outcome1, Outcome2) :-
                             Eps = max_veloc_discrepancy_to_ignore_ttc,
                             abs(RelV1 - one) =< number_from_float(Eps),
                             abs(RelV2 - one) =< number_from_float(Eps)
-                        ) -> true ; trace [io(!IO)] ( format("no blabla %s %s\n", [s(string(TTC1)), s(string(TTC2))], !IO) ), false
+                        ) -> true ; trace [io(!IO)] ( format("no blabla(%s, %s): %s %s\n", [s(string(B)), s(string(C)), s(string(TTC1)), s(string(TTC2))], !IO) ), false
                     )
                 )
         else    Outcome2 = yes
@@ -351,7 +357,8 @@ check_y((B - info(_, _, p(_, Y))), S) = Outcome :-
 :- instance bat(debug_bat.prim(N)) <= arithmetic.arithmetic(N) where [
     (poss(wrapper(A), S) :- debug_bat.poss(A, unwrap_sit(S))),
     (reward(S) = debug_bat.reward(unwrap_sit(S))),
-    (lookahead(S) = debug_bat.lookahead(unwrap_sit(S)))
+    (lookahead(S) = debug_bat.lookahead(unwrap_sit(S))),
+    (new_lookahead(L, S) = debug_bat.new_lookahead(L, unwrap_sit(S)))
 ].
 
 %-----------------------------------------------------------------------------%

@@ -84,6 +84,7 @@
 %-----------------------------------------------------------------------------%
 
 :- func lookahead(sit) = lookahead is det.
+:- func new_lookahead(lookahead, sit) = lookahead is det.
 
 %-----------------------------------------------------------------------------%
 
@@ -398,6 +399,8 @@ poss(seed(_), _).
 
 lookahead(_S) = 4.
 
+new_lookahead(L, _S) = L - 1.
+
 %-----------------------------------------------------------------------------%
 
 reward(s0) = 0.0.
@@ -455,19 +458,19 @@ set_yaw_st(Agent, Lane, Yaw, S) =
 %-----------------------------------------------------------------------------%
 
 straight_left(Agent) = P :-
-    P = atomic(
+    P = sync(
             b(set_yaw_st(Agent, left, deg2rad(0.0))) `;`
             nil% a(eval(on_left_lane(Agent)))
         ).
 
 straight_right(Agent) = P :-
-    P = atomic(
+    P = sync(
             b(set_yaw_st(Agent, right, deg2rad(0.0))) `;`
             nil% b(eval(on_right_lane(Agent)))
         ).
 
 left_lane_change(Agent) = P :-
-    P = atomic(
+    P = sync(
             ( b(set_yaw_st(Agent, right, deg2rad(14.0))) or
               b(set_yaw_st(Agent, right, deg2rad(12.0))) or
               b(set_yaw_st(Agent, right, deg2rad(10.0))) or
@@ -478,7 +481,7 @@ left_lane_change(Agent) = P :-
         p(((func) = straight_left(Agent))).
 
 right_lane_change(Agent) = P :-
-    P = atomic(
+    P = sync(
             ( b(set_yaw_st(Agent, left, deg2rad(-14.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-12.0))) or
               b(set_yaw_st(Agent, left, deg2rad(-10.0))) or
@@ -519,6 +522,11 @@ is_obs_action(match(_, _, _, _)).
 is_obs_prog(atom(primf(AF))) :- cont.is_obs_action(AF(s0)).
 
 
+:- func obs_prog_length(prog(prim)::unused) = (int::out) is det.
+
+obs_prog_length(_) = 1.
+
+
 :- func last_match(sit(prim)) = prim is semidet.
 
 last_match(do(A, S)) = ( if cont.is_obs_action(A) then A else last_match(S) ).
@@ -555,12 +563,14 @@ obs2match(Obs) = atom(primf(match(Obs, constant(OT)))) :-
 :- instance bat(prim) where [
     pred(poss/2) is cont.poss,
     func(reward/1) is cont.reward,
-    func(lookahead/1) is cont.lookahead
+    func(lookahead/1) is cont.lookahead,
+    func(new_lookahead/2) is cont.new_lookahead
 ].
 
 :- instance obs_bat(prim, obs) where [
     pred(is_obs_action/1) is cont.is_obs_action,
     pred(is_obs_prog/1) is cont.is_obs_prog,
+    func(obs_prog_length/1) is cont.obs_prog_length,
     pred(covered_by_obs/1) is cont.covered_by_match,
     func(obs_to_action/1) is cont.obs2match
 ].

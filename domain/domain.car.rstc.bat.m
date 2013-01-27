@@ -255,7 +255,7 @@ picknum(Bounds, X0, Val, Cmp) = X1 :-
     NewVal = (func(Float) = Val(number_from_float(Float))),
     inc_counter(I), % XXX ugly hack!!!
     M = 1,
-    N = 10 / (I*I),
+    N = 20 / (I*I),
     (   if      M > 0, N > 0
         then    run_pso(M, N, default_params, Bounds, max, NewVal, Cmp, X),
                 X1 = number_from_float(X)
@@ -286,7 +286,7 @@ pickacceltuple(Bounds, Prog) = nice.pickbest(picktuple(Bounds), {one, one}, Prog
 %-----------------------------------------------------------------------------%
 
 follow(B, Victim) =
-    atomic(
+    sync(
         a(start(B, $pred)) `;`
         t(r((pred(S::in) is semidet :-
             lane(B, S) = lane(Victim, S)
@@ -301,7 +301,7 @@ follow(B, Victim) =
 
 
 tailgate(B, Victim) =
-    atomic(
+    sync(
         a(start(B, $pred)) `;`
         t(r((pred(S::in) is semidet :-
             lane(B, S) = lane(Victim, S)
@@ -316,7 +316,7 @@ tailgate(B, Victim) =
 
 
 pass(B, C) =
-    atomic(
+    sync(
         a(start(B, $pred)) `;`
         t(r((pred(S::in) is semidet :-
             lane(B, S) \= lane(C, S),
@@ -324,22 +324,31 @@ pass(B, C) =
             ttc(B, C, S) > zero
         )))
     ) `;` (
-        b(func(S) = (
-            if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
-            then    noop
-            else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
-            then    wait(number(T))
-            else    abort
-        ))
-    //
-%        star(pickaccel({0.95, 1.05}, func(X) = atomic(a(accel(B, X)) `;` t(r((pred(S::in) is semidet :- ttc(B, C, S) > zero))))))
+%        t(r(pred(S::in) is semidet :-
+%            ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+%        ))
+%        b(func(S) = (
+%            if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+%            then    noop
+%            else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
+%            then    wait(number(T))
+%            else    abort
+%        ))
         star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
+    //
+        a(abort)
     ) `;`
-    a(end(B, $pred)).
+    sync(
+        a(end(B, $pred)) `;`
+        nil
+%        t(r((pred(S::in) is semidet :-
+%            ntg(B, C, S) `in_any` [close_infront, very_close_infront]
+%        )))
+    ).
 
 
 overtake(B, C) =
-    atomic(
+    sync(
         a(start(B, $pred)) `;`
         t(r((pred(S::in) is semidet :-
             lane(B, S) = right,
@@ -349,34 +358,32 @@ overtake(B, C) =
     ) `;` (
         (
             a(lc(B, left)) `;`
-            %b(wait_until(basify(ntg(B, C)), basic(defuzzify(very_close_infront)))) `;`
-            %b(wait_until(basify(ntg(B, C)), basic(number_from_float(-0.6)))) `;`
-            %b(func(S) = ( if T1 = number_from_float(17.5), T0 = start(S), T0 = num(_), T1 >= T0 then wait(T1 - T0) else noop )) `;`
-            b(func(S) = (
-                if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
-                then    noop
-                else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
-                then    wait(number(T))
-                else    abort
+            t(r(pred(S::in) is semidet :-
+                ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
             )) `;`
+%            b(func(S) = (
+%                if      ntg(B, C, S) `in_any` [very_close_infront, close_infront, infront, far_infront, very_far_infront]
+%                then    noop
+%                else if search(basify(ntg(B, C)), basic(defuzzify(very_close_infront)), T, S)
+%                then    wait(number(T))
+%                else    abort
+%            )) `;`
             a(lc(B, right))
         ) // (
-            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
-            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X))) `;`
-            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)))
-            %pickaccel({1.0, 1.2}, func(X) = a(accel(B, X)) `;` a(accel(B, X)) `;` a(accel(B, X)))
-            %pickaccel({1.0, 1.2}, func(X) = star(a(accel(B, X))))
             star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X))))
-            %pickacceltuple({{1.0, 1.0}, {2.0, 2.0}},
-            %    func({X, Y}) = (a(accel(B, X)) `;` a(accel(B, Y))))
-            %b(accelf(B, func(S) = number_from_float(1.362) * rel_v(C, B, S) is semidet))
         )
     ) `;`
-    a(end(B, $pred)).
+    sync(
+        a(end(B, $pred)) `;`
+%        nil
+        t(r((pred(S::in) is semidet :-
+            ntg(B, C, S) `in_any` [close_infront, very_close_infront]
+        )))
+    ).
 
 
 approach(B, C) =
-    atomic(
+    sync(
         a(start(B, $pred)) `;`
         t(r((pred(S::in) is semidet :-
             ntg(B, C, S) > zero,
@@ -384,15 +391,19 @@ approach(B, C) =
         )))
     ) `;`
     star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X)))) `;`
-    a(end(B, $pred)).
+    sync(
+        a(end(B, $pred)) `;`
+        nil
+%        t(r((pred(S::in) is semidet :-
+%            ntg(B, C, S) `in_any` [close_behind, very_close_behind]
+%        )))
+    ).
 
 
-imitate(B, Victim) =
+imitate(B, C) =
     a(start(B, $pred)) `;`
     star(
-        b(func(S) = (
-            if next_to_be_copied(B, Victim, S, A) then A else abort)
-        )
+        b(func(S) = ( if next_to_be_copied(B, C, S, A) then A else abort ))
     ) `;`
     a(end(B, $pred)).
 
@@ -447,12 +458,22 @@ no_duplicate(A @ lc(B, _), do(A1, S1)) :-
 
 :- func lookahead = lookahead is det.
 
-lookahead = 4.
+lookahead = 3.
 
 
 :- func lookahead(rstc.sit(_)) = lookahead is det.
 
 lookahead(_S) = lookahead.
+
+
+:- func new_lookahead(lookahead, rstc.sit(_)) = lookahead is det.
+
+new_lookahead(L, S) =
+    (   if      fail, S = do(start(_, _), _) then L
+        else if fail, S = do(end(_, _), _) then L
+        %else if S = do(match(_), _) then 0
+        else    L - 1
+    ).
 
 %-----------------------------------------------------------------------------%
 
@@ -659,13 +680,13 @@ match_info(PB, PC, S) :-
     (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
         then    have_common_cat((pred(Cat::out) is multi :-
                     ntg_cat(Cat)
-                ), NTG1, NTG2) %%% -> true ; trace [io(!IO)] ( format("no category NTG %s %s\n", [s(string(NTG1)), s(string(NTG2))], !IO) ), false
+                ), NTG1, NTG2)
         else    true
     ),
     (   if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
         then    (   have_common_cat((pred(Cat::out) is multi :-
                         ttc_cat(Cat)
-                    ), TTC1, TTC2) %%% -> true ; trace [io(!IO)] ( format("no category TTC %s %s\n", [s(string(TTC1)), s(string(TTC2))], !IO) ), false
+                    ), TTC1, TTC2)
                 ;   some [NTG1, NTG2] (
                         ntgs(PB, PC, S, NTG1, NTG2),
                         RelV1 = one - NTG1 / TTC1,
@@ -673,7 +694,7 @@ match_info(PB, PC, S) :-
                         Eps = max_veloc_discrepancy_to_ignore_ttc,
                         abs(RelV1 - one) =< number_from_float(Eps),
                         abs(RelV2 - one) =< number_from_float(Eps)
-                    ) %%% -> true ; trace [io(!IO)] ( format("no blabla %s %s\n", [s(string(TTC1)), s(string(TTC2))], !IO) ), false
+                    )
                 )
         else    true
     ).
@@ -736,7 +757,6 @@ match_longitudinal_dist(PB, PC, S) = D :-
 match_y((B - info(_, _, p(_, Y))), S) :-
     (   Y =< 0.0, lane(B, S) = right
     ;   Y >= 0.0, lane(B, S) = left
-    %%% ;   trace [io(!IO)] ( format("Y = %f, lane = %s\n", [f(Y), s(string(lane(B, S)))], !IO) ), fail
     ).
 
 %-----------------------------------------------------------------------------%
@@ -746,6 +766,13 @@ match_y((B - info(_, _, p(_, Y))), S) :-
 
 is_obs_prog(complex(seq(pseudo_atom(atom(primf(_))),
                         pseudo_atom(atom(prim(match(_))))))).
+
+%-----------------------------------------------------------------------------%
+
+:- func obs_prog_length(rstc.prog(N)::unused) = (int::out) is det
+    <= arithmetic.arithmetic(N).
+
+obs_prog_length(_) = 2.
 
 %-----------------------------------------------------------------------------%
 
@@ -766,7 +793,8 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N) where [
     pred(poss/2) is bat.poss,
     func(reward/1) is bat.reward,
-    func(lookahead/1) is bat.lookahead
+    func(lookahead/1) is bat.lookahead,
+    func(new_lookahead/2) is bat.new_lookahead
 ].
 
 :- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N) where [
@@ -776,6 +804,7 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
         ;   A = match(_) )
     ),
     pred(is_obs_prog/1) is bat.is_obs_prog,
+    func(obs_prog_length/1) is bat.obs_prog_length,
     func(obs_to_action/1) is bat.obs_to_action
 ].
 

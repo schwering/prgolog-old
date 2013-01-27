@@ -27,6 +27,9 @@
     pred is_obs_prog(pseudo_atom(A)),
     mode is_obs_prog(in) is semidet,
 
+    func obs_prog_length(prog(A)) = int,
+    mode obs_prog_length(unused) = out is det,
+
     pred covered_by_obs(sit(A)),
     mode covered_by_obs(in) is semidet,
 
