@@ -191,7 +191,10 @@
     mode reward(in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
-    mode lookahead(in) = out is det
+    mode lookahead(in) = out is det,
+
+    func new_lookahead(lookahead, sit(A)) = lookahead,
+    mode new_lookahead(in, in) = out is det
 ].
 
 %-----------------------------------------------------------------------------%
@@ -208,6 +211,7 @@
 %-----------------------------------------------------------------------------%
 
 :- include_module ccfluent.
+:- include_module debug.
 :- include_module fluent.
 :- include_module nice.
 :- include_module test.
@@ -350,7 +354,7 @@ value(P, S, L) = {V, N} :-
             {V2, N2} = tree.map_reduce(
                 (func(decomp(C, R)) = {V1, N1 + 1} is semidet :-
                     trans_atom(C, S, S1),
-                    {V1, N1} = value(R, S1, L - 1)),
+                    {V1, N1} = value(R, S1, new_lookahead(L, S))),
                 max,
                 tree.force(pickbest(S), next2(P))
             ),

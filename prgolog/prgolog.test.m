@@ -56,7 +56,8 @@
         ;   A = set_val(_, _), R = 0.0
         ;   A = inc_reward(R)
         ),
-    lookahead(_) = 3
+    lookahead(_) = 3,
+    new_lookahead(L, _) = L - 1
 ].
 
 
@@ -148,9 +149,9 @@ test_next2(!IO) :-
     ,   { (a(a) `;` a(b)) // (a(c) `;` a(d)),
         [Decomp(a, (nil `;` a(b)) // (a(c) `;` a(d))),
          Decomp(c, (a(a) `;` a(b)) // (nil `;` a(d)))] }
-    ,   { atomic(a(a) `;` a(b)) // (a(c) `;` a(d)),
+    ,   { sync(a(a) `;` a(b)) // (a(c) `;` a(d)),
         [Decomp(a, (nil `;` a(b)) `;` (nil // (a(c) `;` a(d)))),
-         Decomp(c, atomic(a(a) `;` a(b)) // (nil `;` a(d)))] }
+         Decomp(c, sync(a(a) `;` a(b)) // (nil `;` a(d)))] }
     ,   { star(a(a) `;` a(b)),
         [Decomp(a, (nil `;` a(b)) `;` star(a(a) `;` a(b)))] }
     ] `with_type` list({prog(prim), _}),

@@ -79,8 +79,8 @@
 :- func (prog(A) or prog(A)) = prog(A) <= bat(A).
 :- mode (in or in) = out is det.
 
-:- func atomic(prog(A)) = prog(A) <= bat(A).
-:- mode atomic(in) = out is det.
+:- func sync(prog(A)) = prog(A) <= bat(A).
+:- mode sync(in) = out is det.
 
 :- func ifthen(relfluent(A), prog(A)) = prog(A) <= bat(A).
 :- mode ifthen(in, in) = out is det.
@@ -122,7 +122,7 @@ p(P) = proc(P).
 P1 `;` P2  = seq(P1, P2).
 P1 // P2 = conc(P1, P2).
 (P1 or P2)  = non_det(P1, P2).
-atomic(P) = pseudo_atom(prgolog.complex(P)).
+sync(P) = pseudo_atom(prgolog.complex(P)).
 ifthen(T, P) = ifthenelse(T, P, nil).
 ifthenelse(T, P1, P2) = ((t(T) `;` P1) or (t(neg(T)) `;` P2)).
 while(T, P) = (t(T) `;` star(P) `;` t(neg(T))).
