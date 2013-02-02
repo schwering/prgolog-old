@@ -144,10 +144,9 @@ new_lookahead(L, _) = L - 1.
 
 %-----------------------------------------------------------------------------%
 
-:- func reward(rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
+:- func reward(rstc.prim(N), rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
 
-reward(s0) = 0.0.
-reward(do(A, S)) = debug_bat.reward(S) + New :-
+reward(A, _) = New :-
     New = (
         if      A = end(_, _)
         then    0.0% -1.0% float(2 * sitlen(S))
@@ -155,6 +154,11 @@ reward(do(A, S)) = debug_bat.reward(S) + New :-
         then    2.0
         else    0.0
     ).
+
+
+:- func reward_bound(atom(debug_bat.prim(_))) = reward.
+
+reward_bound(_) = 2.0.
 
 %-----------------------------------------------------------------------------%
 
@@ -356,9 +360,9 @@ check_y((B - info(_, _, p(_, Y))), S) = Outcome :-
 
 :- instance bat(debug_bat.prim(N)) <= arithmetic.arithmetic(N) where [
     (poss(wrapper(A), S) :- debug_bat.poss(A, unwrap_sit(S))),
-    (reward(S) = debug_bat.reward(unwrap_sit(S))),
-    (lookahead(S) = debug_bat.lookahead(unwrap_sit(S))),
-    (new_lookahead(L, S) = debug_bat.new_lookahead(L, unwrap_sit(S)))
+    (reward_bound(A) = debug_bat.reward_bound(A)),
+    (reward(wrapper(A), S) = debug_bat.reward(A, unwrap_sit(S))),
+    (lookahead(S) = debug_bat.lookahead(unwrap_sit(S)))
 ].
 
 %-----------------------------------------------------------------------------%

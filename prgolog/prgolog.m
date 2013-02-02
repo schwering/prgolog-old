@@ -187,14 +187,14 @@
     pred poss(A, sit(A)),
     mode poss(in, in) is semidet,
 
-    func reward(sit(A)) = reward,
-    mode reward(in) = out is det,
+    func reward_bound(atom(A)) = reward,
+    mode reward_bound(in) = out is det,
+
+    func reward(A, sit(A)) = reward,
+    mode reward(in, in) = out is det,
 
     func lookahead(sit(A)) = lookahead,
-    mode lookahead(in) = out is det,
-
-    func new_lookahead(lookahead, sit(A)) = lookahead,
-    mode new_lookahead(in, in) = out is det
+    mode lookahead(in) = out is det
 ].
 
 %-----------------------------------------------------------------------------%
@@ -247,12 +247,12 @@ next(non_det(P1, P2)) =
     tree.branch(next(P1), next(P2)).
 next(conc(P1, P2)) =
     tree.branch(
-        tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)),
-                 next(P2)),
         tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(R, P2)),
-                 next(P1))).
+                 next(P1)),
+        tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, conc(P1, R)),
+                 next(P2))).
 next(pick(G, X0, P)) =
-    tree.'new lazy'(G, X0, func(X) = next(P(X))).
+    tree.'new sprout'(G, X0, func(X) = next(P(X))).
 next(star(P)) =
     tree.map(func(pseudo_decomp(C, R)) = pseudo_decomp(C, seq(R, star(P))),
              next(P)).
@@ -329,6 +329,11 @@ min_value = {-1.0 * float.max, int.min_int}.
 {V1, N1} > {V2, N2} :- V1 > V2 ; V1 = V2, N1 > N2.
 
 
+:- func cmp(value, value) = comparison_result.
+
+cmp(V, W) = ( if V > W then (>) else if V = W then (=) else (<) ).
+
+
 :- func max(value, value) = value.
 
 max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
@@ -336,9 +341,8 @@ max(VN1, VN2) = ( if VN1 > VN2 then VN1 else VN2 ).
 
 :- func pickbest(sit(A)) = tree.force_args(decomp(A), value) <= bat(A).
 
-pickbest(S) = tree.force_args(Val, Cmp, min_value) :-
-    Val = (func(decomp(C, R)) = value(seq(pseudo_atom(atom(C)), R), S)),
-    Cmp = (func(V, W) = ( if V > W then (>) else if V = W then (=) else (<) )).
+pickbest(S) = tree.force_args(Val, cmp, min_value) :-
+    Val = (func(decomp(C, R)) = value(seq(pseudo_atom(atom(C)), R), S)).
 
 %-----------------------------------------------------------------------------%
 
@@ -347,38 +351,41 @@ pickbest(S) = tree.force_args(Val, Cmp, min_value) :-
 value(P, S) = value(P, S, lookahead(S)).
 
 
+:- func heuristic(lookahead, decomp(A)) = value <= bat(A).
+
+heuristic(L, decomp(C, R)) = {V, L} :-
+    if      L > 0,
+            {V1, _} = tree.reduce(max, tree.map(heuristic(L - 1), next2(R)))
+    then    V = reward_bound(C) + V1
+    else    V = reward_bound(C).
+
+
 :- func value(prog(A), sit(A), lookahead) = value <= bat(A).
 
 value(P, S, L) = {V, N} :-
     if      L > 0,
-            {V2, N2} = tree.map_reduce(
-                (func(decomp(C, R)) = {V1, N1 + 1} is semidet :-
+            tree.max_search(
+                cmp,
+                heuristic(L),
+                (func(decomp(C, R)) = {V0 + V1, N1 + 1} is semidet :-
                     trans_atom(C, S, S1),
-                    {V1, N1} = value(R, S1, new_lookahead(L, S))),
-                max,
-                tree.force(pickbest(S), next2(P))
+                    V0 = ( if S1 = do(A, S) then reward(A, S) else 0.0 ),
+                    {V1, N1} = value(R, S1, L - 1)),
+                pickbest(S), next2(P), {V2, N2}, _
             ),
-%  Old code, should be totally equivalent:
-%           {V2, N2} = tree.foldl((func(decomp(C, R), VN2) = VN3 is det :-
-%               if      trans_atom(C, S, S1)
-%               then    {V1, N1} = value(R, S1, L - 1),
-%                       VN3 = max({V1, N1 + 1}, VN2)
-%               else    VN3 = VN2
-%           ), tree.force(pickbest(S), next2(P)), min_value),
-%           min_value \= {V2, N2},
-            ( final(P) => V2 > reward(S) )
+            ( final(P) => V2 > 0.0 )
     then    V = V2, N = N2
-    else    V = reward(S), N = ( if final(P) then L else 0 ).
+    else    V = 0.0, N = ( if final(P) then L else 0 ).
 
 %-----------------------------------------------------------------------------%
 
 trans(P, S, P1, S1) :-
-    {decomp(C1, P1), _} = tree.map_reduce(
-        func(D @ decomp(C, R)) =
-            {D, lazy.delay((func) = value(seq(pseudo_atom(atom(C)), R), S))},
-        func(X1 @ {_, VN1}, X2 @ {_, VN2}) =
-            ( if lazy.force(VN1) > lazy.force(VN2) then X1 else X2 ),
-        tree.force(pickbest(S), next2(P))
+    L = lookahead(S),
+    tree.max_search(
+        cmp,
+        func(D) = heuristic(L, D),
+        func(decomp(C, R)) = value(seq(pseudo_atom(atom(C)), R), S, L),
+        pickbest(S), next2(P), _, decomp(C1, P1)
     ),
     trans_atom(C1, S, S1).
 
@@ -387,7 +394,7 @@ trans(P, S, P1, S1) :-
 final(P, S) :-
     final(P),
     {V, _} = value(P, S),
-    reward(S) >= V.
+    V =< 0.0.
 
 %-----------------------------------------------------------------------------%
 

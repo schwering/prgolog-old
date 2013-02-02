@@ -132,7 +132,10 @@ merge_and_trans(s_state(conf(P, S), !.Phase), s_state(conf(P2, S2), !:Phase),
                 !ObsStreamState, Continue, !IO) :-
     if
         !.Phase \= finishing,
-        (obs_count_in_prog(P) + 1) * obs_prog_length(P) =< lookahead(S)
+        % XXX old behavior fixes bug that observations are not correctly
+        % appended
+        %(obs_count_in_prog(P) + 1) * obs_prog_length(P) =< lookahead(S)
+        obs_trans_count(P) < lookahead(S)
     then
         Continue = yes,
         next_obs(ObsMsg, S, P, !ObsStreamState, !IO),

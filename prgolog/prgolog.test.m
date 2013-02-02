@@ -44,8 +44,8 @@
 
 :- instance bat(prim) where [
     poss(A, _) :- A \= impossible,
-    reward(s0) = 0.0,
-    reward(do(A, S)) = R + reward(S) :-
+    reward_bound(_) = 1000.0,
+    reward(A, _) = R :-
         (   A = a, R = 0.0
         ;   A = b, R = 1.0
         ;   A = c, R = 2.0
@@ -56,8 +56,7 @@
         ;   A = set_val(_, _), R = 0.0
         ;   A = inc_reward(R)
         ),
-    lookahead(_) = 3,
-    new_lookahead(L, _) = L - 1
+    lookahead(_) = 3
 ].
 
 

@@ -94,7 +94,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pragma memo(reward/1, [allow_reset, statistics, fast_loose]). 
+:- pragma memo(reward/2, [allow_reset, statistics, fast_loose]). 
 
 %-----------------------------------------------------------------------------%
 
@@ -574,12 +574,11 @@ sitlen(do(A, S)) =
     % However, for a reward less than 4 the interpreter will do things like A; E
     % because the end(_, _) action E overrules the observation W and M.
     %
-:- func reward(rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
-:- mutable(counter, int, 0, ground, [attach_to_io_state, untrailed]).
+:- func reward(rstc.prim(N), rstc.sit(N)) = reward <= arithmetic.arithmetic(N).
+:- mutable(reward_counter, int, 0, ground, [attach_to_io_state, untrailed]).
 
-reward(s0) = 0.0.
-reward(do(A, S)) = bat.reward(S) + New :-
-    trace [io(!IO)] ( get_counter(I, !IO), set_counter(I+1, !IO) ),
+reward(A, S) = New :-
+    trace [io(!IO)] ( get_reward_counter(I, !IO), set_reward_counter(I+1, !IO) ),
     New = (
         if      some [Reward] A = init_env(rel_env(_, _, _, _, Reward, _))
         then    Reward
@@ -590,8 +589,27 @@ reward(do(A, S)) = bat.reward(S) + New :-
         %then    0.0% -1.0% float(2 * sitlen(S))
         else if some [D] A = match(obs(_, D))
         then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
+        else if A = accel(_, _) ; A = lc(_, _)
+        then    -0.01
         else    0.0
     ).
+
+
+:- func reward_bound(atom(rstc.prim(_))) = reward.
+
+reward_bound(A) = R :-
+    R = (
+        if      some [Reward] A = prim(init_env(rel_env(_, _, _, _, Reward, _)))
+        then    Reward
+        else if A = prim(start(_, _))
+        then    1000.0
+        else if A = prim(end(_, _))
+        then    1000.0
+        else if A = prim(match(_))
+        then    2.0
+        else    0.0
+    ).
+
 
 %-----------------------------------------------------------------------------%
 
@@ -766,13 +784,7 @@ match_y((B - info(_, _, p(_, Y))), S) :-
 
 is_obs_prog(complex(seq(pseudo_atom(atom(primf(_))),
                         pseudo_atom(atom(prim(match(_))))))).
-
-%-----------------------------------------------------------------------------%
-
-:- func obs_prog_length(rstc.prog(N)::unused) = (int::out) is det
-    <= arithmetic.arithmetic(N).
-
-obs_prog_length(_) = 2.
+is_obs_prog(atom(prim(match(_)))).
 
 %-----------------------------------------------------------------------------%
 
@@ -792,9 +804,9 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
 
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N) where [
     pred(poss/2) is bat.poss,
-    func(reward/1) is bat.reward,
-    func(lookahead/1) is bat.lookahead,
-    func(new_lookahead/2) is bat.new_lookahead
+    func(reward_bound/1) is bat.reward_bound,
+    func(reward/2) is bat.reward,
+    func(lookahead/1) is bat.lookahead
 ].
 
 :- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N) where [
@@ -804,7 +816,6 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
         ;   A = match(_) )
     ),
     pred(is_obs_prog/1) is bat.is_obs_prog,
-    func(obs_prog_length/1) is bat.obs_prog_length,
     func(obs_to_action/1) is bat.obs_to_action
 ].
 
@@ -818,16 +829,16 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
 :- import_module table_statistics.
 
 print_memo_stats(!IO) :-
-    table_statistics_for_reward_1(Lane, !IO),
-    io.write_string("\nreward/1:\n", !IO),
+    table_statistics_for_reward_2(Lane, !IO),
+    io.write_string("\nreward/2:\n", !IO),
     write_table_stats(current_stats(call_table_stats(Lane)), !IO),
     true.
 
 
 reset_memo(!IO) :-
-    table_reset_for_reward_1(!IO),
-    get_counter(I, !IO),
-    format("COUNTER = %d\n", [i(I)], !IO),
+    table_reset_for_reward_2(!IO),
+    get_reward_counter(I, !IO),
+    format("REWARD COUNTER = %d\n", [i(I)], !IO),
     true.
 
 %-----------------------------------------------------------------------------%

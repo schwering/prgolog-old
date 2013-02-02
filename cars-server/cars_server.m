@@ -192,7 +192,7 @@ stdout_handler(Source, N, I,
         ( Phase = running ; Phase = finishing ),
         Fmt("Running or Finishing: got a new observation "++
             "(buffered/lookahead: %d/%d) or executed a action\n",
-            [i(obs_count_in_prog(P) * obs_prog_length(P)), i(lookahead(S))], !IO),
+            [i(obs_trans_count(P)), i(lookahead(S))], !IO),
         Fmt("    Reward: %s\n", [s(string(reward(S)))], !IO),
         (   if      S = do(A, _)
             then    Fmt("    Last action: %s\n",
@@ -201,7 +201,7 @@ stdout_handler(Source, N, I,
         ),
         Fmt("    Remaining program:\n", [], !IO),
         Fmt("        %s\n", [s(string(P))], !IO),
-        print_decomps(S, P, !IO)
+        %print_decomps(S, P, !IO),
         %foldl((pred(decomp(C, R)::in, !.SubIO::di, !:SubIO::uo) is det :-
         %    Fmt("    *** %s\n", [s(if C = primf(AF) then string(AF(S)) else string(C))], !SubIO)
         %), tree_to_list(tree.force(pickbest(S), next2(P))), !IO)
@@ -217,6 +217,7 @@ stdout_handler(Source, N, I,
         % ), reverse(tree_to_list(next2(P))), !.IO, !:IO)
         % XXX You should investigate on this. Maybe the mode declarations
         % aren't that definitive?
+        true
     ;
         Phase = finished,
         Fmt("Finished: program final and covered\n", [], !IO),
@@ -227,7 +228,7 @@ stdout_handler(Source, N, I,
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             Fmt("        %s\n", [s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
-        debug_conf(P, S, !IO)
+        true% debug_conf(P, S, !IO)
     ;
         Phase = failed,
         Fmt("Failure\n", [], !IO),
@@ -240,7 +241,7 @@ stdout_handler(Source, N, I,
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             Fmt("        %s\n", [s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
-        debug_conf(P, S, !IO)
+        true% debug_conf(P, S, !IO)
     ),
     (
         if      Phase = finishing

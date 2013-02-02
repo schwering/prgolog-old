@@ -27,9 +27,6 @@
     pred is_obs_prog(pseudo_atom(A)),
     mode is_obs_prog(in) is semidet,
 
-    func obs_prog_length(prog(A)) = int,
-    mode obs_prog_length(unused) = out is det,
-
     pred covered_by_obs(sit(A)),
     mode covered_by_obs(in) is semidet,
 
@@ -46,6 +43,10 @@
     func init_env_sit(Env, sit(A)) = sit(A),
     mode init_env_sit(in, in) = out is det
 ].
+
+%-----------------------------------------------------------------------------%
+
+:- func reward(sit(A)) = reward <= bat(A).
 
 %-----------------------------------------------------------------------------%
 
@@ -85,6 +86,18 @@
 %-----------------------------------------------------------------------------%
 
 :- include_module car.
+
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
+
+:- implementation.
+
+:- import_module float.
+
+%-----------------------------------------------------------------------------%
+
+reward(s0) = 0.0.
+reward(do(A, S)) = reward(A, S) + reward(S).
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.

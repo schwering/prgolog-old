@@ -42,6 +42,8 @@
 
 :- func obs_count_in_prog(prog(A)) = int <= obs_bat(A, O).
 
+:- func obs_trans_count(prog(A)) = int <= obs_bat(A, O).
+
 :- func obs_count_in_sit(sit(A)) = int <= obs_bat(A, O).
 
 %-----------------------------------------------------------------------------%
@@ -165,6 +167,32 @@ obs_count_in_prog(pseudo_atom(PA @ complex(P))) =
     ( if is_obs_prog(PA) then 1 else obs_count_in_prog(P) ).
 obs_count_in_prog(pseudo_atom(PA @ atom(_))) =
     ( if is_obs_prog(PA) then 1 else 0 ).
+
+
+obs_trans_count(seq(P1, P2)) = obs_trans_count(P1) + obs_trans_count(P2).
+obs_trans_count(non_det(P1, P2)) = min(obs_trans_count(P1), obs_trans_count(P2)).
+obs_trans_count(conc(P1, P2)) = obs_trans_count(P1) + obs_trans_count(P2).
+obs_trans_count(pick(_, _, _)) = 0.
+obs_trans_count(star(_)) = 0.
+obs_trans_count(proc(_)) = 0.
+obs_trans_count(nil) = 0.
+obs_trans_count(P @ pseudo_atom(PA @ complex(P1))) =
+    ( if is_obs_prog(PA) then trans_count(P) else obs_trans_count(P1) ).
+obs_trans_count(P @ pseudo_atom(PA @ atom(_))) =
+    ( if is_obs_prog(PA) then trans_count(P) else 0 ).
+
+
+:- func trans_count(prog(A)) = int <= bat(A).
+
+trans_count(seq(P1, P2)) = trans_count(P1) + trans_count(P2).
+trans_count(non_det(P1, P2)) = min(trans_count(P1), trans_count(P2)).
+trans_count(conc(P1, P2)) = trans_count(P1) + trans_count(P2).
+trans_count(pick(_, X0, G)) = trans_count(G(X0)).
+trans_count(star(_)) = 0.
+trans_count(proc(P)) = trans_count(apply(P)).
+trans_count(nil) = 0.
+trans_count(pseudo_atom(complex(P))) = trans_count(P).
+trans_count(pseudo_atom(atom(_))) = 1.
 
 
 obs_count_in_sit(s0) = 0.

@@ -48,6 +48,8 @@
 
 :- use_module prgolog.
 :- use_module prgolog.test.
+:- use_module tree.
+:- use_module tree.test.
 
 :- use_module domain.
 :- use_module domain.car.
@@ -92,7 +94,9 @@ ccm(P) = ( pred(IO0::di, IO1::uo) is cc_multi :- P(IO0, IO1) ).
 :- pred get_tests(list(test)::out(list(test)), io::di, io::uo) is det.
 
 get_tests(Tests, !IO) :-
-    Tests = [ test("prgolog", "test_next", ccm(prgolog.test.test_next))
+    Tests = [ test("tree", "test_force", ccm(tree.test.test_force))
+            , test("tree", "test_search", ccm(tree.test.test_search))
+            , test("prgolog", "test_next", ccm(prgolog.test.test_next))
             , test("prgolog", "test_next2", ccm(prgolog.test.test_next2))
             , test("prgolog", "test_final", ccm(prgolog.test.test_final))
             , test("prgolog", "test_value", ccm(prgolog.test.test_value))
