@@ -228,7 +228,7 @@ stdout_handler(Source, N, I,
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             Fmt("        %s\n", [s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
-        true% debug_conf(P, S, !IO)
+        debug_conf(P, S, !IO)
     ;
         Phase = failed,
         Fmt("Failure\n", [], !IO),
@@ -241,7 +241,7 @@ stdout_handler(Source, N, I,
         foldl((pred(A::in, !.SubIO::di, !:SubIO::uo) is det :-
             Fmt("        %s\n", [s(string(A))], !SubIO)
         ), reverse(sit2list(S)), !.IO, !:IO),
-        true% debug_conf(P, S, !IO)
+        debug_conf(P, S, !IO)
     ),
     (
         if      Phase = finishing
@@ -279,8 +279,8 @@ accept_connections(ServerSocket, Areas, !IO) :-
     Progs = %[ tailgate(h, d) ] ++
             %[ follow(h, d) ] ++
             %[ overtake(h, d) ] ++
-            [ pass(d, b) ] ++
-            %[ pass(d, b) // (approach(h, b) `;` overtake(h, b)) ] ++
+            %[ pass(d, b) ] ++
+            [ pass(d, b) // (approach(h, b) `;` overtake(h, b)) ] ++
             [] `with_type` list(rstc.prog(float)),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,
