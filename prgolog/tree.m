@@ -304,9 +304,12 @@ extract_max(Cmp, branch(T1, T2), R, V, M) :-
               % The maximum value and the corresponding tree.
               V::out, tree(T, V)::out) is semidet.
 
-first(Cmp, HVT0, HVT1, MaxV, MaxT) :-
-    extract_max(Cmp, HVT0, HVT1, _, MaxVT),
-    extract_max(Cmp, MaxVT, _, MaxV, MaxT).
+first(Cmp, !HVT, MaxV, MaxT) :-
+    extract_max(Cmp, !HVT, _, MaxVT),
+    (   if      extract_max(Cmp, MaxVT, _, V, T)
+        then    MaxV = V, MaxT = T
+        else    first(Cmp, !HVT, MaxV, MaxT)
+    ).
 
 
 :- pred next(comparison_func(V)::in,
@@ -320,8 +323,8 @@ first(Cmp, HVT0, HVT1, MaxV, MaxT) :-
 next(Cmp, !HVT, MaxV0, MaxV1, MaxT) :-
     extract_max(Cmp, !HVT, H, VT),
     Cmp(H, MaxV0) \= (<), % next tree might be better than the last one
-    extract_max(Cmp, VT, _, V, T),
-    (   if      Cmp(V, MaxV0) \= (<) % next tree is indeed better
+    (   if      extract_max(Cmp, VT, _, V, T),
+                Cmp(V, MaxV0) \= (<) % next tree is indeed better
         then    MaxV1 = V, MaxT = T
         else    next(Cmp, !HVT, MaxV0, MaxV1, MaxT)
     ).

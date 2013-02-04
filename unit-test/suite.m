@@ -95,7 +95,8 @@ ccm(P) = ( pred(IO0::di, IO1::uo) is cc_multi :- P(IO0, IO1) ).
 
 get_tests(Tests, !IO) :-
     Tests = [ test("tree", "test_force", ccm(tree.test.test_force))
-            , test("tree", "test_search", ccm(tree.test.test_search))
+            , test("tree", "test_search_det", ccm(tree.test.test_search_det))
+            , test("tree", "test_search_semidet", ccm(tree.test.test_search_semidet))
             , test("prgolog", "test_next", ccm(prgolog.test.test_next))
             , test("prgolog", "test_next2", ccm(prgolog.test.test_next2))
             , test("prgolog", "test_final", ccm(prgolog.test.test_final))
@@ -106,8 +107,8 @@ get_tests(Tests, !IO) :-
             , test("rstc", "test_1", ccm(domain.car.rstc.test.test_1))
             , test("rstc", "test_2", ccm(domain.car.rstc.test.test_2))
             , test("rstc", "test_3", ccm(domain.car.rstc.test.test_3))
-            , test("bat", "test_ntg", ccm(domain.car.rstc.bat.test.test_ntg))
-            , test("bat", "test_ttc", ccm(domain.car.rstc.bat.test.test_ttc))
+            %, test("bat", "test_ntg", ccm(domain.car.rstc.bat.test.test_ntg))
+            %, test("bat", "test_ttc", ccm(domain.car.rstc.bat.test.test_ttc))
             , test("bat", "test_match_dist", ccm(domain.car.rstc.bat.test.test_match_dist))
             , test("fuzzy", "test_ntg", ccm(domain.car.rstc.fuzzy.test.test_ntg))
             , test("fuzzy", "test_ttc", ccm(domain.car.rstc.fuzzy.test.test_ttc))

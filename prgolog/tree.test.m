@@ -18,7 +18,9 @@
 %-----------------------------------------------------------------------------%
 
 :- pred test_force(io::di, io::uo) is det.
-:- pred test_search(io::di, io::uo) is det.
+:- pred test_search_det(io::di, io::uo) is det.
+:- pred test_search_semidet(io::di, io::uo) is det.
+:- pred test_search2(io::di, io::uo) is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
@@ -27,6 +29,7 @@
 
 :- import_module bool.
 :- import_module exception.
+:- import_module float.
 :- import_module int.
 :- import_module list.
 :- import_module string.
@@ -53,7 +56,7 @@ test_force(!IO) :-
     true.
 
 
-test_search(!IO) :-
+test_search_det(!IO) :-
     H = (func(X) = ( if X mod 2 = 0 then X else 100 )),
     V = id,
     Cmp = ordering,
@@ -88,6 +91,19 @@ test_search(!IO) :-
             )
         ,
             [ leaf(5), leaf(6) ]
+        },
+        {   branch(
+                branch(
+                    leaf(5),
+                    leaf(5)
+                ),
+                branch(
+                    leaf(5),
+                    leaf(6)
+                )
+            )
+        ,
+            [ leaf(5), leaf(5), leaf(5), leaf(6) ]
         },
         {   branch(
                 branch(
@@ -163,6 +179,200 @@ test_search(!IO) :-
         ( if Next(EmptyIterator, _, _, Z) then throw({"found unexpected", Z}) else true )
     ), Data, !IO),
     true.
+
+
+test_search_semidet(!IO) :-
+    H = (func(X) = ( if X mod 2 = 0 then X else 100 )),
+    V = (func(X) = X is semidet :- X mod 3 \= 0),
+    Cmp = ordering,
+    Args = force_args(V, Cmp, 0),
+    Data = [
+        {   empty
+        ,
+            [ ]
+        },
+        {   leaf(3)
+        ,
+            [ ]
+        },
+        {   leaf(4)
+        ,
+            [ leaf(4) ]
+        },
+        {   branch(
+                leaf(3),
+                leaf(4)
+            )
+        ,
+            [ leaf(4) ]
+        },
+        {   branch(
+                leaf(6),
+                leaf(4)
+            )
+        ,
+            [ leaf(4) ]
+        },
+        {   branch(
+                leaf(3),
+                leaf(2)
+            )
+        ,
+            [ leaf(2) ]
+        },
+        {   branch(
+                leaf(6),
+                leaf(2)
+            )
+        ,
+            [ leaf(2) ]
+        },
+        {   branch(
+                branch(
+                    leaf(3),
+                    leaf(4)
+                ),
+                branch(
+                    leaf(5),
+                    leaf(6)
+                )
+            )
+        ,
+            [ leaf(5) ]
+        },
+        {   branch(
+                branch(
+                    leaf(4),
+                    leaf(5)
+                ),
+                branch(
+                    leaf(3),
+                    leaf(6)
+                )
+            )
+        ,
+            [ leaf(5) ]
+        },
+        {   branch(
+                branch(
+                    leaf(5),
+                    leaf(5)
+                ),
+                branch(
+                    leaf(5),
+                    leaf(8)
+                )
+            )
+        ,
+            [ leaf(5), leaf(5), leaf(5), leaf(8) ]
+        },
+        {   branch(
+                branch(
+                    leaf(2),
+                    lazy((func) = leaf(4))
+                ),
+                branch(
+                    leaf(5),
+                    lazy((func) = leaf(6))
+                )
+            )
+        ,
+            [ leaf(5) ]
+        },
+        {   branch(
+                branch(
+                    leaf(4),
+                    lazy((func) = leaf(4))
+                ),
+                branch(
+                    leaf(4),
+                    lazy((func) = leaf(4))
+                )
+            )
+        ,
+            [ leaf(4), leaf(4), leaf(4), leaf(4) ]
+        },
+        {   branch(
+                branch(
+                    leaf(2),
+                    leaf(4)
+                ),
+                branch(
+                    leaf(8),
+                    'new sprout'(func(U, _, _) = U-2, 9, func(U) = leaf(U))
+                )
+            )
+        ,
+            [ leaf(7), leaf(8) ]
+        },
+        {   branch(
+                branch(
+                    leaf(2),
+                    leaf(4)
+                ),
+                branch(
+                    leaf(8),
+                    'new sprout'(func(U, _, _) = U, 8, func(U) = leaf(U))
+                )
+            )
+        ,
+            [ leaf(8), leaf(8) ]
+        },
+        {   branch(
+                branch(
+                    leaf(2),
+                    leaf(4)
+                ),
+                branch(
+                    'new sprout'(func(U, _, _) = ( if U = 10 then 10 else throw({"sprout should not be optimized"}) ), 10, func(U) = leaf(U)),
+                    'new sprout'(func(U, _, _) = U, 10, func(U) = leaf(U))
+                )
+            )
+        ,
+            [ leaf(10), leaf(10) ]
+        }
+    ],
+    foldl((pred({T, Exp}::in, !.SubIO::di, !:SubIO::uo) is det :-
+        max_iter(Cmp, H, V, Args, T, Iterator, Next),
+        foldl((pred(Y::in, !.Iter::in, !:Iter::out) is det :-
+            ( if Next(!Iter, _, X) then ( if X = Y then true else throw({"found unexpected instead of", X, Y}) ) else throw({"found nothing instead of", Y}) )
+        ), Exp, Iterator, EmptyIterator),
+        ( if Next(EmptyIterator, _, _, Z) then throw({"found unexpected", Z}) else true )
+    ), Data, !IO),
+    test_search2(!IO),
+    true.
+
+
+test_search2(!IO) :-
+    H = (func(_) = {100.0, 100}),
+    V = (func(X1 @ {V1, _}) = X1 is semidet :- V1 >= 0.0),
+    Cmp = (func(X1 @ {V1, N1}, X2 @ {V2, N2}) = ( if V1 > V2 ; V1 = V2, N1 > N2 then (>) else if X1 = X2 then (=) else (<) )) : comparison_func({float, int}),
+    Min = {-1.0 * float.max, int.min_int},
+    Args = force_args(V, Cmp, Min),
+    Data = [
+        {   branch(
+                branch(
+                    L1 @ leaf({-0.01, 1}),
+                    L2 @ leaf({0.0, 0})
+                ),
+                branch(
+                    L3 @ leaf({-0.02, 2}),
+                    L4 @ leaf({0.0, 1})
+                )
+            )
+        ,
+            [ L2, L4 ]
+        }
+    ],
+    foldl((pred({T, Exp}::in, !.SubIO::di, !:SubIO::uo) is det :-
+        max_iter(Cmp, H, V, Args, T, Iterator, Next),
+        foldl((pred(Y::in, !.Iter::in, !:Iter::out) is det :-
+            ( if Next(!Iter, _, X) then ( if X = Y then true else throw({"found unexpected instead of", X, Y}) ) else throw({"found nothing instead of", Y}) )
+        ), Exp, Iterator, EmptyIterator),
+        ( if Next(EmptyIterator, _, _, Z) then throw({"found unexpected", Z}) else true )
+    ), Data, !IO),
+    true.
+
 
 %-----------------------------------------------------------------------------%
 :- end_module tree.test.

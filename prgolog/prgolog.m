@@ -370,7 +370,8 @@ value(P, S, L) = {V, N} :-
                 (func(decomp(C, R)) = {V0 + V1, N1 + 1} is semidet :-
                     trans_atom(C, S, S1),
                     V0 = ( if S1 = do(A, S) then reward(A, S) else 0.0 ),
-                    {V1, N1} = value(R, S1, L - 1)),
+                    {V1, N1} = value(R, S1, L - 1)
+                ),
                 pickbest(S), next2(P), {V2, N2}, _
             ),
             ( final(P) => V2 > 0.0 )

@@ -458,7 +458,7 @@ no_duplicate(A @ lc(B, _), do(A1, S1)) :-
 
 :- func lookahead = lookahead is det.
 
-lookahead = 4.
+lookahead = 3.
 
 
 :- func lookahead(rstc.sit(_)) = lookahead is det.

@@ -85,12 +85,13 @@ check(F, P, Name, B, C, S, !IO) :-
             Tmp `in` Cat
         )
     ), CatList),
-    format("%s: %s(%s, %s) = ",
-        [s(Start), s(Name), s(agent_to_string(B)), s(agent_to_string(C))], !IO),
-    ( if Maybe = yes(Tmp3) then format("%s", [s(string(Tmp3))], !IO) else write_string("undef", !IO) ),
-    write_string(" in ", !IO),
-    write(CatList, !IO),
-    nl(!IO),
+% XXX What about this output? Are there some assertions about that?
+%    format("%s: %s(%s, %s) = ",
+%        [s(Start), s(Name), s(agent_to_string(B)), s(agent_to_string(C))], !IO),
+%    ( if Maybe = yes(Tmp3) then format("%s", [s(string(Tmp3))], !IO) else write_string("undef", !IO) ),
+%    write_string(" in ", !IO),
+%    write(CatList, !IO),
+%    nl(!IO),
     true.
 
 
