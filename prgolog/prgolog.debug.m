@@ -56,6 +56,7 @@ print_prog(Format, P, !IO) :-
 :- pred is_nil(prog(A)::in) is semidet.
 
 is_nil(seq(P1, P2)) :- is_nil(P1), is_nil(P2).
+is_nil(non_det(P1, P2)) :- is_nil(P1), is_nil(P2).
 is_nil(conc(P1, P2)) :- is_nil(P1), is_nil(P2).
 is_nil(pseudo_atom(complex(P))) :- is_nil(P).
 is_nil(nil).
@@ -68,7 +69,7 @@ print(Format, seq(P1, P2), Last, Depth, !IO) :-
     Last1 = seq,
     Depth1 = ( if Last = Last1 then Depth else Depth + 1 ),
     ( if is_nil(P1), is_nil(P2) then
-        print(Format, nil, Last1, Depth1, !IO)
+        print(Format, nil `with_type` prog(A), Last1, Depth1, !IO)
       else if is_nil(P1) then
         print(Format, P2, Last, Depth, !IO)
       else if is_nil(P2) then
@@ -90,7 +91,7 @@ print(Format, conc(P1, P2), Last, Depth, !IO) :-
     Last1 = conc,
     Depth1 = ( if Last = Last1 then Depth else Depth + 1 ),
     ( if is_nil(P1), is_nil(P2) then
-        print(Format, nil, Last1, Depth1, !IO)
+        print(Format, nil `with_type` prog(A), Last1, Depth1, !IO)
       else if is_nil(P1) then
         print(Format, P2, Last, Depth, !IO)
       else if is_nil(P2) then
@@ -117,7 +118,7 @@ print(Format, proc(P), _, Depth, !IO) :-
     print(Format, apply(P), unary, Depth + 1, !IO),
     Format("%s)\n", [s(w(Depth))], !IO).
 print(Format, pseudo_atom(complex(P)), _, Depth, !IO) :-
-    Format("%scomplex(\n", [s(w(Depth))], !IO),
+    Format("%ssync(\n", [s(w(Depth))], !IO),
     print(Format, P, unary, Depth + 1, !IO),
     Format("%s)\n", [s(w(Depth))], !IO).
 print(Format, pseudo_atom(atom(A)), _, Depth, !IO) :-

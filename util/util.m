@@ -22,7 +22,7 @@
 :- include_module simulated_annealing.
 :- include_module rat.
 :- include_module rand.
-:- include_module times.
+:- include_module time.
 :- include_module vector_space.
 
 %-----------------------------------------------------------------------------%

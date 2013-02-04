@@ -51,6 +51,7 @@
 :- import_module util.
 :- use_module util.arithmetic.
 :- import_module util.arithmetic.impl.
+:- import_module util.time.
 :- use_module visual.
 
 %-----------------------------------------------------------------------------%
@@ -201,9 +202,8 @@ stdout_handler(Source, N, I,
         ),
         Fmt("    Remaining program:\n", [], !IO),
         Fmt("        %s\n", [s(string(P))], !IO),
-        Fmt("    Remaining program:\n", [], !IO),
         print_prog(Fmt, P, !IO),
-        print_decomps(S, P, !IO),
+        %print_decomps(S, P, !IO),
         %foldl((pred(decomp(C, R)::in, !.SubIO::di, !:SubIO::uo) is det :-
         %    Fmt("    *** %s\n", [s(if C = primf(AF) then string(AF(S)) else string(C))], !SubIO)
         %), tree_to_list(tree.force(pickbest(S), next2(P))), !IO)
@@ -284,6 +284,7 @@ accept_connections(ServerSocket, Areas, !IO) :-
             %[ pass(d, b) ] ++
             [ pass(d, b) // (approach(h, b) `;` overtake(h, b)) ] ++
             [] `with_type` list(rstc.prog(float)),
+    times(StartTime, !IO),
     foldl4((pred(Prog::in,
                  N::in, N+1::out,
                  Sources1::in, [Source|Sources1]::out,
@@ -300,6 +301,9 @@ accept_connections(ServerSocket, Areas, !IO) :-
     ), Sources, Varss, !IO),
     finalize_connection(Socket, !IO),
     reset_all_sources(!IO),
+    times(EndTime, !IO),
+    format("Usertime: %f\n", [f(usertime(StartTime, EndTime))], !IO),
+    format("Systime: %f\n", [f(systime(StartTime, EndTime))], !IO),
     %rstc.print_memo_stats(!IO),
     %bat.print_memo_stats(!IO),
     rstc.reset_memo(!IO),

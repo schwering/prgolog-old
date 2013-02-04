@@ -4,18 +4,25 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: util.times.m.
+% File: util.time.m.
 % Main author: schwering.
+%
+% Wrappers of C functions to measure CPU and real time, sleep() and the thread
+% of process ID.
 %
 %-----------------------------------------------------------------------------%
 
-:- module util.times.
+:- module util.time.
 
 :- interface.
 
 :- import_module io.
 
+%-----------------------------------------------------------------------------%
+
 :- type tms.
+
+%-----------------------------------------------------------------------------%
 
 :- pred times(tms::out, io::di, io::uo) is det.
 
@@ -25,7 +32,11 @@
 :- func systime(tms::in, tms::in) = (float::out) is det.
 :- pred systime(tms::in, tms::in, float::out) is det.
 
+%-----------------------------------------------------------------------------%
+
 :- pred sleep(int::in, io::di, io::uo) is det.
+
+%-----------------------------------------------------------------------------%
 
 :- pred thread_id(int::out, io::di, io::uo) is det.
 
@@ -105,5 +116,5 @@ systime(Tms1, Tms2) = Diff :- systime(Tms1, Tms2, Diff).
 ").
 
 %-----------------------------------------------------------------------------%
-:- end_module util.times.
+:- end_module util.time.
 %-----------------------------------------------------------------------------%

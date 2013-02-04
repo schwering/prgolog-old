@@ -340,10 +340,10 @@ pass(B, C) =
     ) `;`
     sync(
         a(end(B, $pred)) `;`
-        nil
-%        t(r((pred(S::in) is semidet :-
-%            ntg(B, C, S) `in_any` [close_infront, very_close_infront]
-%        )))
+%        nil
+        t(r((pred(S::in) is semidet :-
+            ntg(B, C, S) `in_any` [close_infront, very_close_infront]
+        )))
     ).
 
 
@@ -393,10 +393,10 @@ approach(B, C) =
     star(pickaccel({0.95, 1.2}, func(X) = a(accel(B, X)))) `;`
     sync(
         a(end(B, $pred)) `;`
-        nil
-%        t(r((pred(S::in) is semidet :-
-%            ntg(B, C, S) `in_any` [close_behind, very_close_behind]
-%        )))
+%        nil
+        t(r((pred(S::in) is semidet :-
+            ntg(B, C, S) `in_any` [close_behind, very_close_behind]
+        )))
     ).
 
 
@@ -589,6 +589,8 @@ reward(A, S) = New :-
         %then    0.0% -1.0% float(2 * sitlen(S))
         else if some [D] A = match(obs(_, D))
         then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
+        % About two times faster than match_dist/2:
+        %then    1.0 + (1.0 - 0.0)
         else if A = accel(_, _) ; A = lc(_, _)
         then    -0.01
         else    0.0

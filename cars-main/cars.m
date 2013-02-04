@@ -42,7 +42,7 @@
 :- import_module prgolog.nice.
 :- import_module string.
 :- import_module util.
-:- import_module util.times.
+:- import_module util.time.
 %:- import_module table_statistics.
 
 %-----------------------------------------------------------------------------%
@@ -120,8 +120,8 @@ main(!IO) :-
                         f(float.'/'(float(Finished), float(Total)))], !IO)
         else    format("percentage = nan\n", [], !IO)
     ),
-    format("usertime = %f\n", [f(usertime(Tms2, Tms3))], !IO),
-    format("systime = %f\n", [f(systime(Tms2, Tms3))], !IO).
+    format("usertime = %f\n", [f(usertime(StartTime, EndTime))], !IO),
+    format("systime = %f\n", [f(systime(StartTime, EndTime))], !IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module cars.
