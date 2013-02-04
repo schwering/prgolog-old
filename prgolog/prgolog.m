@@ -384,7 +384,7 @@ trans(P, S, P1, S1) :-
     L = lookahead(S),
     tree.max_search(
         cmp,
-        func(D) = heuristic(L, D),
+        heuristic(L),
         func(decomp(C, R)) = value(seq(pseudo_atom(atom(C)), R), S, L),
         pickbest(S), next2(P), _, decomp(C1, P1)
     ),
