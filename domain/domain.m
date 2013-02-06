@@ -20,9 +20,7 @@
 
 %-----------------------------------------------------------------------------%
 
-:- typeclass obs(Obs) where [ ].
-
-:- typeclass obs_bat(A, Obs) <= ((A -> Obs), bat(A), obs(Obs)) where [
+:- typeclass obs_bat(A, Obs) <= ((A -> Obs), bat(A)) where [
     pred is_obs_action(A),
     mode is_obs_action(in) is semidet,
 
@@ -63,8 +61,7 @@
         <= ((Source -> StreamState),
             (StreamState -> Source),
             (Source, StreamState -> Obs),
-            (Obs -> Source, StreamState),
-            obs(Obs))
+            (Obs -> Source, StreamState))
 where [
     pred reset_obs_source(Source, io, io),
     mode reset_obs_source(in, di, uo) is det,

@@ -95,7 +95,7 @@ right(Area) = left(Area) + cols(Area) - 1.
 
 get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
     (   if      some [X, Y] (
-                    S = do(match(Obs, _, _, _), _),
+                    S = do(match(car_obs(Obs), _, _, _), _),
                     X = x_pos(Obs, Agent),
                     Y = y_pos(Obs, Agent)
                 )

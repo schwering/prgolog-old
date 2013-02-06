@@ -118,7 +118,7 @@ poss(lc(_, _), _).
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
-poss(match(Obs), S) :-
+poss(match(car_obs(Obs)), S) :-
     trace [io(!IO)] ( format("poss(match(%s, ...))\n", [s(string(time(Obs)))], !IO) ),
     check_obs(Obs, S).
 poss(seed(_), _).

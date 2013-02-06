@@ -195,7 +195,7 @@ ntg(B, D, do(A, S)) = R :-
         A = senseD(D, B, NTG_DB, TTC_DB),
         R = -one / (one - NTG_DB / TTC_DB) * NTG_DB
     ;
-        A = init_env(Obs),
+        A = init_env(car_obs(Obs)),
         R = number_from_float(net_time_gap(Obs, B, D))
     ;
         A \= wait(_),
@@ -266,7 +266,7 @@ ttc(B, D, do(A, S)) = R :-
         A = senseD(D, B, _, TTC_DB),
         R = TTC_DB
     ;
-        A = init_env(Obs),
+        A = init_env(car_obs(Obs)),
         R = number_from_float(time_to_collision(Obs, B, D))
     ;
         A \= wait(_),
@@ -282,7 +282,7 @@ ttc(B, D, do(A, S)) = R :-
 
 lane(_, s0) = right.
 lane(B, do(A, S)) = L :-
-    if      A = init_env(Obs), Y = y_pos(Obs, B)
+    if      A = init_env(car_obs(Obs)), Y = y_pos(Obs, B)
     then    L = ( if Y `float.'<'` 0.0 then right else left )
     else if A = lc(B, L0)
     then    L = L0
@@ -292,58 +292,11 @@ lane(B, do(A, S)) = L :-
 
 start(s0) = zero.
 start(do(A, S)) = T :-
-    if      A = init_env(Obs)
+    if      A = init_env(car_obs(Obs))
     then    T = number_from_float(time(Obs))
     else if A = wait(D)
     then    T = start(S) + D
     else    T = start(S).
-
-%-----------------------------------------------------------------------------%
-
-%:- func ntg_from_env(agent, agent, Obs) = ntg(N)
-%    <= (arithmetic.arithmetic(N), car_obs(Obs)).
-%:- mode ntg_from_env(in, in, in) = out is semidet.
-%
-%ntg_from_env(B, D, abs_env(env(_, Map))) = R :-
-%    info(FVB, _, PosB) = Map^elem(B),
-%    info(_, _, PosD) = Map^elem(D),
-%    XB = number_from_float(x(PosB)),
-%    XD = number_from_float(x(PosD)),
-%    VB = number_from_float(FVB),
-%    R = (XD - XB) / VB.
-%ntg_from_env(B, D, rel_env(_, NTGs, _, _, _, _)) = R :-
-%    search(NTGs, {B, D}, R).
-%
-%
-%:- func ttc_from_env(agent, agent, ext_env(N)) = ttc(N)
-%    <= (arithmetic.arithmetic(N), car_obs(Obs)).
-%:- mode ttc_from_env(in, in, in) = out is semidet.
-%
-%ttc_from_env(B, D, abs_env(env(_, Map))) = R :-
-%    info(FVB, _, PosB) = Map^elem(B),
-%    info(FVD, _, PosD) = Map^elem(D),
-%    XB = number_from_float(x(PosB)),
-%    XD = number_from_float(x(PosD)),
-%    VB = number_from_float(FVB),
-%    VD = number_from_float(FVD),
-%    R = (XD - XB) / (VB - VD).
-%ttc_from_env(B, D, rel_env(_, _, TTCs, _, _, _)) = R :-
-%    search(TTCs, {B, D}, R).
-%
-%
-%:- func lane_from_env(agent, ext_env(N)) = lane is semidet.
-%
-%lane_from_env(B, abs_env(env(_, Map))) = L0 :-
-%    info(_, _, p(_, Y)) = Map^elem(B),
-%    L0 = ( if Y `float.'<'` 0.0 then right else left ).
-%lane_from_env(B, rel_env(_, _, _, Lanes, _, _)) = L0 :-
-%    search(Lanes, B, L0).
-%
-%
-%:- func start_from_env(ext_env(N)) = s(N) is det <= arithmetic.arithmetic(N).
-%
-%start_from_env(abs_env(env(T, _))) = number_from_float(T).
-%start_from_env(rel_env(T, _, _, _, _, _)) = T.
 
 %-----------------------------------------------------------------------------%
 

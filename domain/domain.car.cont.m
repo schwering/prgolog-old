@@ -194,7 +194,7 @@ start(do(A, S)) = T :-
     ;   A = wait_for(_, _, _, T)
     ;   A = match(_, _, _, T)
     ;   A = eval(_, _, _, T)
-    ;   A = init_env(Obs), T = constant(time(Obs))
+    ;   A = init_env(car_obs(Obs)), T = constant(time(Obs))
     ;   A = seed(_), T = start(S)
     ).
 
@@ -243,7 +243,7 @@ constraints(do(A, S)) = Cs ++ constraints(S) :-
 
 veloc(_, s0) = 0.0.
 veloc(Agent, do(A, S)) = Veloc :-
-    if      A = init_env(Obs), V0 = veloc(Obs, Agent)
+    if      A = init_env(car_obs(Obs)), V0 = veloc(Obs, Agent)
     then    Veloc = V0
     else if A = set_veloc(Agent, V0, _, _, _, _, _)
     then    Veloc = V0
@@ -253,7 +253,7 @@ veloc(Agent, do(A, S)) = Veloc :-
 
 yaw(_, s0) = 0.0.
 yaw(Agent, do(A, S)) = Rad :-
-    if      A = init_env(Obs), Rad0 = yaw(Obs, Agent)
+    if      A = init_env(car_obs(Obs)), Rad0 = yaw(Obs, Agent)
     then    Rad = Rad0
     else if A = set_yaw(Agent, _, Rad0, _, _, _, _, _)
     then    Rad = Rad0
@@ -264,7 +264,7 @@ yaw(Agent, do(A, S)) = Rad :-
 x(_, s0) = ( func(_) = constant(0.0) ).
 %x(Agent, s0) = ( func(_) = constant(X) ) :- initial(Agent, X, _).
 x(Agent, do(A, S)) = X :-
-    if      A = init_env(Obs), X0 = x_pos(Obs, Agent)
+    if      A = init_env(car_obs(Obs)), X0 = x_pos(Obs, Agent)
     then    X = ( func(_) = constant(X0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
                 Rad = yaw(Agent, S)
@@ -279,7 +279,7 @@ x(Agent, do(A, S)) = X :-
 y(_, s0) = ( func(_) = constant(0.0) ).
 %y(Agent, s0) = ( func(_) = constant(Y) ) :- initial(Agent, _, Y).
 y(Agent, do(A, S)) = Y :-
-    if      A = init_env(Obs), Y0 = y_pos(Obs, Agent)
+    if      A = init_env(car_obs(Obs)), Y0 = y_pos(Obs, Agent)
     then    Y = ( func(_) = constant(Y0) )
     else if (   A = set_veloc(Agent, Veloc, _, _, _, _, T0),
                 Rad = yaw(Agent, S)
@@ -357,7 +357,7 @@ wait_for(G, S) = wait_for(G, yes(VG), Cs, T) :-
 
 :- func match(car_obs) `with_type` primf.
 
-match(Obs, S) = match(Obs, yes(VG), Cs, T) :-
+match(CarObs @ car_obs(Obs), S) = match(CarObs, yes(VG), Cs, T) :-
     T = constant(time(Obs)),
     VG = vargen(S),
     {_, OF} = obs2ccformula(Obs),
@@ -534,7 +534,7 @@ covered_by_match(S) :-
     solve(vargen(S), [C] ++ constraints(S)).
 
 
-:- func obs2ccformula(car_obs) = ({s, ccformula(prim)}).
+:- func obs2ccformula(Obs) = ({s, ccformula(prim)}) <= car_obs(Obs).
 
 obs2ccformula(Obs) = {time(Obs), OF} :-
     OF = ( func(T, S) =

@@ -24,7 +24,6 @@
 :- type info ---> info(veloc :: mps, yaw :: rad, pos :: pos).
 :- type env ---> env(s, assoc_list(agent, info)).
 
-:- instance obs(env).
 :- instance car_obs(env).
 
 %-----------------------------------------------------------------------------%
@@ -43,8 +42,6 @@
 :- import_module solutions.
 
 %-----------------------------------------------------------------------------%
-
-:- instance obs(env) where [ ].
 
 :- instance car_obs(env) where [
     (time(env(T, _)) = T),

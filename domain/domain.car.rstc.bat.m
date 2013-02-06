@@ -434,7 +434,7 @@ poss(lc(B, L), S) :-
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
-poss(match(Obs), S) :- match_obs(Obs, S).
+poss(match(car_obs(Obs)), S) :- match_obs(Obs, S).
 poss(seed(_), _).
 poss(abort, _) :- fail.
 poss(noop, _).
@@ -589,10 +589,10 @@ reward(A, S) = New :-
         else if A = end(_, _)
         then    ( S = do(match(_), _) -> float(2 * sitlen(S)) ; 0.0 )
         %then    0.0% -1.0% float(2 * sitlen(S))
-        else if A = match(Obs)
-        then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(Obs, S))))
+        else if A = match(car_obs(Obs))
+        %then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(Obs, S))))
         % About two times faster than match_dist/2:
-        %then    1.0 + (1.0 - 0.0)
+        then    1.0 + (1.0 - 0.0)
         else if A = accel(_, _) ; A = lc(_, _)
         then    -0.01
         else    0.0
@@ -790,15 +790,15 @@ is_obs_prog(atom(prim(match(_)))).
 :- func obs_to_action(car_obs) = pseudo_atom(prim(N))
     <= arithmetic.arithmetic(N).
 
-obs_to_action(Obs) = complex(seq(pseudo_atom(atom(Wait)),
-                                             pseudo_atom(atom(Match)))) :-
+obs_to_action(CarObs @ car_obs(Obs)) =
+    complex(seq(pseudo_atom(atom(Wait)), pseudo_atom(atom(Match)))) :-
     T1 = number_from_float(time(Obs)),
     Wait = primf(
         func(S) = (
             if T0 = start(S), T0 = num(_) then wait(T1 - T0) else abort
         )
     ),
-    Match = prim(match(Obs)).
+    Match = prim(match(CarObs)).
 
 %-----------------------------------------------------------------------------%
 

@@ -40,7 +40,7 @@
     % information like x_dist/3, y_dist/3, veloc_diff/3 as general functions,
     % but we don't to allow faster implementations.
     % Beware of the signs!
-:- typeclass car_obs(Obs) <= obs(Obs) where [
+:- typeclass car_obs(Obs) where [
     func time(Obs) = s,
     mode time(in) = out is det,
 
@@ -80,37 +80,10 @@
     mode time_to_collision(in, in, in) = out is semidet
 ].
 
-:- instance obs(car_obs).
-:- instance car_obs(car_obs).
-
-%-----------------------------------------------------------------------------%
-
-
-%:- module helper.
-%
-%:- interface.
-%
-%        % x_dist(Obs, B, C): x_B - x_C
-%    :- func x_dist(Obs, agent, agent) = m.
-%    :- mode x_dist(in, in, in) = out is semidet.
-%
-%        % y_dist(Obs, B, C): y_B - y_C
-%    :- func y_dist(Obs, agent, agent) = m.
-%    :- mode y_dist(in, in, in) = out is semidet.
-%
-%        % veloc_diff(Obs, B, C): v_B - v_C
-%    :- func veloc_diff(Obs, agent, agent) = m.
-%    :- mode veloc_diff(in, in, in) = out is semidet.
-%
-%        % net_time_gap(Obs, B, C): (x_C - x_B) / v_B
-%    :- func net_time_gap(Obs, agent, agent) = m.
-%    :- mode net_time_gap(in, in, in) = out is semidet.
-%
-%        % time_to_collision(Obs, B, C): (x_C - x_B) / (v_B - v_C)
-%    :- func time_to_collision(Obs, agent, agent) = m.
-%    :- mode time_to_collision(in, in, in) = out is semidet.
-%
-%:- end_module helper.
+    % Actually we don't need this anywhere. The element of car_obs(_) implements
+    % the car_obs typeclass anyway. This wrapping implementation isn't very
+    % elegant, so let's drop it.
+%:- instance car_obs(car_obs).
 
 %-----------------------------------------------------------------------------%
 
@@ -215,44 +188,19 @@ cross_product([X|Xs], Ys) = map(func(Y) = {X, Y}, Ys) ++ cross_product(Xs, Ys).
 
 %-----------------------------------------------------------------------------%
 
-:- instance obs(car_obs) where [ ].
-
-:- instance car_obs(car_obs) where [
-    (time(car_obs(Obs)) = time(Obs)),
-    (veloc(car_obs(Obs), B) = veloc(Obs, B)),
-    (yaw(car_obs(Obs), B) = yaw(Obs, B)),
-    (pos(car_obs(Obs), B) = pos(Obs, B)),
-    (x_pos(car_obs(Obs), B) = x_pos(Obs, B)),
-    (y_pos(car_obs(Obs), B) = y_pos(Obs, B)),
-    (x_dist(car_obs(Obs), B, C) = x_dist(Obs, B, C)),
-    (y_dist(car_obs(Obs), B, C) = y_dist(Obs, B, C)),
-    (veloc_diff(car_obs(Obs), B, C) = veloc_diff(Obs, B, C)),
-    (net_time_gap(car_obs(Obs), B, C) = net_time_gap(Obs, B, C)),
-    (time_to_collision(car_obs(Obs), B, C) = time_to_collision(Obs, B, C))
-].
-
-%-----------------------------------------------------------------------------%
-
-%:- module helper.
-%
-%:- implementation.
-%
-%    x_dist(Obs, B, C) = x_pos(Obs, B) - x_pos(Obs, C).
-%    y_dist(Obs, B, C) = y_pos(Obs, B) - y_pos(Obs, C).
-%
-%    veloc_diff(Obs, B, C) = veloc(Obs, B) - veloc(Obs, C).
-%
-%    net_time_gap(Obs, B, C) = R :-
-%        if      V = veloc(Obs, B), V \= 0.0
-%        then    R = x_dist(Obs, C, B) / V
-%        else    false.
-%
-%    time_to_collision(Obs, B, C) = R :-
-%        if      VD = veloc_diff(Obs, B, C), VD \= 0.0
-%        then    R = x_dist(Obs, C, B) / VD
-%        else    false.
-%
-%:- end_module helper.
+%:- instance car_obs(car_obs) where [
+%    (time(car_obs(Obs)) = time(Obs)),
+%    (veloc(car_obs(Obs), B) = veloc(Obs, B)),
+%    (yaw(car_obs(Obs), B) = yaw(Obs, B)),
+%    (pos(car_obs(Obs), B) = pos(Obs, B)),
+%    (x_pos(car_obs(Obs), B) = x_pos(Obs, B)),
+%    (y_pos(car_obs(Obs), B) = y_pos(Obs, B)),
+%    (x_dist(car_obs(Obs), B, C) = x_dist(Obs, B, C)),
+%    (y_dist(car_obs(Obs), B, C) = y_dist(Obs, B, C)),
+%    (veloc_diff(car_obs(Obs), B, C) = veloc_diff(Obs, B, C)),
+%    (net_time_gap(car_obs(Obs), B, C) = net_time_gap(Obs, B, C)),
+%    (time_to_collision(car_obs(Obs), B, C) = time_to_collision(Obs, B, C))
+%].
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.
