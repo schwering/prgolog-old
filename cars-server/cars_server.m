@@ -37,7 +37,7 @@
 :- import_module domain.car.rstc.
 :- import_module domain.car.rstc.bat.
 :- import_module domain.car.rstc.debug_bat.
-:- import_module domain.car.rstc.progression.
+%:- import_module domain.car.rstc.progression.
 :- import_module domain.car.obs.
 :- import_module domain.car.obs.torcs.
 :- import_module bool.
@@ -264,7 +264,7 @@ stdout_handler(Source, N, I,
     some [Lane] ( if Lane = lane(h,S) then Fmt("    lane(h) = %s\n", [s(string(Lane))], !IO) else true ),
     % Progression is currently broken because sitlen/1 is not not handled as
     % fluent and thus breaks the reward computation.
-    ( if fail, sitlen(S) > 6 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
+    S1 = S, %( if fail, sitlen(S) > 6 then format("Progressing S!!!\n", [], !IO), progress(S, S1, !IO) else S1 = S ),
     true.
 
 %-----------------------------------------------------------------------------%

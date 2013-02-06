@@ -20,7 +20,7 @@
 :- type source.
 :- type stream_state.
 
-:- instance obs_source(obs, env, source, stream_state).
+:- instance obs_source(car_obs, source, stream_state).
 
 :- func source = source.
 
@@ -29,7 +29,9 @@
 
 :- implementation.
 
+:- import_module assoc_list.
 :- import_module bool.
+:- import_module domain.car.obs.env.
 :- import_module float.
 :- import_module int.
 :- import_module list.
@@ -142,17 +144,17 @@ source = void.
 init_obs_stream(_, _, ss(0), !IO).
 
 
-:- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A)::in,
+:- pred next_obs(obs_msg(car_obs)::out, sit(A)::in, prog(A)::in,
                  stream_state::di, stream_state::uo, io::di, io::uo) is det
-                 <= pr_bat(A, obs, env).
+                 <= pr_bat(A, car_obs).
 
 next_obs(ObsMsg, _, _, ss(I0), State1, !IO) :-
     next_obs2(I0, I1, Ok, Time, AgentInfoMap, !IO),
     (
         Ok = yes,
         (   if      I1 = 1
-            then    ObsMsg = init_msg(env(Time, AgentInfoMap))
-            else    ObsMsg = obs_msg(obs(Time, AgentInfoMap))
+            then    ObsMsg = init_msg('new car_obs'(env(Time, AgentInfoMap)))
+            else    ObsMsg = obs_msg('new car_obs'(env(Time, AgentInfoMap)))
         )
     ;
         Ok = no,
@@ -253,7 +255,7 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance obs_source(obs, env, source, stream_state) where [
+:- instance obs_source(car_obs, source, stream_state) where [
     (reset_obs_source(_, !IO)),
     pred(init_obs_stream/5) is stdin.init_obs_stream,
     pred(next_obs/7) is stdin.next_obs,

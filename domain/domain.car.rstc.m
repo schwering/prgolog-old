@@ -46,22 +46,22 @@
     ;       lc(agent, lane)
     ;       senseD(agent, agent, ntg(N), ttc(N))
     ;       senseL(agent, lane)
-    ;       init_env(ext_env(N))
-    ;       match(obs)
+    ;       init_env(car_obs)
+    ;       match(car_obs)
     ;       seed(int)
     ;       abort
     ;       noop
     ;       start(agent, string)
     ;       end(agent, string).
 
-:- type ext_env(N)
-    --->    abs_env(env)        % for situation initialization from simulator
-    ;       rel_env(s(N),       % for progression; entries for all fluents
-                    assoc_list({agent, agent}, ntg(N)),
-                    assoc_list({agent, agent}, ttc(N)),
-                    assoc_list(agent, lane),
-                    reward,
-                    int).
+%:- type ext_env(N)
+%    --->    abs_env(obs)        % for situation initialization from simulator
+%    ;       rel_env(s(N),       % for progression; entries for all fluents
+%                    assoc_list({agent, agent}, ntg(N)),
+%                    assoc_list({agent, agent}, ttc(N)),
+%                    assoc_list(agent, lane),
+%                    reward,
+%                    int).
 
 :- inst wait ---> wait(ground).
 :- inst accel ---> accel(ground, ground).
@@ -81,16 +81,16 @@
     ;       lc(ground, ground)
     ;       senseD(ground, ground, ground, ground)
     ;       senseL(ground, ground)
-    ;       init_env(finite_time_ext_env)
+    ;       init_env(ground)
     ;       match(ground)
     ;       seed(ground)
     ;       abort
     ;       start(ground, ground)
     ;       end(ground, ground).
 
-:- inst finite_time_ext_env
-    --->    abs_env(ground)
-    ;       rel_env(basic_num, ground, ground, ground, ground, ground).
+%:- inst finite_time_ext_env
+%    --->    abs_env(ground)
+%    ;       rel_env(basic_num, ground, ground, ground, ground, ground).
 
 :- inst finite_time_sit ---> s0 ; do(finite_time_action, finite_time_sit).
 
@@ -125,7 +125,8 @@
 :- include_module bat.
 :- include_module debug_bat.
 :- include_module fuzzy.
-:- include_module progression.
+% XXX progression
+%:- include_module progression.
 :- include_module test.
 
 %-----------------------------------------------------------------------------%
@@ -194,8 +195,8 @@ ntg(B, D, do(A, S)) = R :-
         A = senseD(D, B, NTG_DB, TTC_DB),
         R = -one / (one - NTG_DB / TTC_DB) * NTG_DB
     ;
-        A = init_env(Env),
-        R = ntg_from_env(B, D, Env)
+        A = init_env(Obs),
+        R = number_from_float(net_time_gap(Obs, B, D))
     ;
         A \= wait(_),
         A \= accel(B, _),
@@ -265,8 +266,8 @@ ttc(B, D, do(A, S)) = R :-
         A = senseD(D, B, _, TTC_DB),
         R = TTC_DB
     ;
-        A = init_env(Env),
-        R = ttc_from_env(B, D, Env)
+        A = init_env(Obs),
+        R = number_from_float(time_to_collision(Obs, B, D))
     ;
         A \= wait(_),
         A \= accel(B, _),
@@ -281,8 +282,8 @@ ttc(B, D, do(A, S)) = R :-
 
 lane(_, s0) = right.
 lane(B, do(A, S)) = L :-
-    if      A = init_env(Env), L0 = lane_from_env(B, Env)
-    then    L = L0
+    if      A = init_env(Obs), Y = y_pos(Obs, B)
+    then    L = ( if Y `float.'<'` 0.0 then right else left )
     else if A = lc(B, L0)
     then    L = L0
     else    L = lane(B, S).
@@ -291,58 +292,58 @@ lane(B, do(A, S)) = L :-
 
 start(s0) = zero.
 start(do(A, S)) = T :-
-    if      A = init_env(Env)
-    then    T = start_from_env(Env)
+    if      A = init_env(Obs)
+    then    T = number_from_float(time(Obs))
     else if A = wait(D)
     then    T = start(S) + D
     else    T = start(S).
 
 %-----------------------------------------------------------------------------%
 
-:- func ntg_from_env(agent, agent, ext_env(N)) = ntg(N)
-    <= arithmetic.arithmetic(N).
-:- mode ntg_from_env(in, in, in) = out is semidet.
-
-ntg_from_env(B, D, abs_env(env(_, Map))) = R :-
-    info(FVB, _, PosB) = Map^elem(B),
-    info(_, _, PosD) = Map^elem(D),
-    XB = number_from_float(x(PosB)),
-    XD = number_from_float(x(PosD)),
-    VB = number_from_float(FVB),
-    R = (XD - XB) / VB.
-ntg_from_env(B, D, rel_env(_, NTGs, _, _, _, _)) = R :-
-    search(NTGs, {B, D}, R).
-
-
-:- func ttc_from_env(agent, agent, ext_env(N)) = ttc(N)
-    <= arithmetic.arithmetic(N).
-:- mode ttc_from_env(in, in, in) = out is semidet.
-
-ttc_from_env(B, D, abs_env(env(_, Map))) = R :-
-    info(FVB, _, PosB) = Map^elem(B),
-    info(FVD, _, PosD) = Map^elem(D),
-    XB = number_from_float(x(PosB)),
-    XD = number_from_float(x(PosD)),
-    VB = number_from_float(FVB),
-    VD = number_from_float(FVD),
-    R = (XD - XB) / (VB - VD).
-ttc_from_env(B, D, rel_env(_, _, TTCs, _, _, _)) = R :-
-    search(TTCs, {B, D}, R).
-
-
-:- func lane_from_env(agent, ext_env(N)) = lane is semidet.
-
-lane_from_env(B, abs_env(env(_, Map))) = L0 :-
-    info(_, _, p(_, Y)) = Map^elem(B),
-    L0 = ( if Y `float.'<'` 0.0 then right else left ).
-lane_from_env(B, rel_env(_, _, _, Lanes, _, _)) = L0 :-
-    search(Lanes, B, L0).
-
-
-:- func start_from_env(ext_env(N)) = s(N) is det <= arithmetic.arithmetic(N).
-
-start_from_env(abs_env(env(T, _))) = number_from_float(T).
-start_from_env(rel_env(T, _, _, _, _, _)) = T.
+%:- func ntg_from_env(agent, agent, Obs) = ntg(N)
+%    <= (arithmetic.arithmetic(N), car_obs(Obs)).
+%:- mode ntg_from_env(in, in, in) = out is semidet.
+%
+%ntg_from_env(B, D, abs_env(env(_, Map))) = R :-
+%    info(FVB, _, PosB) = Map^elem(B),
+%    info(_, _, PosD) = Map^elem(D),
+%    XB = number_from_float(x(PosB)),
+%    XD = number_from_float(x(PosD)),
+%    VB = number_from_float(FVB),
+%    R = (XD - XB) / VB.
+%ntg_from_env(B, D, rel_env(_, NTGs, _, _, _, _)) = R :-
+%    search(NTGs, {B, D}, R).
+%
+%
+%:- func ttc_from_env(agent, agent, ext_env(N)) = ttc(N)
+%    <= (arithmetic.arithmetic(N), car_obs(Obs)).
+%:- mode ttc_from_env(in, in, in) = out is semidet.
+%
+%ttc_from_env(B, D, abs_env(env(_, Map))) = R :-
+%    info(FVB, _, PosB) = Map^elem(B),
+%    info(FVD, _, PosD) = Map^elem(D),
+%    XB = number_from_float(x(PosB)),
+%    XD = number_from_float(x(PosD)),
+%    VB = number_from_float(FVB),
+%    VD = number_from_float(FVD),
+%    R = (XD - XB) / (VB - VD).
+%ttc_from_env(B, D, rel_env(_, _, TTCs, _, _, _)) = R :-
+%    search(TTCs, {B, D}, R).
+%
+%
+%:- func lane_from_env(agent, ext_env(N)) = lane is semidet.
+%
+%lane_from_env(B, abs_env(env(_, Map))) = L0 :-
+%    info(_, _, p(_, Y)) = Map^elem(B),
+%    L0 = ( if Y `float.'<'` 0.0 then right else left ).
+%lane_from_env(B, rel_env(_, _, _, Lanes, _, _)) = L0 :-
+%    search(Lanes, B, L0).
+%
+%
+%:- func start_from_env(ext_env(N)) = s(N) is det <= arithmetic.arithmetic(N).
+%
+%start_from_env(abs_env(env(T, _))) = number_from_float(T).
+%start_from_env(rel_env(T, _, _, _, _, _)) = T.
 
 %-----------------------------------------------------------------------------%
 

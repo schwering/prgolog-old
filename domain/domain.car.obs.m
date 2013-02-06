@@ -20,6 +20,11 @@
 
 %-----------------------------------------------------------------------------%
 
+:- typeclass car_obs_source(Obs, Source, StreamState)
+    <= (obs_source(Obs, Source, StreamState), car_obs(Obs)) where [ ].
+
+%-----------------------------------------------------------------------------%
+
 :- func remove_obs_sequence(prog(A)) = prog(A) is semidet <= obs_bat(A, O).
 :- pragma obsolete(remove_obs_sequence/1).
 
@@ -48,6 +53,7 @@
 
 %-----------------------------------------------------------------------------%
 
+:- include_module env.
 :- include_module torcs.
 :- include_module stdin.
 

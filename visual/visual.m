@@ -94,11 +94,12 @@ right(Area) = left(Area) + cols(Area) - 1.
                  s::out, m::out, m::out, m::out, m::out) is det.
 
 get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
-    (   if      S = do(match(Obs, _, _, _), _),
-                Obs = obs(_, AgentInfoMap),
-                Info = AgentInfoMap^elem(Agent)
-        then    ObsX = x(pos(Info)),
-                ObsY = y(pos(Info))
+    (   if      some [X, Y] (
+                    S = do(match(Obs, _, _, _), _),
+                    X = x_pos(Obs, Agent),
+                    Y = y_pos(Obs, Agent)
+                )
+        then    ObsX = X, ObsY = Y
         else    ObsX = -1.0, ObsY = -1.0
     ),
     E = ( func(T) = eval_float(Map, T) ),

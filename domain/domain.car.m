@@ -15,7 +15,7 @@
 
 :- interface.
 
-:- import_module assoc_list.
+:- import_module list.
 :- import_module prgolog.
 
 :- type agent ---> b ; c ; d ; e ; f ; g ; h.
@@ -30,9 +30,87 @@
 :- type s == float.
 
 :- type pos ---> p(x :: m, y :: m).
-:- type info ---> info(veloc :: mps, rad :: rad, pos :: pos).
-:- type env ---> env(s, assoc_list(agent, info)).
-:- type obs ---> obs(s, assoc_list(agent, info)).
+
+:- type car_obs ---> some [T] ( car_obs(T) => car_obs(T) ).
+
+%-----------------------------------------------------------------------------%
+
+    % Typeclass for observations.
+    % We could define the ternary functions that compute agent-to-agent
+    % information like x_dist/3, y_dist/3, veloc_diff/3 as general functions,
+    % but we don't to allow faster implementations.
+    % Beware of the signs!
+:- typeclass car_obs(Obs) <= obs(Obs) where [
+    func time(Obs) = s,
+    mode time(in) = out is det,
+
+    func veloc(Obs, agent) = mps,
+    mode veloc(in, in) = out is semidet,
+
+    func yaw(Obs, agent) = rad,
+    mode yaw(in, in) = out is semidet,
+
+    func pos(Obs, agent) = pos,
+    mode pos(in, in) = out is semidet,
+
+    func x_pos(Obs, agent) = m,
+    mode x_pos(in, in) = out is semidet,
+
+    func y_pos(Obs, agent) = m,
+    mode y_pos(in, in) = out is semidet,
+
+        % x_dist(Obs, B, C): x_B - x_C
+    func x_dist(Obs, agent, agent) = m,
+    mode x_dist(in, in, in) = out is semidet,
+
+        % y_dist(Obs, B, C): y_B - y_C
+    func y_dist(Obs, agent, agent) = m,
+    mode y_dist(in, in, in) = out is semidet,
+
+        % veloc_diff(Obs, B, C): v_B - v_C
+    func veloc_diff(Obs, agent, agent) = m,
+    mode veloc_diff(in, in, in) = out is semidet,
+
+        % net_time_gap(Obs, B, C): (x_C - x_B) / v_B
+    func net_time_gap(Obs, agent, agent) = m,
+    mode net_time_gap(in, in, in) = out is semidet,
+
+        % time_to_collision(Obs, B, C): (x_C - x_B) / (v_B - v_C)
+    func time_to_collision(Obs, agent, agent) = m,
+    mode time_to_collision(in, in, in) = out is semidet
+].
+
+:- instance obs(car_obs).
+:- instance car_obs(car_obs).
+
+%-----------------------------------------------------------------------------%
+
+
+%:- module helper.
+%
+%:- interface.
+%
+%        % x_dist(Obs, B, C): x_B - x_C
+%    :- func x_dist(Obs, agent, agent) = m.
+%    :- mode x_dist(in, in, in) = out is semidet.
+%
+%        % y_dist(Obs, B, C): y_B - y_C
+%    :- func y_dist(Obs, agent, agent) = m.
+%    :- mode y_dist(in, in, in) = out is semidet.
+%
+%        % veloc_diff(Obs, B, C): v_B - v_C
+%    :- func veloc_diff(Obs, agent, agent) = m.
+%    :- mode veloc_diff(in, in, in) = out is semidet.
+%
+%        % net_time_gap(Obs, B, C): (x_C - x_B) / v_B
+%    :- func net_time_gap(Obs, agent, agent) = m.
+%    :- mode net_time_gap(in, in, in) = out is semidet.
+%
+%        % time_to_collision(Obs, B, C): (x_C - x_B) / (v_B - v_C)
+%    :- func time_to_collision(Obs, agent, agent) = m.
+%    :- mode time_to_collision(in, in, in) = out is semidet.
+%
+%:- end_module helper.
 
 %-----------------------------------------------------------------------------%
 
@@ -58,6 +136,9 @@
 
 :- func lane_to_string(lane) = string is det.
 
+:- func agents = list(agent).
+:- func agent_pairs = list({agent, agent}).
+
 %-----------------------------------------------------------------------------%
 
 :- include_module cont.
@@ -73,7 +154,13 @@
 :- import_module float.
 :- import_module math.
 :- import_module require.
+:- import_module solutions.
 :- import_module string.
+
+%-----------------------------------------------------------------------------%
+
+:- pragma memo(agents/0, [fast_loose]). 
+:- pragma memo(agent_pairs/0, [fast_loose]). 
 
 %-----------------------------------------------------------------------------%
 
@@ -113,6 +200,59 @@ string_to_agent(S) = A :-
 
 lane_to_string(left) = "left".
 lane_to_string(right) = "right".
+
+
+agents = solutions(agent).
+
+
+agent_pairs = cross_product(agents, agents).
+
+
+:- func cross_product(list(T1), list(T2)) = list({T1, T2}).
+
+cross_product([], _) = [].
+cross_product([X|Xs], Ys) = map(func(Y) = {X, Y}, Ys) ++ cross_product(Xs, Ys).
+
+%-----------------------------------------------------------------------------%
+
+:- instance obs(car_obs) where [ ].
+
+:- instance car_obs(car_obs) where [
+    (time(car_obs(Obs)) = time(Obs)),
+    (veloc(car_obs(Obs), B) = veloc(Obs, B)),
+    (yaw(car_obs(Obs), B) = yaw(Obs, B)),
+    (pos(car_obs(Obs), B) = pos(Obs, B)),
+    (x_pos(car_obs(Obs), B) = x_pos(Obs, B)),
+    (y_pos(car_obs(Obs), B) = y_pos(Obs, B)),
+    (x_dist(car_obs(Obs), B, C) = x_dist(Obs, B, C)),
+    (y_dist(car_obs(Obs), B, C) = y_dist(Obs, B, C)),
+    (veloc_diff(car_obs(Obs), B, C) = veloc_diff(Obs, B, C)),
+    (net_time_gap(car_obs(Obs), B, C) = net_time_gap(Obs, B, C)),
+    (time_to_collision(car_obs(Obs), B, C) = time_to_collision(Obs, B, C))
+].
+
+%-----------------------------------------------------------------------------%
+
+%:- module helper.
+%
+%:- implementation.
+%
+%    x_dist(Obs, B, C) = x_pos(Obs, B) - x_pos(Obs, C).
+%    y_dist(Obs, B, C) = y_pos(Obs, B) - y_pos(Obs, C).
+%
+%    veloc_diff(Obs, B, C) = veloc(Obs, B) - veloc(Obs, C).
+%
+%    net_time_gap(Obs, B, C) = R :-
+%        if      V = veloc(Obs, B), V \= 0.0
+%        then    R = x_dist(Obs, C, B) / V
+%        else    false.
+%
+%    time_to_collision(Obs, B, C) = R :-
+%        if      VD = veloc_diff(Obs, B, C), VD \= 0.0
+%        then    R = x_dist(Obs, C, B) / VD
+%        else    false.
+%
+%:- end_module helper.
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.

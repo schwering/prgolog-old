@@ -118,9 +118,9 @@ poss(lc(_, _), _).
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
-poss(match(obs(T, D)), S) :-
-    trace [io(!IO)] ( format("poss(match(%s, ...))\n", [s(string(T))], !IO) ),
-    check_obs(D, S).
+poss(match(Obs), S) :-
+    trace [io(!IO)] ( format("poss(match(%s, ...))\n", [s(string(time(Obs)))], !IO) ),
+    check_obs(Obs, S).
 poss(seed(_), _).
 poss(abort, _) :-
     trace [io(!IO)] ( format("poss(abort), ignoring\n", [], !IO) ),
@@ -175,52 +175,45 @@ check_time(T, _S) :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred check_obs(assoc_list(agent, info)::in, rstc.sit(N)::in) is semidet
-    <= arithmetic.arithmetic(N).
+:- pred check_obs(Obs::in, rstc.sit(N)::in) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-check_obs(L, S) :-
-    and_list(map((func(PB) =
-        and_list(map((func(PC) =
-            check_info(PB, PC, S)
-        ), L))
-    ), L)) = B1,
-    and_list(map((func(PD) = check_y(PD, S)), L)) = B2,
+check_obs(Obs, S) :-
+    and_list(map((func({B, C}) =
+        check_info(Obs, B, C, S)
+    ), agent_pairs)) = B1,
+    and_list(map((func(D) = check_y(Obs, D, S)), agents)) = B2,
     and(B1, B2) = yes.
 
 
-:- func check_dist(assoc_list(agent, info), rstc.sit(N)) = num(N)
-    <= arithmetic.arithmetic(N).
+:- func check_dist(Obs, rstc.sit(N)) = num(N)
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-check_dist(L, S) =
+check_dist(Obs, S) =
     (   if   Len = 0
         then zero
         else number(Sum `arithmetic.'/'` arithmetic.from_int(Len))
     ) :-
-    Zero = {arithmetic.zero, 0},
-    Plus = (func({U, V}, {X, Y}) = {U `arithmetic.'+'` X, V `int.'+'` Y}),
-    {Sum, Len} = foldl((func(PB, SumLen0) = SumLen0 `Plus`
-        foldl((func(PC, SumLen00) =
-            SumLen00 `Plus` {check_longitudinal_dist(PC, PB, S), 1}
-        ), L, Zero)
-    ), L, Zero).
+    %Zero = {arithmetic.zero, 0},
+    %Plus = (func({U, V}, {X, Y}) = {U `arithmetic.'+'` X, V `int.'+'` Y}),
+    Sum = foldl((func({B, C}, Sum0) = Sum0 `arithmetic.'+'`
+        check_longitudinal_dist(Obs, C, B, S)
+    ), agent_pairs, arithmetic.zero),
+    Len = length(agent_pairs).
 
 
-:- pred ntgs(pair(agent, info)::in, pair(agent, info)::in, rstc.sit(N)::in,
-             num(N)::out, num(N)::out) is semidet <= arithmetic.arithmetic(N).
+:- pred ntgs(Obs::in, agent::in, agent::in, rstc.sit(N)::in,
+             num(N)::out, num(N)::out) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-ntgs((B - info(VB, _, p(XB, _))), (C - info(_, _, p(XC, _))), S, NTG1, NTG2) :-
-    VB \= 0.0,
-    NTG1 = ntg(B, C, S),
-    NTG2 = number_from_float((XC - XB) / VB) `with_type` num(N).
+ntgs(Obs, B, C, S, ntg(B, C, S), number_from_float(net_time_gap(Obs, B, C))).
 
 
-:- pred ttcs(pair(agent, info)::in, pair(agent, info)::in, rstc.sit(N)::in,
-             num(N)::out, num(N)::out) is semidet <= arithmetic.arithmetic(N).
+:- pred ttcs(Obs::in, agent::in, agent::in, rstc.sit(N)::in,
+             num(N)::out, num(N)::out) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-ttcs((B - info(VB, _, p(XB, _))), (C - info(VC, _, p(XC, _))), S, TTC1, TTC2) :-
-    VB - VC \= 0.0,
-    TTC1 = ttc(B, C, S),
-    TTC2 = number_from_float((XC - XB) / (VB - VC)) `with_type` num(N).
+ttcs(Obs, B, C, S, ttc(B, C, S), number_from_float(time_to_collision(Obs, B, C))).
 
 
 :- pred have_common_cat(pred(category), num(N), num(N))
@@ -252,11 +245,11 @@ have_common_cat(P, V1, V2) :-
 max_veloc_discrepancy_to_ignore_ttc = 0.1.
 
 
-:- func check_info(pair(agent, info), pair(agent, info),
-                   rstc.sit(N)) = bool <= arithmetic.arithmetic(N).
+:- func check_info(Obs, agent, agent, rstc.sit(N)) = bool
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-check_info(PB @ (B - _), PC @ (C - _), S) = and(Outcome1, Outcome2) :-
-    (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+check_info(Obs, B, C, S) = and(Outcome1, Outcome2) :-
+    (   if      some [NTG1, NTG2] ntgs(Obs, B, C, S, NTG1, NTG2)
         then    Outcome1 = pred_to_bool((pred) is semidet :-
                     (
                         have_common_cat((pred(Cat::out) is multi :-
@@ -272,7 +265,7 @@ check_info(PB @ (B - _), PC @ (C - _), S) = and(Outcome1, Outcome2) :-
                 )
         else    Outcome1 = yes
     ),
-    (   if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+    (   if      some [TTC1, TTC2] ttcs(Obs, B, C, S, TTC1, TTC2)
         then    Outcome2 = pred_to_bool((pred) is semidet :-
                     (
                         have_common_cat((pred(Cat::out) is multi :- ttc_cat(Cat)), TTC1, TTC2)
@@ -281,7 +274,7 @@ check_info(PB @ (B - _), PC @ (C - _), S) = and(Outcome1, Outcome2) :-
                     ;   trace [io(!IO)] ( format("no category ttc(%s, %s): %s %s\n", [s(string(B)), s(string(C)), s(string(TTC1)), s(string(TTC2))], !IO) ),
                         false
                     ;   some [NTG1, NTG2] (
-                            ntgs(PB, PC, S, NTG1, NTG2),
+                            ntgs(Obs, B, C, S, NTG1, NTG2),
                             RelV1 = one - NTG1 / TTC1,
                             RelV2 = one - NTG2 / TTC2,
                             Eps = max_veloc_discrepancy_to_ignore_ttc,
@@ -294,11 +287,11 @@ check_info(PB @ (B - _), PC @ (C - _), S) = and(Outcome1, Outcome2) :-
     ).
 
 
-:- func check_longitudinal_dist(pair(agent, info), pair(agent, info),
-                                rstc.sit(N)) = N <= arithmetic.arithmetic(N).
+:- func check_longitudinal_dist(Obs, agent, agent, rstc.sit(N)) = N
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-check_longitudinal_dist(PB, PC, S) = D :-
-    D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+check_longitudinal_dist(Obs, B, C, S) = D :-
+    D1 = (  if      some [NTG1, NTG2] ntgs(Obs, B, C, S, NTG1, NTG2)
             then    minimize(pred(CatDist::out) is multi :-
                         (
                             CatDist = one
@@ -311,7 +304,7 @@ check_longitudinal_dist(PB, PC, S) = D :-
                     )
             else    zero
         ),
-    D2 = (  if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+    D2 = (  if      some [TTC1, TTC2] ttcs(Obs, B, C, S, TTC1, TTC2)
             then    minimize(pred(CatDist::out) is multi :-
                         (
                             CatDist = one
@@ -325,7 +318,7 @@ check_longitudinal_dist(PB, PC, S) = D :-
                                 % If they have almost same speed, don't punish
                                 % this. See max_veloc_discrepancy_to_ignore_ttc.
                                 some [NTG1, NTG2] (
-                                    ntgs(PB, PC, S, NTG1, NTG2),
+                                    ntgs(Obs, B, C, S, NTG1, NTG2),
                                     RelV1 = one - NTG1 / TTC1,
                                     RelV2 = one - NTG2 / TTC2,
                                     Eps = max_veloc_discrepancy_to_ignore_ttc,
@@ -346,14 +339,16 @@ check_longitudinal_dist(PB, PC, S) = D :-
     ).
 
 
-:- func check_y(pair(agent, info), rstc.sit(_)) = bool.
+:- func check_y(Obs, agent, rstc.sit(_)) = bool <= car_obs(Obs).
 
-check_y((B - info(_, _, p(_, Y))), S) = Outcome :-
+check_y(Obs, B, S) = Outcome :-
     Outcome = pred_to_bool((pred) is semidet :-
-        (   Y =< 0.0, lane(B, S) = right
-        ;   Y >= 0.0, lane(B, S) = left
-        %%% ;   trace [io(!IO)] ( format("Y = %f, lane = %s\n", [f(Y), s(string(lane(B, S)))], !IO) ), fail
-        )
+        if      Y = y_pos(Obs, B)
+        then    ( Y =< 0.0, lane(B, S) = right
+                ; Y >= 0.0, lane(B, S) = left
+            %%% ; trace [io(!IO)] ( format("Y = %f, lane = %s\n", [f(Y), s(string(lane(B, S)))], !IO) ), fail
+                )
+        else    true
     ).
 
 %-----------------------------------------------------------------------------%

@@ -4,7 +4,7 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: domain.car.obs.torcs.m.
+% File: domain.car.obs.torcs2.m.
 % Main author: schwering.
 %
 % Observation interface that reads observations for the car domain from stdin.
@@ -26,7 +26,7 @@
 %
 %-----------------------------------------------------------------------------%
 
-:- module domain.car.obs.torcs.
+:- module domain.car.obs.torcs2.
 
 :- interface.
 
@@ -34,10 +34,11 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type obs.
 :- type source.
 :- type stream_state.
 
-:- instance obs_source(car_obs, source, stream_state).
+:- instance obs_source(obs, env, source, stream_state).
 
 :- pred new_source(source::uo, io::di, io::uo) is det.
 :- pred reset_all_sources(io::di, io::uo) is det.
@@ -59,9 +60,7 @@
 
 :- implementation.
 
-:- import_module assoc_list.
 :- import_module bool.
-:- import_module domain.car.obs.env.
 :- import_module float.
 :- import_module int.
 :- import_module list.
@@ -84,10 +83,10 @@
 
     /* Enqueues a new observation.
      * This operation may block. */
-    void domain__car__obs__torcs__push_obs(const struct observation_record *obs);
+    void domain__car__obs__torcs2__push_obs(const struct observation_record *obs);
 
     /* Copies the number of working, finished and failed processes into msg. */
-    void domain__car__obs__torcs__init_msg(struct planrecog_state *msg);
+    void domain__car__obs__torcs2__init_msg(struct planrecog_state *msg);
 ").
 
 
@@ -131,7 +130,7 @@
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_code("C", "
-    void domain__car__obs__torcs__push_obs(const struct observation_record *obs)
+    void domain__car__obs__torcs2__push_obs(const struct observation_record *obs)
     {
         int i, j;
         for (i = 0; i < MAX_SOURCES; ++i) {
@@ -147,7 +146,7 @@
 
 
 :- pragma foreign_code("C", "
-    void domain__car__obs__torcs__init_msg(struct planrecog_state *msg) {
+    void domain__car__obs__torcs2__init_msg(struct planrecog_state *msg) {
         int i, j;
         memset(msg, 0, sizeof(*msg));
         assert(max_valid_source < NSOURCES);
@@ -170,7 +169,7 @@
     static float min_confidence(int source) {
         struct planrecog_state msg;
         int numer, denom;
-        domain__car__obs__torcs__init_msg(&msg);
+        domain__car__obs__torcs2__init_msg(&msg);
         numer = msg.sources[source].finished;
         denom = msg.sources[source].working +
                 msg.sources[source].finished +
@@ -184,7 +183,7 @@
     static float max_confidence(int source) {
         struct planrecog_state msg;
         int numer, denom;
-        domain__car__obs__torcs__init_msg(&msg);
+        domain__car__obs__torcs2__init_msg(&msg);
         numer = msg.sources[source].working +
                 msg.sources[source].finished;
         denom = msg.sources[source].working +
@@ -363,9 +362,9 @@ init_obs_stream(Source, Stream, ss(Source1, Stream1, 0), !IO) :-
 ").
 
 
-:- pred next_obs(obs_msg(car_obs)::out, sit(A)::in, prog(A)::in,
+:- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A)::in,
                  stream_state::di, stream_state::uo, io::di, io::uo) is det
-                 <= pr_bat(A, car_obs).
+                 <= pr_bat(A, obs, env).
 
 next_obs(ObsMsg, S, P, ss(Source, Stream, I0), State1, !IO) :-
     Done = obs_count_in_sit(S),
@@ -374,8 +373,8 @@ next_obs(ObsMsg, S, P, ss(Source, Stream, I0), State1, !IO) :-
     (
         Ok = yes,
         (   if      I1 = 1
-            then    ObsMsg = init_msg('new car_obs'(env(Time, AgentInfoMap)))
-            else    ObsMsg = obs_msg('new car_obs'(env(Time, AgentInfoMap)))
+            then    ObsMsg = init_msg(env(Time, AgentInfoMap))
+            else    ObsMsg = obs_msg(obs(Time, AgentInfoMap))
         )
     ;
         Ok = no,
@@ -517,14 +516,14 @@ update_state(s(Source), Stream, Activity, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-:- instance obs_source(car_obs, source, stream_state) where [
-    pred(reset_obs_source/3) is torcs.reset_obs_source,
-    pred(init_obs_stream/5) is torcs.init_obs_stream,
-    pred(next_obs/7) is torcs.next_obs,
-    pred(mark_obs_end/3) is torcs.mark_obs_end,
-    pred(update_state/5) is torcs.update_state
+:- instance obs_source(obs, env, source, stream_state) where [
+    pred(reset_obs_source/3) is torcs2.reset_obs_source,
+    pred(init_obs_stream/5) is torcs2.init_obs_stream,
+    pred(next_obs/7) is torcs2.next_obs,
+    pred(mark_obs_end/3) is torcs2.mark_obs_end,
+    pred(update_state/5) is torcs2.update_state
 ].
 
 %-----------------------------------------------------------------------------%
-:- end_module domain.car.obs.torcs.
+:- end_module domain.car.obs.torcs2.
 %-----------------------------------------------------------------------------%

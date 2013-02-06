@@ -62,8 +62,8 @@
 %-----------------------------------------------------------------------------%
 
 :- instance bat(prim(N)) <= arithmetic.arithmetic(N).
-:- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N).
-:- instance pr_bat(prim(N), obs, env) <= arithmetic.arithmetic(N).
+:- instance obs_bat(prim(N), car_obs) <= arithmetic.arithmetic(N).
+:- instance pr_bat(prim(N), car_obs) <= arithmetic.arithmetic(N).
 
 %-----------------------------------------------------------------------------%
 
@@ -434,7 +434,7 @@ poss(lc(B, L), S) :-
 poss(senseD(_, _, _, _), _).
 poss(senseL(_, _), _).
 poss(init_env(_), _).
-poss(match(obs(_, D)), S) :- match_obs(D, S).
+poss(match(Obs), S) :- match_obs(Obs, S).
 poss(seed(_), _).
 poss(abort, _) :- fail.
 poss(noop, _).
@@ -478,11 +478,12 @@ new_lookahead(L, S) =
 %-----------------------------------------------------------------------------%
 
 sitlen(s0) = 0.
-sitlen(do(A, S)) =
-    (   if      A = init_env(rel_env(_, _, _, _, _, Sitlen))
-        then    Sitlen
-        else    1 + sitlen(S)
-    ).
+sitlen(do(_, S)) = 1 + sitlen(S).
+% XXX progression
+%    (   if      A = init_env(rel_env(_, _, _, _, _, Sitlen))
+%        then    Sitlen
+%        else    1 + sitlen(S)
+%    ).
 
 
     % Explanation of reward computation:
@@ -580,15 +581,16 @@ sitlen(do(A, S)) =
 reward(A, S) = New :-
     trace [io(!IO)] ( get_reward_counter(I, !IO), set_reward_counter(I+1, !IO) ),
     New = (
-        if      some [Reward] A = init_env(rel_env(_, _, _, _, Reward, _))
-        then    Reward
-        else if A = start(_, _)
+% XXX progression
+%        if      some [Reward] A = init_env(rel_env(_, _, _, _, Reward, _))
+%        then    Reward
+        if A = start(_, _)
         then    float(max(0, 1000 - 2 * sitlen(S)))
         else if A = end(_, _)
         then    ( S = do(match(_), _) -> float(2 * sitlen(S)) ; 0.0 )
         %then    0.0% -1.0% float(2 * sitlen(S))
-        else if some [D] A = match(obs(_, D))
-        then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(D, S))))
+        else if A = match(Obs)
+        then    1.0 + (1.0 - arithmetic.to_float(det_basic(match_dist(Obs, S))))
         % About two times faster than match_dist/2:
         %then    1.0 + (1.0 - 0.0)
         else if A = accel(_, _) ; A = lc(_, _)
@@ -601,9 +603,10 @@ reward(A, S) = New :-
 
 reward_bound(A) = R :-
     R = (
-        if      some [Reward] A = prim(init_env(rel_env(_, _, _, _, Reward, _)))
-        then    Reward
-        else if A = prim(start(_, _))
+% XXX progression
+%        if      some [Reward] A = prim(init_env(rel_env(_, _, _, _, Reward, _)))
+%        then    Reward
+        if A = prim(start(_, _))
         then    1000.0
         else if A = prim(end(_, _))
         then    1000.0
@@ -615,53 +618,46 @@ reward_bound(A) = R :-
 
 %-----------------------------------------------------------------------------%
 
-:- pred match_obs(assoc_list(agent, info)::in, rstc.sit(N)::in) is semidet
-    <= arithmetic.arithmetic(N).
+:- pred match_obs(Obs::in, rstc.sit(N)::in) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-match_obs(L, S) :-
-    all_true((pred(PB::in) is semidet :-
-        all_true((pred(PC::in) is semidet :-
-            match_info(PB, PC, S)
-        ), L)
-    ), L),
-    all_true((pred(PD::in) is semidet :-
-        match_y(PD, S)
-    ), L).
+match_obs(Obs, S) :-
+    all_true((pred({B, C}::in) is semidet :-
+        match_info(Obs, B, C, S)
+    ), agent_pairs),
+    all_true((pred(B::in) is semidet :-
+        match_y(Obs, B, S)
+    ), agents).
 
 
-:- func match_dist(assoc_list(agent, info), rstc.sit(N)) = num(N)
-    <= arithmetic.arithmetic(N).
+:- func match_dist(Obs, rstc.sit(N)) = num(N)
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-match_dist(L, S) =
+match_dist(Obs, S) =
     (   if   Len = 0
         then zero
         else number(Sum `arithmetic.'/'` arithmetic.from_int(Len))
     ) :-
-    Zero = {arithmetic.zero, 0},
-    Plus = (func({U, V}, {X, Y}) = {U `arithmetic.'+'` X, V `int.'+'` Y}),
-    {Sum, Len} = foldl((func(PB, SumLen0) = SumLen0 `Plus`
-        foldl((func(PC, SumLen00) =
-            SumLen00 `Plus` {match_longitudinal_dist(PC, PB, S), 1}
-        ), L, Zero)
-    ), L, Zero).
+    %Zero = {arithmetic.zero, 0},
+    %Plus = (func({U, V}, {X, Y}) = {U `arithmetic.'+'` X, V `int.'+'` Y}),
+    Sum = foldl((func({B, C}, Sum0) = Sum0 `arithmetic.'+'`
+        match_longitudinal_dist(Obs, B, C, S)
+    ), agent_pairs, arithmetic.zero),
+    Len = length(agent_pairs).
 
 
-:- pred ntgs(pair(agent, info)::in, pair(agent, info)::in, rstc.sit(N)::in,
-             num(N)::out, num(N)::out) is semidet <= arithmetic.arithmetic(N).
+:- pred ntgs(Obs::in, agent::in, agent::in, rstc.sit(N)::in,
+             num(N)::out, num(N)::out) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-ntgs((B - info(VB, _, p(XB, _))), (C - info(_, _, p(XC, _))), S, NTG1, NTG2) :-
-    VB \= 0.0,
-    NTG1 = ntg(B, C, S),
-    NTG2 = number_from_float((XC - XB) / VB) `with_type` num(N).
+ntgs(Obs, B, C, S, ntg(B, C, S), number_from_float(net_time_gap(Obs, B, C))).
 
 
-:- pred ttcs(pair(agent, info)::in, pair(agent, info)::in, rstc.sit(N)::in,
-             num(N)::out, num(N)::out) is semidet <= arithmetic.arithmetic(N).
+:- pred ttcs(Obs::in, agent::in, agent::in, rstc.sit(N)::in,
+             num(N)::out, num(N)::out) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-ttcs((B - info(VB, _, p(XB, _))), (C - info(VC, _, p(XC, _))), S, TTC1, TTC2) :-
-    VB - VC \= 0.0,
-    TTC1 = ttc(B, C, S),
-    TTC2 = number_from_float((XC - XB) / (VB - VC)) `with_type` num(N).
+ttcs(Obs, B, C, S, ttc(B, C, S), number_from_float(time_to_collision(Obs, B, C))).
 
 
 :- pred have_common_cat(pred(category), num(N), num(N))
@@ -693,22 +689,22 @@ have_common_cat(P, V1, V2) :-
 max_veloc_discrepancy_to_ignore_ttc = 0.1.
 
 
-:- pred match_info(pair(agent, info)::in, pair(agent, info)::in,
-                   rstc.sit(N)::in) is semidet <= arithmetic.arithmetic(N).
+:- pred match_info(Obs::in, agent::in, agent::in, rstc.sit(N)::in) is semidet
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-match_info(PB, PC, S) :-
-    (   if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+match_info(Obs, B, C, S) :-
+    (   if      some [NTG1, NTG2] ntgs(Obs, B, C, S, NTG1, NTG2)
         then    have_common_cat((pred(Cat::out) is multi :-
                     ntg_cat(Cat)
                 ), NTG1, NTG2)
         else    true
     ),
-    (   if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+    (   if      some [TTC1, TTC2] ttcs(Obs, B, C, S, TTC1, TTC2)
         then    (   have_common_cat((pred(Cat::out) is multi :-
                         ttc_cat(Cat)
                     ), TTC1, TTC2)
                 ;   some [NTG1, NTG2] (
-                        ntgs(PB, PC, S, NTG1, NTG2),
+                        ntgs(Obs, B, C, S, NTG1, NTG2),
                         RelV1 = one - NTG1 / TTC1,
                         RelV2 = one - NTG2 / TTC2,
                         Eps = max_veloc_discrepancy_to_ignore_ttc,
@@ -720,11 +716,11 @@ match_info(PB, PC, S) :-
     ).
 
 
-:- func match_longitudinal_dist(pair(agent, info), pair(agent, info),
-                                rstc.sit(N)) = N <= arithmetic.arithmetic(N).
+:- func match_longitudinal_dist(Obs, agent, agent, rstc.sit(N)) = N
+    <= (arithmetic.arithmetic(N), car_obs(Obs)).
 
-match_longitudinal_dist(PB, PC, S) = D :-
-    D1 = (  if      some [NTG1, NTG2] ntgs(PB, PC, S, NTG1, NTG2)
+match_longitudinal_dist(Obs, B, C, S) = D :-
+    D1 = (  if      some [NTG1, NTG2] ntgs(Obs, B, C, S, NTG1, NTG2)
             then    minimize(pred(CatDist::out) is multi :-
                         (
                             CatDist = one
@@ -737,7 +733,7 @@ match_longitudinal_dist(PB, PC, S) = D :-
                     )
             else    zero
         ),
-    D2 = (  if      some [TTC1, TTC2] ttcs(PB, PC, S, TTC1, TTC2)
+    D2 = (  if      some [TTC1, TTC2] ttcs(Obs, B, C, S, TTC1, TTC2)
             then    minimize(pred(CatDist::out) is multi :-
                         (
                             CatDist = one
@@ -751,7 +747,7 @@ match_longitudinal_dist(PB, PC, S) = D :-
                                 % If they have almost same speed, don't punish
                                 % this. See max_veloc_discrepancy_to_ignore_ttc.
                                 some [NTG1, NTG2] (
-                                    ntgs(PB, PC, S, NTG1, NTG2),
+                                    ntgs(Obs, B, C, S, NTG1, NTG2),
                                     RelV1 = one - NTG1 / TTC1,
                                     RelV2 = one - NTG2 / TTC2,
                                     Eps = max_veloc_discrepancy_to_ignore_ttc,
@@ -772,12 +768,13 @@ match_longitudinal_dist(PB, PC, S) = D :-
     ).
 
 
-:- pred match_y(pair(agent, info)::in, rstc.sit(_)::in) is semidet.
+:- pred match_y(Obs::in, agent::in, rstc.sit(_)::in) is semidet <= car_obs(Obs).
 
-match_y((B - info(_, _, p(_, Y))), S) :-
-    (   Y =< 0.0, lane(B, S) = right
-    ;   Y >= 0.0, lane(B, S) = left
-    ).
+match_y(Obs, B, S) :-
+    if      Y = y_pos(Obs, B)
+    then    ( Y =< 0.0, lane(B, S) = right
+            ; Y >= 0.0, lane(B, S) = left )
+    else    true.
 
 %-----------------------------------------------------------------------------%
 
@@ -790,11 +787,12 @@ is_obs_prog(atom(prim(match(_)))).
 
 %-----------------------------------------------------------------------------%
 
-:- func obs_to_action(obs) = pseudo_atom(prim(N)) <= arithmetic.arithmetic(N).
+:- func obs_to_action(car_obs) = pseudo_atom(prim(N))
+    <= arithmetic.arithmetic(N).
 
-obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
+obs_to_action(Obs) = complex(seq(pseudo_atom(atom(Wait)),
                                              pseudo_atom(atom(Match)))) :-
-    T1 = number_from_float(T),
+    T1 = number_from_float(time(Obs)),
     Wait = primf(
         func(S) = (
             if T0 = start(S), T0 = num(_) then wait(T1 - T0) else abort
@@ -811,7 +809,7 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
     func(lookahead/1) is bat.lookahead
 ].
 
-:- instance obs_bat(prim(N), obs) <= arithmetic.arithmetic(N) where [
+:- instance obs_bat(prim(N), car_obs) <= arithmetic.arithmetic(N) where [
     (is_obs_action(match(_))),
     (covered_by_obs(do(A, S)) :-
         (   A \= wait(_), covered_by_obs(S)
@@ -821,9 +819,9 @@ obs_to_action(Obs @ obs(T, _)) = complex(seq(pseudo_atom(atom(Wait)),
     func(obs_to_action/1) is bat.obs_to_action
 ].
 
-:- instance pr_bat(prim(N), obs, env) <= arithmetic.arithmetic(N) where [
+:- instance pr_bat(prim(N), car_obs) <= arithmetic.arithmetic(N) where [
     seed_init_sit(I) = do(seed(I), s0),
-    init_env_sit(env(T, Map), S) = do(init_env(abs_env(env(T, Map))), S)
+    init_env_sit(Obs, S) = do(init_env(Obs), S)
 ].
 
 %-----------------------------------------------------------------------------%

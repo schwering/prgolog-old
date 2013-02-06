@@ -27,6 +27,7 @@
 :- implementation.
 
 :- import_module domain.car.obs.
+:- import_module domain.car.obs.env.
 :- import_module domain.car.obs.stdin.
 :- import_module exception.
 :- import_module list.
@@ -105,10 +106,10 @@ test_loop(Kind, !SS, !IO) :-
         Prog = nil `with_type` rstc.prog(float),
         next_obs(Msg, Sit, Prog, !SS, !IO)
     ),
-    (   (   Msg = init_msg(Env)
-        ;   some [T, D] ( Msg = obs_msg(obs(T, D)), Env = env(T, D) )
+    (   (   Msg = init_msg(Obs)
+        ;   Msg = obs_msg(Obs)
         ),
-        S = do(init_env(abs_env(Env)), s0) `with_type` rstc.sit(float),
+        S = do(init_env(Obs), s0) `with_type` rstc.sit(float),
         (   Kind = ntg,
             check(ntg, (pred(Cat::out) is nondet :- ntg_cat(Cat)), "NTG", h, d, S, !IO)
         ;   Kind = ttc,
@@ -139,9 +140,9 @@ test_match_dist(!IO) :-
              pair(car.d, info(20.741, -1.393e-05, p(12.807, -2.999)))],
     Info2 = [pair(car.h, info(19.371, -2.209e-06, p(113.999, -1.678))),
              pair(car.d, info(20.779, -1.182e-05, p(127.967, -2.999)))],
-    Init = init_env(abs_env(env(5.044, Info1))),
+    Init = init_env('new car_obs'(env(5.044, Info1))),
     Accel = accel(car.h, num(1.0006164907030441)),
-    Obs = match(obs(10.592, Info2)),
+    Obs = match('new car_obs'(env(10.592, Info2))),
     Sits = [ prgolog.do(Obs, prgolog.do(Accel, prgolog.do(Init, s0)))
            , prgolog.do(Obs, prgolog.do(Accel, prgolog.do(Init, s0)))
            , prgolog.do(Obs, prgolog.do(Accel, prgolog.do(Init, s0)))
@@ -149,10 +150,11 @@ test_match_dist(!IO) :-
     Infos = [ Info1, Info2 ],
     foldl((pred(S::in, !.IO0::di, !:IO0::uo) is det :-
         foldl((pred(Info::in, !.IO1::di, !:IO1::uo) is det :-
-            D = F(bat.match_dist(Info, S)),
+            SomeArbitraryTime = 0.0,
+            D = F(bat.match_dist(env(SomeArbitraryTime, Info), S)),
             ( if D < 0.0 ; D > 1.0 then throw({"distance not in [0, 1]", D, Info, S}) else true ),
-            some [A] ( if S = do(A, _), A = init_env(abs_env(env(_, Info))), D \= 0.0 then throw({"distance not in 0", D, Info, S}) else true ),
-            some [A] ( if S = do(A, _), A \= init_env(abs_env(env(_, Info))), D = 0.0 then throw({"distance is 0", D, Info, S}) else true )
+            some [A, Env] ( if S = do(A, _), A = init_env(Env), D \= 0.0 then throw({"distance not in 0", D, Env, S}) else true ),
+            some [A] ( if S = do(A, _), A \= init_env(_), D = 0.0 then throw({"distance is 0", D, S}) else true )
         ), Infos, !IO0)
     ), Sits, !IO),
     true.
