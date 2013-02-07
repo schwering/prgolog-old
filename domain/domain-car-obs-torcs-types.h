@@ -19,7 +19,16 @@
 
 #define AGENTLEN  7
 
+/* XXX Keep in sync with domain.car.agent_to_index! */
+static inline int agent_to_index(const char *agent_name)
+{
+  if (!agent_name || !agent_name[0])
+    return -1;
+  return agent_name[0] - 'a';
+}
+
 struct agent_info_record {
+  int8_t present;         /* zero iff no data present, otherwise non-zero */
   char agent[AGENTLEN+1]; /* name of agent */
   double veloc;           /* velocity of agent */
   double rad;             /* yaw of agent */

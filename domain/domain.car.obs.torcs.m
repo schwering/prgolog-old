@@ -72,6 +72,7 @@
 
 %-----------------------------------------------------------------------------%
 
+:- type obs_id ---> obs_id(source, int).
 :- type source ---> s(int).
 :- type stream_state ---> ss(source, stream, int).
 
@@ -467,6 +468,61 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
 ").
 
 
+:- pred next_obs2(obs_msg(car_obs)::out, sit(A)::in, prog(A)::in,
+                  stream_state::di, stream_state::uo, io::di, io::uo) is det
+                  <= pr_bat(A, car_obs).
+
+next_obs2(ObsMsg, S, P, ss(Source @ s(SourceId), Stream, I0), State1, !IO) :-
+    Done = obs_count_in_sit(S),
+    ToBeDone = int.max(0, int.'-'(obs_count_in_prog(P), lookahead(S))),
+    next_obs_pure2(I0, I1, SourceId, Stream, Done, ToBeDone, Ok, Index, !IO),
+    ObsId = obs_id(Source, Index),
+    (
+        Ok = yes,
+        (   if      I1 = 1
+            then    ObsMsg = init_msg('new car_obs'(ObsId))
+            else    ObsMsg = obs_msg('new car_obs'(ObsId))
+        )
+    ;
+        Ok = no,
+        ObsMsg = end_of_obs
+    ),
+    copy(ss(Source, Stream, I1), State1).
+
+
+:- pred next_obs_pure2(
+    int::di, int::uo,
+    int::in, int::in,
+    int::in, int::in,
+    bool::out, int::out,
+    io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    next_obs_pure2(
+        I0::di, I1::uo,
+        Source::in, Stream::in,
+        Done::in, ToBeDone::in,
+        Ok::out, ObsIndex::out,
+        IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe, tabled_for_io],
+"
+    assert(0 <= Source && Source < MAX_SOURCES);
+    assert(0 <= Stream && Stream < MAX_STREAMS);
+    sources[Source].streams[Stream].done = Done;
+    sources[Source].streams[Stream].tbd = ToBeDone;
+    sources[Source].streams[Stream].activity = WORKING;
+    sem_wait(&sources[Source].streams[Stream].sem);
+    if (I0 <= sources[Source].max_valid_observation) {
+        Ok = MR_YES;
+        I1 = I0 + 1;
+        ObsIndex = I0;
+    } else {
+        Ok = MR_NO;
+    }
+    IO1 = IO0;
+").
+
+
 :- pred mark_obs_end(source::in, io::di, io::uo) is det.
 
 mark_obs_end(s(Source), !IO) :- mark_obs_end_2(Source, !IO).
@@ -517,6 +573,14 @@ update_state(s(Source), Stream, Activity, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
+%:- instance obs_source(car_obs, source, stream_state) where [
+%    pred(reset_obs_source/3) is torcs.reset_obs_source,
+%    pred(init_obs_stream/5) is torcs.init_obs_stream,
+%    pred(next_obs/7) is torcs.next_obs,
+%    pred(mark_obs_end/3) is torcs.mark_obs_end,
+%    pred(update_state/5) is torcs.update_state
+%].
+
 :- instance obs_source(car_obs, source, stream_state) where [
     pred(reset_obs_source/3) is torcs.reset_obs_source,
     pred(init_obs_stream/5) is torcs.init_obs_stream,
@@ -524,6 +588,189 @@ update_state(s(Source), Stream, Activity, !IO) :-
     pred(mark_obs_end/3) is torcs.mark_obs_end,
     pred(update_state/5) is torcs.update_state
 ].
+
+%-----------------------------------------------------------------------------%
+
+% XXX to_int(B) is wrong; the order in the observations is not predefined
+% (change that?)
+
+:- instance car_obs(obs_id) where [
+    (time(obs_id(s(Source), Index)) = R :- time_c(Source, Index, R)),
+    (veloc(obs_id(s(Source), Index), B) = R :- veloc_c(Source, Index, agent_to_index(B), R)),
+    (yaw(obs_id(s(Source), Index), B) = R :- yaw(Source, Index, agent_to_index(B), R)),
+    (pos(Obs, B) = p(x_pos(Obs, B), y_pos(Obs, B))),
+    (x_pos(obs_id(s(Source), Index), B) = R :- x_pos_c(Source, Index, agent_to_index(B), R)),
+    (y_pos(obs_id(s(Source), Index), B) = R :- y_pos_c(Source, Index, agent_to_index(B), R)),
+    (x_dist(obs_id(s(Source), Index), B, C) = R :- x_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (y_dist(obs_id(s(Source), Index), B, C) = R :- y_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (veloc_diff(obs_id(s(Source), Index), B, C) = R :- veloc_diff_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (net_time_gap(obs_id(s(Source), Index), B, C) = R :- net_time_gap_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (time_to_collision(obs_id(s(Source), Index), B, C) = R :- time_to_collision_c(Source, Index, agent_to_index(B), agent_to_index(C), R))
+].
+
+:- pred time_c(int::in, int::in, float::out) is det.
+
+:- pragma foreign_proc("C",
+    time_c(Source::in, Index::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    R = (MR_Float) sources[Source].observations[Index].t;
+").
+
+
+:- pred veloc_c(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    veloc_c(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].veloc;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred yaw(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    yaw(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].rad;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred x_pos_c(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    x_pos_c(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].x;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred y_pos_c(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    y_pos_c(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].y;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred x_dist_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    x_dist_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        R = b->x - c->x;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred y_dist_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    y_dist_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        R = b->y - c->y;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred veloc_diff_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    veloc_diff_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        R = b->veloc - c->veloc;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred net_time_gap_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    net_time_gap_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        double v = b->veloc;
+        if (v != 0.0) {
+            R = (c->x - b->y) / v;
+            SUCCESS_INDICATOR = MR_TRUE;
+        } else {
+            SUCCESS_INDICATOR = MR_FALSE;
+        }
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred time_to_collision_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    time_to_collision_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        double vd = b->veloc - c->veloc;
+        if (vd != 0.0) {
+            R = (c->x - b->y) / vd;
+            SUCCESS_INDICATOR = MR_TRUE;
+        } else {
+            SUCCESS_INDICATOR = MR_FALSE;
+        }
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.obs.torcs.

@@ -105,9 +105,11 @@
 :- mode agent_to_string(in) = out is det.
 :- mode agent_to_string(out) = in is semidet.
 
-:- func string_to_agent(string) = agent is det.
+:- func string_to_agent(string) = agent.
 
-:- func lane_to_string(lane) = string is det.
+:- func lane_to_string(lane) = string.
+
+:- func agent_to_index(agent) = int.
 
 :- func agents = list(agent).
 :- func agent_pairs = list({agent, agent}).
@@ -170,6 +172,14 @@ string_to_agent(S) = A :-
         else    error("string_to_agent/1: conversion failed for '" ++ S ++ "'")
     ).
 
+
+agent_to_index(b) = 0.
+agent_to_index(c) = 1.
+agent_to_index(d) = 2.
+agent_to_index(e) = 3.
+agent_to_index(f) = 4.
+agent_to_index(g) = 5.
+agent_to_index(h) = 6.
 
 lane_to_string(left) = "left".
 lane_to_string(right) = "right".
