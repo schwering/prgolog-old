@@ -74,11 +74,17 @@ static bool scan(FILE *fp, int n_agents, struct observation_record *r)
         return false;
     }
     for (i = 0; i < n_agents; ++i) {
+        int j;
+        struct agent_info_record info;
+        info.present = 1;
         if (fscanf(fp, "%s %lf %lf %lf %lf",
-                    r->info[i].agent, &r->info[i].veloc,
-                    &r->info[i].rad, &r->info[i].x, &r->info[i].y) != 5) {
+                    info.agent, &info.veloc,
+                    &info.rad, &info.x, &info.y) != 5) {
             return false;
         }
+        j = agent_to_index(info.agent);
+        assert(0 <= j && j < NAGENTS);
+        memcpy(&r->info[j], &info, sizeof(info));
     }
     if (fscanf(fp, "\n") != 0) {
         return false;
@@ -94,14 +100,18 @@ static void klatschtgleich2(FILE *fp, int sockfd, int n_agents, bool do_sleep)
     struct planrecog_state state;
     double t0 = -1.0;
 
+    memset(&r, 0, sizeof(r));
+
     while (scan(fp, n_agents, &r)) {
         int i, ret;
 
         printf("%lf", r.t);
-        for (i = 0; i < r.n_agents; ++i) {
-            printf(" '%s' %lf %lf %lf %lf",
-                   r.info[i].agent, r.info[i].veloc, r.info[i].rad,
-                   r.info[i].x, r.info[i].y);
+        for (i = 0; i < NAGENTS; ++i) {
+            if (r.info[i].present) {
+                printf(" '%s' %lf %lf %lf %lf",
+                       r.info[i].agent, r.info[i].veloc, r.info[i].rad,
+                       r.info[i].x, r.info[i].y);
+            }
         }
         printf("\n");
 
@@ -122,10 +132,10 @@ static void klatschtgleich2(FILE *fp, int sockfd, int n_agents, bool do_sleep)
             exit(1);
         }
 
-        for (i = 0; i < r.n_agents; ++i) {
+        for (i = 0; i < NAGENTS; ++i) {
             int j;
-            for (j = 0; j < r.n_agents; ++j) {
-                if (i != j) {
+            for (j = 0; j < NAGENTS; ++j) {
+                if (r.info[i].present && r.info[j].present && i != j) {
                     const double ntg = (r.info[j].x - r.info[i].x) / r.info[i].veloc;
                     const double ttc = (r.info[j].x - r.info[i].x) / (r.info[i].veloc - r.info[j].veloc);
                     printf("ntg('%s', '%s') = %7.2lf\t\t", r.info[i].agent, r.info[j].agent, ntg);

@@ -173,19 +173,24 @@ string_to_agent(S) = A :-
     ).
 
 
-agent_to_index(b) = 0.
-agent_to_index(c) = 1.
-agent_to_index(d) = 2.
-agent_to_index(e) = 3.
-agent_to_index(f) = 4.
-agent_to_index(g) = 5.
-agent_to_index(h) = 6.
+% agent_to_index(a) = 0. % `a' does not exist
+agent_to_index(b) = 1.
+agent_to_index(c) = 2.
+agent_to_index(d) = 3.
+agent_to_index(e) = 4.
+agent_to_index(f) = 5.
+agent_to_index(g) = 6.
+agent_to_index(h) = 7.
 
 lane_to_string(left) = "left".
 lane_to_string(right) = "right".
 
 
-agents = solutions(agent).
+% Depending on the application, one might reduce the number of agents returned
+% by this function. E.g., when only b, d, h occur, the others aren't very
+% interesting.
+%agents = solutions(agent).
+agents = [b, d, h].
 
 
 agent_pairs = cross_product(agents, agents).
@@ -195,22 +200,6 @@ agent_pairs = cross_product(agents, agents).
 
 cross_product([], _) = [].
 cross_product([X|Xs], Ys) = map(func(Y) = {X, Y}, Ys) ++ cross_product(Xs, Ys).
-
-%-----------------------------------------------------------------------------%
-
-%:- instance car_obs(car_obs) where [
-%    (time(car_obs(Obs)) = time(Obs)),
-%    (veloc(car_obs(Obs), B) = veloc(Obs, B)),
-%    (yaw(car_obs(Obs), B) = yaw(Obs, B)),
-%    (pos(car_obs(Obs), B) = pos(Obs, B)),
-%    (x_pos(car_obs(Obs), B) = x_pos(Obs, B)),
-%    (y_pos(car_obs(Obs), B) = y_pos(Obs, B)),
-%    (x_dist(car_obs(Obs), B, C) = x_dist(Obs, B, C)),
-%    (y_dist(car_obs(Obs), B, C) = y_dist(Obs, B, C)),
-%    (veloc_diff(car_obs(Obs), B, C) = veloc_diff(Obs, B, C)),
-%    (net_time_gap(car_obs(Obs), B, C) = net_time_gap(Obs, B, C)),
-%    (time_to_collision(car_obs(Obs), B, C) = time_to_collision(Obs, B, C))
-%].
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.

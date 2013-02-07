@@ -13,6 +13,7 @@
 #ifndef _OBS_TYPES_H_
 #define _OBS_TYPES_H_
 
+#include <assert.h>
 #include <stdint.h>
 
 #define PORT 19123
@@ -36,7 +37,7 @@ struct agent_info_record {
   double y;               /* lateral position of agent */
 };
 
-#define NAGENTS   5
+#define NAGENTS   10
 
 /* Represents an observation of two agents and their physical parameters at a
  * certain point in time. */

@@ -202,7 +202,7 @@ stdout_handler(Source, N, I,
         ),
         Fmt("    Remaining program:\n", [], !IO),
         Fmt("        %s\n", [s(string(P))], !IO),
-        print_prog(Fmt, P, !IO),
+        %print_prog(Fmt, P, !IO),
         %print_decomps(S, P, !IO),
         %foldl((pred(decomp(C, R)::in, !.SubIO::di, !:SubIO::uo) is det :-
         %    Fmt("    *** %s\n", [s(if C = primf(AF) then string(AF(S)) else string(C))], !SubIO)

@@ -445,14 +445,16 @@ merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
         RadList   = MR_list_empty();
         XList     = MR_list_empty();
         YList     = MR_list_empty();
-        for (i = 0; i < sources[Source].observations[I0].n_agents; ++i) {
-            MR_String agent;
-            MR_make_aligned_string_copy(agent, sources[Source].observations[I0].info[i].agent);
-            AgentList = MR_string_list_cons((MR_Word) agent, AgentList);
-            VelocList = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].veloc), VelocList);
-            RadList   = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].rad),   RadList);
-            XList     = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].x),     XList);
-            YList     = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].y),     YList);
+        for (i = 0; i < NAGENTS; ++i) {
+            if (sources[Source].observations[I0].info[i].present) {
+                MR_String agent;
+                MR_make_aligned_string_copy(agent, sources[Source].observations[I0].info[i].agent);
+                AgentList = MR_string_list_cons((MR_Word) agent, AgentList);
+                VelocList = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].veloc), VelocList);
+                RadList   = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].rad),   RadList);
+                XList     = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].x),     XList);
+                YList     = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].y),     YList);
+            }
         }
         I1 = I0 + 1;
     } else {
@@ -573,39 +575,39 @@ update_state(s(Source), Stream, Activity, !IO) :-
 
 %-----------------------------------------------------------------------------%
 
-%:- instance obs_source(car_obs, source, stream_state) where [
-%    pred(reset_obs_source/3) is torcs.reset_obs_source,
-%    pred(init_obs_stream/5) is torcs.init_obs_stream,
-%    pred(next_obs/7) is torcs.next_obs,
-%    pred(mark_obs_end/3) is torcs.mark_obs_end,
-%    pred(update_state/5) is torcs.update_state
-%].
-
 :- instance obs_source(car_obs, source, stream_state) where [
     pred(reset_obs_source/3) is torcs.reset_obs_source,
     pred(init_obs_stream/5) is torcs.init_obs_stream,
-    pred(next_obs/7) is torcs.next_obs,
+    pred(next_obs/7) is torcs.next_obs2,
     pred(mark_obs_end/3) is torcs.mark_obs_end,
     pred(update_state/5) is torcs.update_state
 ].
 
 %-----------------------------------------------------------------------------%
 
-% XXX to_int(B) is wrong; the order in the observations is not predefined
-% (change that?)
-
 :- instance car_obs(obs_id) where [
-    (time(obs_id(s(Source), Index)) = R :- time_c(Source, Index, R)),
-    (veloc(obs_id(s(Source), Index), B) = R :- veloc_c(Source, Index, agent_to_index(B), R)),
-    (yaw(obs_id(s(Source), Index), B) = R :- yaw(Source, Index, agent_to_index(B), R)),
+    (time(obs_id(s(Source), Index)) = R :-
+        time_c(Source, Index, R)),
+    (veloc(obs_id(s(Source), Index), B) = R :-
+        veloc_c(Source, Index, agent_to_index(B), R)),
+    (yaw(obs_id(s(Source), Index), B) = R :-
+        yaw(Source, Index, agent_to_index(B), R)),
     (pos(Obs, B) = p(x_pos(Obs, B), y_pos(Obs, B))),
-    (x_pos(obs_id(s(Source), Index), B) = R :- x_pos_c(Source, Index, agent_to_index(B), R)),
-    (y_pos(obs_id(s(Source), Index), B) = R :- y_pos_c(Source, Index, agent_to_index(B), R)),
-    (x_dist(obs_id(s(Source), Index), B, C) = R :- x_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
-    (y_dist(obs_id(s(Source), Index), B, C) = R :- y_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
-    (veloc_diff(obs_id(s(Source), Index), B, C) = R :- veloc_diff_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
-    (net_time_gap(obs_id(s(Source), Index), B, C) = R :- net_time_gap_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
-    (time_to_collision(obs_id(s(Source), Index), B, C) = R :- time_to_collision_c(Source, Index, agent_to_index(B), agent_to_index(C), R))
+    (x_pos(obs_id(s(Source), Index), B) = R :-
+        x_pos_c(Source, Index, agent_to_index(B), R)),
+    (y_pos(obs_id(s(Source), Index), B) = R :-
+        y_pos_c(Source, Index, agent_to_index(B), R)),
+    (x_dist(obs_id(s(Source), Index), B, C) = R :-
+        x_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (y_dist(obs_id(s(Source), Index), B, C) = R :-
+        y_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (veloc_diff(obs_id(s(Source), Index), B, C) = R :-
+        veloc_diff_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (net_time_gap(obs_id(s(Source), Index), B, C) = R :-
+        net_time_gap_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (time_to_collision(obs_id(s(Source), Index), B, C) = R :-
+        time_to_collision_c(Source, Index,
+                            agent_to_index(B), agent_to_index(C), R))
 ].
 
 :- pred time_c(int::in, int::in, float::out) is det.
@@ -684,8 +686,8 @@ update_state(s(Source), Stream, Activity, !IO) :-
     x_dist_c(Source::in, Index::in, B::in, C::in, R::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
-    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
     if (b->present && c->present) {
         R = b->x - c->x;
         SUCCESS_INDICATOR = MR_TRUE;
@@ -701,8 +703,8 @@ update_state(s(Source), Stream, Activity, !IO) :-
     y_dist_c(Source::in, Index::in, B::in, C::in, R::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
-    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
     if (b->present && c->present) {
         R = b->y - c->y;
         SUCCESS_INDICATOR = MR_TRUE;
@@ -718,8 +720,8 @@ update_state(s(Source), Stream, Activity, !IO) :-
     veloc_diff_c(Source::in, Index::in, B::in, C::in, R::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
-    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
     if (b->present && c->present) {
         R = b->veloc - c->veloc;
         SUCCESS_INDICATOR = MR_TRUE;
@@ -735,12 +737,12 @@ update_state(s(Source), Stream, Activity, !IO) :-
     net_time_gap_c(Source::in, Index::in, B::in, C::in, R::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
-    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
     if (b->present && c->present) {
-        double v = b->veloc;
+        const double v = b->veloc;
         if (v != 0.0) {
-            R = (c->x - b->y) / v;
+            R = (c->x - b->x) / v;
             SUCCESS_INDICATOR = MR_TRUE;
         } else {
             SUCCESS_INDICATOR = MR_FALSE;
@@ -757,12 +759,12 @@ update_state(s(Source), Stream, Activity, !IO) :-
     time_to_collision_c(Source::in, Index::in, B::in, C::in, R::out),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    struct agent_info_record *b = &sources[Source].observations[Index].info[B];
-    struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
     if (b->present && c->present) {
-        double vd = b->veloc - c->veloc;
+        const double vd = b->veloc - c->veloc;
         if (vd != 0.0) {
-            R = (c->x - b->y) / vd;
+            R = (c->x - b->x) / vd;
             SUCCESS_INDICATOR = MR_TRUE;
         } else {
             SUCCESS_INDICATOR = MR_FALSE;
