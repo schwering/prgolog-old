@@ -600,8 +600,10 @@ reward(A, S) = New :-
 
 
 :- func reward_bound(atom(rstc.prim(_))) = reward.
+:- mutable(reward_bound_counter, int, 0, ground, [attach_to_io_state, untrailed]).
 
 reward_bound(A) = R :-
+    trace [io(!IO)] ( get_reward_bound_counter(I, !IO), set_reward_bound_counter(I+1, !IO) ),
     R = (
 % XXX progression
 %        if      some [Reward] A = prim(init_env(rel_env(_, _, _, _, Reward, _)))
@@ -839,6 +841,8 @@ reset_memo(!IO) :-
     table_reset_for_reward_2(!IO),
     get_reward_counter(I, !IO),
     format("REWARD COUNTER = %d\n", [i(I)], !IO),
+    get_reward_bound_counter(J, !IO),
+    format("REWARD BOUND COUNTER = %d\n", [i(J)], !IO),
     true.
 
 %-----------------------------------------------------------------------------%

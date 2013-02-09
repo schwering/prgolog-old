@@ -58,7 +58,7 @@ test_force(!IO) :-
 
 test_search_det(!IO) :-
     H = (func(X) = ( if X mod 2 = 0 then X else 100 )),
-    V = id,
+    V = (func(X) = X :- ( if X = 0 then throw({"shouldn't expand this node", X}) else true )),
     Cmp = ordering,
     Args = force_args(V, Cmp, 0),
     Data = [
@@ -169,10 +169,23 @@ test_search_det(!IO) :-
             )
         ,
             [ leaf(10), leaf(10) ]
+        },
+        {   branch(
+                branch(
+                    leaf(3),
+                    leaf(0)
+                ),
+                branch(
+                    leaf(5),
+                    leaf(6)
+                )
+            )
+        ,
+            [ leaf(3), leaf(5), leaf(6) ]
         }
     ],
     foldl((pred({T, Exp}::in, !.SubIO::di, !:SubIO::uo) is det :-
-        max_iter(Cmp, H, V, Args, T, Iterator, Next),
+        max_iter(Cmp, Cmp, H, V, Args, T, Iterator, Next),
         foldl((pred(Y::in, !.Iter::in, !:Iter::out) is det :-
             ( if Next(!Iter, _, X) then ( if X = Y then true else throw({"found unexpected instead of", X, Y}) ) else throw({"found nothing instead of", Y}) )
         ), Exp, Iterator, EmptyIterator),
@@ -193,7 +206,7 @@ test_search_semidet(!IO) :-
         },
         {   leaf(3)
         ,
-            [ ]
+            [ leaf(3) ] % for value_func_semidet, even X with failing V(X) may be returned
         },
         {   leaf(4)
         ,
@@ -204,28 +217,28 @@ test_search_semidet(!IO) :-
                 leaf(4)
             )
         ,
-            [ leaf(4) ]
+            [ leaf(3), leaf(4) ]
         },
         {   branch(
                 leaf(6),
                 leaf(4)
             )
         ,
-            [ leaf(4) ]
+            [ leaf(6), leaf(4) ]
         },
         {   branch(
                 leaf(3),
                 leaf(2)
             )
         ,
-            [ leaf(2) ]
+            [ leaf(3), leaf(2) ]
         },
         {   branch(
                 leaf(6),
                 leaf(2)
             )
         ,
-            [ leaf(2) ]
+            [ leaf(6), leaf(2) ]
         },
         {   branch(
                 branch(
@@ -238,7 +251,7 @@ test_search_semidet(!IO) :-
                 )
             )
         ,
-            [ leaf(5) ]
+            [ leaf(3), leaf(5) ]
         },
         {   branch(
                 branch(
@@ -333,7 +346,7 @@ test_search_semidet(!IO) :-
         }
     ],
     foldl((pred({T, Exp}::in, !.SubIO::di, !:SubIO::uo) is det :-
-        max_iter(Cmp, H, V, Args, T, Iterator, Next),
+        max_iter(Cmp, Cmp, H, V, Args, T, Iterator, Next),
         foldl((pred(Y::in, !.Iter::in, !:Iter::out) is det :-
             ( if Next(!Iter, _, X) then ( if X = Y then true else throw({"found unexpected instead of", X, Y}) ) else throw({"found nothing instead of", Y}) )
         ), Exp, Iterator, EmptyIterator),
@@ -361,11 +374,11 @@ test_search2(!IO) :-
                 )
             )
         ,
-            [ L2, L4 ]
+            [ L1, L2, L4 ]
         }
     ],
     foldl((pred({T, Exp}::in, !.SubIO::di, !:SubIO::uo) is det :-
-        max_iter(Cmp, H, V, Args, T, Iterator, Next),
+        max_iter(Cmp, Cmp, H, V, Args, T, Iterator, Next),
         foldl((pred(Y::in, !.Iter::in, !:Iter::out) is det :-
             ( if Next(!Iter, _, X) then ( if X = Y then true else throw({"found unexpected instead of", X, Y}) ) else throw({"found nothing instead of", Y}) )
         ), Exp, Iterator, EmptyIterator),

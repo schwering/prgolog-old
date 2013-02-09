@@ -365,7 +365,7 @@ heuristic(L, decomp(C, R)) = {V, L} :-
 value(P, S, L) = {V, N} :-
     if      L > 0,
             tree.max_search(
-                cmp,
+                cmp, cmp,
                 heuristic(L),
                 (func(decomp(C, R)) = {V0 + V1, N1 + 1} is semidet :-
                     trans_atom(C, S, S1),
@@ -383,10 +383,10 @@ value(P, S, L) = {V, N} :-
 trans(P, S, P1, S1) :-
     L = lookahead(S),
     tree.max_search(
-        cmp,
+        cmp, cmp,
         heuristic(L),
         func(decomp(C, R)) = value(seq(pseudo_atom(atom(C)), R), S, L),
-        pickbest(S), next2(P), _, decomp(C1, P1)
+        pickbest(S), next2(P), decomp(C1, P1)
     ),
     trans_atom(C1, S, S1).
 

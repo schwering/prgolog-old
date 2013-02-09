@@ -112,15 +112,32 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pred max_search(comparison_func(V),
-                   value_func(T, V),
-                   value_func(T, V),
-                   force_args(T, V),
-                   tree(T, V),
-                   V, T).
-:- mode max_search(in, in, in, in, in, out, out) is semidet.
-:- mode max_search(in, in, in(semidet_value_func), in, in, out, out) is semidet.
-:- mode max_search(in, in(semidet_value_func), in(semidet_value_func),
+:- pred max_search(comparison_func(V1),
+                   comparison_func(V2),
+                   value_func(T, V2),
+                   value_func(T, V2),
+                   force_args(T, V1),
+                   tree(T, V1),
+                   T).
+:- mode max_search(in, in, in, in,
+                   in, in, out) is semidet.
+:- mode max_search(in, in, in, in(semidet_value_func),
+                   in, in, out) is semidet.
+:- mode max_search(in, in, in(semidet_value_func), in(semidet_value_func),
+                   in, in, out) is semidet.
+
+:- pred max_search(comparison_func(V1),
+                   comparison_func(V2),
+                   value_func(T, V2),
+                   value_func(T, V2),
+                   force_args(T, V1),
+                   tree(T, V1),
+                   V2, T).
+:- mode max_search(in, in, in, in,
+                   in, in, out, out) is semidet.
+:- mode max_search(in, in, in, in(semidet_value_func),
+                   in, in, out, out) is semidet.
+:- mode max_search(in, in, in(semidet_value_func), in(semidet_value_func),
                    in, in, out, out) is semidet.
 
 %-----------------------------------------------------------------------------%
@@ -139,6 +156,7 @@
 
 %-----------------------------------------------------------------------------%
 
+:- use_module lazy.
 :- import_module maybe.
 
 %-----------------------------------------------------------------------------%
@@ -256,104 +274,122 @@ map_reduce(F, G, T, Def) = ( if X = map_reduce(F, G, T) then X else Def ).
 
 %-----------------------------------------------------------------------------%
 
-:- type value_tree(T, V) == tree({V, tree(T, V)}, V).
-:- type heu_value_tree(T, V) == tree({V, value_tree(T, V)}, V).
+:- type value_tree(T, V1, V2) == tree({V2, tree(T, V1)}, V1).
+:- type heu_value_tree(T, V1, V2) == tree({V2, value_tree(T, V1, V2)}, V1).
 
-:- type iter_pred(T, V, W) == (pred(W, W, V, tree(T, V))).
+:- type iter_pred(T, V1, V2, W) == (pred(W, W, V2, tree(T, V1))).
 :- inst iter_pred == (pred(in, out, out, out) is semidet).
 
 %-----------------------------------------------------------------------------%
 
-:- func value(comparison_func(V), value_func(T, V),
-              tree(T, V)) = value_tree(T, V).
-:- mode value(in, in, in) = out(adult) is det.
-:- mode value(in, in(semidet_value_func), in) = out(adult) is det.
+:- func value(comparison_func(V1), comparison_func(V2), value_func(T, V2),
+              tree(T, V1)) = value_tree(T, V1, V2).
+:- mode value(in, in, in, in) = out(adult) is det.
+:- mode value(in, in, in(semidet_value_func), in) = out(adult) is det.
 
-value(_, _, empty) = empty.
-value(_, Val, T @ leaf(X)) = ( if V = Val(X) then leaf({V, T}) else empty ).
-value(Cmp, Val, lazy(T)) = value(Cmp, Val, apply(T)).
-value(Cmp, Val, T @ sprout(_, X0, G)) =
-    ( if V = reduce(max(Cmp), map(Val, G(X0))) then leaf({V, T}) else empty ).
-value(Cmp, Val, branch(T1, T2)) =
-    branch(value(Cmp, Val, T1), value(Cmp, Val, T2)).
+value(_, _, _, empty) =
+    empty.
+value(_, _, Val, T @ leaf(X)) =
+    ( if V = Val(X) then leaf({V, T}) else empty ).
+value(Cmp1, Cmp2, Val, lazy(T)) =
+    value(Cmp1, Cmp2, Val, apply(T)).
+value(_, Cmp2, Val, T @ sprout(_, X0, G)) =
+    ( if V = reduce(max(Cmp2), map(Val, G(X0))) then leaf({V, T}) else empty ).
+value(Cmp1, Cmp2, Val, branch(T1, T2)) =
+    branch(value(Cmp1, Cmp2, Val, T1), value(Cmp1, Cmp2, Val, T2)).
 
 
-:- pred extract_max(comparison_func(V)::in,
-                    value_tree(T, V)::in(adult),
-                    value_tree(T, V)::out(adult),
-                    V::out, tree(T, V)::out) is semidet.
+:- pred extract_max(comparison_func(V1)::in, comparison_func(V2)::in,
+                    value_tree(T, V1, V2)::in(adult),
+                    value_tree(T, V1, V2)::out(adult),
+                    V2::out, tree(T, V1)::out) is semidet.
 
-extract_max(_, leaf({V, T}), empty, V, T).
-extract_max(Cmp, lazy(T), R, V, M) :-
-    extract_max(Cmp, apply(T), R, V, M).
-extract_max(Cmp, branch(T1, T2), R, V, M) :-
-    if      extract_max(Cmp, T1, R1, V1, M1)
-    then    (   if      extract_max(Cmp, T2, R2, V2, M2)
-                then    (   if      Cmp(V2, V1) = (>)
+extract_max(_, _, leaf({V, T}), empty, V, T).
+extract_max(Cmp1, Cmp2, lazy(T), R, V, M) :-
+    extract_max(Cmp1, Cmp2, apply(T), R, V, M).
+extract_max(Cmp1, Cmp2, branch(T1, T2), R, V, M) :-
+    if      extract_max(Cmp1, Cmp2, T1, R1, V1, M1)
+    then    (   if      extract_max(Cmp1, Cmp2, T2, R2, V2, M2)
+                then    (   if      Cmp2(V2, V1) = (>)
                             then    R = branch(T1, R2), V = V2, M = M2
                             else    R = branch(R1, T2), V = V1, M = M1
                         )
                 else    R = R1, V = V1, M = M1
             )
-    else    extract_max(Cmp, T2, R, V, M).
+    else    extract_max(Cmp1, Cmp2, T2, R, V, M).
 
 
-:- pred first(comparison_func(V)::in,
+:- pred first(comparison_func(V1)::in, comparison_func(V2)::in,
               % The old and new valued tree.
-              heu_value_tree(T, V)::in, heu_value_tree(T, V)::out,
+              heu_value_tree(T, V1, V2)::in, heu_value_tree(T, V1, V2)::out,
               % The maximum value and the corresponding tree.
-              V::out, tree(T, V)::out) is semidet.
+              V2::out, tree(T, V1)::out) is semidet.
 
-first(Cmp, !HVT, MaxV, MaxT) :-
-    extract_max(Cmp, !HVT, _, MaxVT),
-    (   if      extract_max(Cmp, MaxVT, _, V, T)
+first(Cmp1, Cmp2, !HVT, MaxV, MaxT) :-
+    extract_max(Cmp1, Cmp2, !HVT, _, MaxVT),
+    (   if      extract_max(Cmp1, Cmp2, MaxVT, _, V, T)
         then    MaxV = V, MaxT = T
-        else    first(Cmp, !HVT, MaxV, MaxT)
+        else    first(Cmp1, Cmp2, !HVT, MaxV, MaxT)
     ).
 
 
-:- pred next(comparison_func(V)::in,
+:- pred next(comparison_func(V1)::in, comparison_func(V2)::in,
              % The old and new valued tree.
-             heu_value_tree(T, V)::in, heu_value_tree(T, V)::out,
+             heu_value_tree(T, V1, V2)::in, heu_value_tree(T, V1, V2)::out,
              % The old and new maximum value.
-             V::in, V::out,
+             V2::in, V2::out,
              % The tree with the maximum value.
-             tree(T, V)::out) is semidet.
+             tree(T, V1)::out) is semidet.
 
-next(Cmp, !HVT, MaxV0, MaxV1, MaxT) :-
-    extract_max(Cmp, !HVT, H, VT),
-    Cmp(H, MaxV0) \= (<), % next tree might be better than the last one
-    (   if      extract_max(Cmp, VT, _, V, T),
-                Cmp(V, MaxV0) \= (<) % next tree is indeed better
+next(Cmp1, Cmp2, !HVT, MaxV0, MaxV1, MaxT) :-
+    extract_max(Cmp1, Cmp2, !HVT, H, VT),
+    Cmp2(H, MaxV0) \= (<), % next tree might be better than the last one
+    (   if      extract_max(Cmp1, Cmp2, VT, _, V, T),
+                Cmp2(V, MaxV0) \= (<) % next tree is indeed better
         then    MaxV1 = V, MaxT = T
-        else    next(Cmp, !HVT, MaxV0, MaxV1, MaxT)
+        else    next(Cmp1, Cmp2, !HVT, MaxV0, MaxV1, MaxT)
     ).
 
 
-:- some [W] pred max_iter(comparison_func(V),
-                          value_func(T, V),
-                          value_func(T, V),
-                          force_args(T, V),
-                          tree(T, V), W, iter_pred(T, V, W)).
-:- mode max_iter(in, in, in,
+:- some [W] pred max_iter(comparison_func(V1), comparison_func(V2),
+                          value_func(T, V2), value_func(T, V2),
+                          force_args(T, V1), tree(T, V1),
+                          W, iter_pred(T, V1, lazy.lazy(maybe(V2)), W)).
+:- mode max_iter(in, in, in, in,
                  in, in, out, out(iter_pred)) is det.
-:- mode max_iter(in, in, in(semidet_value_func),
+:- mode max_iter(in, in, in, in(semidet_value_func),
                  in, in, out, out(iter_pred)) is det.
-:- mode max_iter(in, in(semidet_value_func), in(semidet_value_func),
+:- mode max_iter(in, in, in(semidet_value_func), in(semidet_value_func),
                  in, in, out, out(iter_pred)) is det.
 
-max_iter(Cmp, Heu, Val, Args, T, {HVT, no}, Next) :-
-    HVT = map(func({H, T1}) = {H, value(Cmp, Val, load(Args, T1))},
-              value(Cmp, Heu, T)),
+max_iter(Cmp1, Cmp2, Heu, Val, Args, T, {HVT, no}, Next) :-
+    % To deal with semidet_value_func, we wrap values in a maybe type.
+    % We treat `no' as minimum.
+    % This however means that Next may return elements for which Val
+    % fails.
+    Cmp3 = ( func(X, Y) = R is det :-
+        (   X = yes(X0), Y = yes(Y0), R = Cmp2(X0, Y0)
+        ;   X = yes(_), Y = no, R = (>)
+        ;   X = no, Y = yes(_), R = (<)
+        ;   X = no, Y = no, R = (=)
+        )
+    ),
+    Cmp4 = ( func(X, Y) = Cmp3(lazy.force(X), lazy.force(Y)) ),
+    Val1 = ( func(X) = ( if Y = Val(X) then yes(Y) else no ) ),
+    Val2 = ( func(X) = lazy.delay((func) = Val1(X)) ),
+    Heu1 = ( func(X) = ( if Y = Heu(X) then yes(Y) else no ) ),
+    Heu2 = ( func(X) = lazy.val(Heu1(X)) ),
+    HVT = map(func({H, T1}) = {H, value(Cmp1, Cmp4, Val2, load(Args, T1))},
+              value(Cmp1, Cmp4, Heu2, T)),
     Next = (pred({HVT0, MV0}::in, {HVT1, yes(V1)}::out,
                  V1::out, T1::out) is semidet :-
-        (   MV0 = no, first(Cmp, HVT0, HVT1, V1, T1)
-        ;   MV0 = yes(V0), next(Cmp, HVT0, HVT1, V0, V1, T1)
+        (   MV0 = no, first(Cmp1, Cmp4, HVT0, HVT1, V1, T1)
+        ;   MV0 = yes(V0), next(Cmp1, Cmp4, HVT0, HVT1, V0, V1, T1)
         )
     ).
 
 
-:- pred iter_end(iter_pred(T, V, W), W, W, V, tree(T, V)).
+:- pred iter_end(iter_pred(T, V1, V2, W), W, W, V2, tree(T, V1)).
 :- mode iter_end(in(iter_pred), in, out, out, out) is semidet.
 
 iter_end(Next, !Iter, V, T) :-
@@ -364,9 +400,15 @@ iter_end(Next, !Iter, V, T) :-
     ).
 
 
-max_search(Cmp, Heu, Val, Args, T, V, X) :-
-    max_iter(Cmp, Heu, Val, Args, T, Iter, Next),
-    iter_end(Next, Iter, _, V, leaf(X)).
+max_search(Cmp1, Cmp2, Heu, Val, Args, T, X) :-
+    max_iter(Cmp1, Cmp2, Heu, Val, Args, T, Iter, Next),
+    iter_end(Next, Iter, _, _, leaf(X)).
+
+
+max_search(Cmp1, Cmp2, Heu, Val, Args, T, V, X) :-
+    max_iter(Cmp1, Cmp2, Heu, Val, Args, T, Iter, Next),
+    iter_end(Next, Iter, _, V1, leaf(X)),
+    yes(V) = lazy.force(V1).
 
 %-----------------------------------------------------------------------------%
 
