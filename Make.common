@@ -17,7 +17,7 @@ MMC = mmc
 INSTALL_PREFIX = $(CURDIR)/..
 LIB_DIR = $(INSTALL_PREFIX)/lib/mercury
 
-OPTIMIZATION = -O6 --optimize-duplicate-calls --optimize-unused-args --type-specialization
+OPTIMIZATION = -O6 --optimize-duplicate-calls --optimize-unused-args --type-specialization --user-guided-type-specialization
 #OPTIMIZATION += --profiling
 
 LIB_FILE = $(LIB_DIR)/lib/$(GRADE)/lib$(GOAL).so

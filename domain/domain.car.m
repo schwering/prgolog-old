@@ -134,11 +134,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pragma memo(agents/0, [fast_loose]). 
-:- pragma memo(agent_pairs/0, [fast_loose]). 
-
-%-----------------------------------------------------------------------------%
-
 deg2rad(Deg) = Deg / 180.0 * pi.
 rad2deg(Rad) = Rad * 180.0 / pi.
 kmh2ms(Kmh) = Kmh / 3.6.
@@ -193,7 +188,8 @@ lane_to_string(right) = "right".
 agents = [b, d, h].
 
 
-agent_pairs = cross_product(agents, agents).
+%agent_pairs = cross_product(agents, agents).
+agent_pairs = [{b,d}, {b,h}, {d,b}, {d,h}, {h,b}, {h,d}].
 
 
 :- func cross_product(list(T1), list(T2)) = list({T1, T2}).

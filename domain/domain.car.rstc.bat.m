@@ -94,10 +94,6 @@
 
 %-----------------------------------------------------------------------------%
 
-:- pragma memo(reward/2, [allow_reset, statistics, fast_loose]). 
-
-%-----------------------------------------------------------------------------%
-
 rel_v(C, B, S) = one - ntg(B, C, S) / ttc(B, C, S).
 
 opposite_direction(B, C, S) :- rel_v(B, C, S) > zero.
@@ -701,7 +697,8 @@ match_info(Obs, B, C, S) :-
                 ), NTG1, NTG2)
         else    true
     ),
-    (   if      some [TTC1, TTC2] ttcs(Obs, B, C, S, TTC1, TTC2)
+    (   if      some [TTC1, TTC2] ( B @< C, ttcs(Obs, B, C, S, TTC1, TTC2) )
+                                    % ttc(B, C) = ttc(C, B)
         then    (   have_common_cat((pred(Cat::out) is multi :-
                         ttc_cat(Cat)
                     ), TTC1, TTC2)
@@ -735,7 +732,7 @@ match_longitudinal_dist(Obs, B, C, S) = D :-
                     )
             else    zero
         ),
-    D2 = (  if      some [TTC1, TTC2] ttcs(Obs, B, C, S, TTC1, TTC2)
+    D2 = (  if      some [TTC1, TTC2] ( B @< C, ttcs(Obs, B, C, S, TTC1, TTC2) )
             then    minimize(pred(CatDist::out) is multi :-
                         (
                             CatDist = one
@@ -831,14 +828,14 @@ obs_to_action(CarObs @ car_obs(Obs)) =
 :- import_module table_statistics.
 
 print_memo_stats(!IO) :-
-    table_statistics_for_reward_2(Lane, !IO),
-    io.write_string("\nreward/2:\n", !IO),
-    write_table_stats(current_stats(call_table_stats(Lane)), !IO),
+    %table_statistics_for_reward_2(Lane, !IO),
+    %io.write_string("\nreward/2:\n", !IO),
+    %write_table_stats(current_stats(call_table_stats(Lane)), !IO),
     true.
 
 
 reset_memo(!IO) :-
-    table_reset_for_reward_2(!IO),
+    %table_reset_for_reward_2(!IO),
     get_reward_counter(I, !IO),
     format("REWARD COUNTER = %d\n", [i(I)], !IO),
     get_reward_bound_counter(J, !IO),
