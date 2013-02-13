@@ -224,6 +224,11 @@ ttc(B, D, do(A, S)) = R :-
                 R = one / ((Q - one) * ttc(B, D, S) / ntg(B, D, S) + one)
                     * ttc(B, D, S)
             else
+                % XXX TODO
+                % Do we want to keep these transitivity branches?
+                % If so, do we want to have additional conditions to avoid
+                % division by zero? Check the rstc.ecl file for the probably
+                % correct ones.
                 C = transitive_car(B, D, S),
                 %Q \= one - ntg(B, C, S) / ttc(B, C, S),
                 TTC_BC = one / ((Q - one) * ttc(B, C, S) / ntg(B, C, S) + one)
