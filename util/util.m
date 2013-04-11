@@ -11,8 +11,20 @@
 
 :- module util.
 
-:- import_module pipe.
-:- import_module times.
+:- interface.
 
+%-----------------------------------------------------------------------------%
+
+:- include_module arithmetic.
+:- include_module inf_arithmetic.
+:- include_module pipe.
+:- include_module pso.
+:- include_module simulated_annealing.
+:- include_module rat.
+:- include_module rand.
+:- include_module time.
+:- include_module vector_space.
+
+%-----------------------------------------------------------------------------%
 :- end_module util.
-
+%-----------------------------------------------------------------------------%

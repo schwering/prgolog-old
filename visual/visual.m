@@ -24,6 +24,7 @@
 :- import_module domain.
 :- import_module domain.car.
 :- import_module domain.car.cont.
+:- import_module list.
 :- use_module planrecog.
 
 %-----------------------------------------------------------------------------%
@@ -33,13 +34,15 @@
 %-----------------------------------------------------------------------------%
 
 :- type area.
-:- type areas.
+:- type areas == list(area).
 
 :- pred init(int::in, areas::out, io::di, io::uo) is det.
 
 :- pred finish(io::di, io::uo) is det.
 
-:- pred visualize(areas) `with_type` planrecog.handler(prim, stoch, proc).
+:- pred clear(area::in, io::di, io::uo) is det.
+
+:- pred visualize(areas) `with_type` planrecog.handler(prim).
 :- mode visualize(in)    `with_inst` planrecog.handler.
 
 :- pred wait_for_key(io::di, io::uo) is det.
@@ -56,11 +59,11 @@
 :- import_module curs.panel.
 :- import_module float.
 :- import_module int.
-:- import_module list.
 :- import_module prgolog.
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
+:- import_module solutions.
 :- import_module require.
 
 %-----------------------------------------------------------------------------%
@@ -71,8 +74,6 @@
                        cols   :: int,
                        width  :: m,
                        length :: m).
-
-:- type areas == list(area).
 
 :- type mapsit == {assoc_list(var, number), sit(prim)}.
 
@@ -93,15 +94,12 @@ right(Area) = left(Area) + cols(Area) - 1.
                  s::out, m::out, m::out, m::out, m::out) is det.
 
 get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
-    (   if      S = do(match(Obs, _, _, _), _)
-        then    (   if      Obs = obs(_, Agent, X0, Y0, _, _, _)
-                    then    ObsX = X0,
-                            ObsY = Y0
-                    else if Obs = obs(_, _, _, _, Agent, X0, Y0)
-                    then    ObsX = X0,
-                            ObsY = Y0
-                    else    error("invalid observation does not contain driver")
+    (   if      some [X, Y] (
+                    S = do(match(car_obs(Obs), _, _, _), _),
+                    X = x_pos(Obs, Agent),
+                    Y = y_pos(Obs, Agent)
                 )
+        then    ObsX = X, ObsY = Y
         else    ObsX = -1.0, ObsY = -1.0
     ),
     E = ( func(T) = eval_float(Map, T) ),
@@ -112,8 +110,13 @@ get_data({Map, S}, Agent, Time, ModX, ModY, ObsX, ObsY) :-
 
 :- func agent_to_color(agent::in) = (colour::out) is det.
 
-agent_to_color(a) = red.
-agent_to_color(b) = blue.
+agent_to_color(b) = red.
+agent_to_color(c) = blue.
+agent_to_color(d) = green.
+agent_to_color(e) = magenta.
+agent_to_color(f) = cyan.
+agent_to_color(g) = yellow.
+agent_to_color(h) = white.
 
 
 :- pred border(area::in, io::di, io::uo) is det.
@@ -133,8 +136,6 @@ border(Area, !IO) :-
     %move(bottom(Area), right(Area), !IO), addch(normal, to_int('+'), !IO),
     true.
 
-
-:- pred clear(area::in, io::di, io::uo) is det.
 
 clear(Area, !IO) :- clear_2(Area, top(Area), cols(Area), !IO).
 
@@ -201,8 +202,7 @@ draw_data(MapSit, Area, Agent, !IO) :-
 
 draw_sit(MapSit, Area, !IO) :-
     draw_center_line(Area, !IO),
-    draw_data(MapSit, Area, a, !IO),
-    draw_data(MapSit, Area, b, !IO),
+    aggregate(agent, draw_data(MapSit, Area), !IO),
     border(Area, !IO).
 
 
@@ -257,9 +257,9 @@ finish(!IO) :-
     stop(!IO).
 
 
-visualize(Areas, I, State, !IO) :-
+visualize(Areas, I, !State, !IO) :-
     lock(!IO),
-    State = planrecog.s_state(Conf, Phase),
+    !.State = planrecog.s_state(Conf, Phase),
     Conf = conf(_Prog, Sit),
     (   if      index1(Areas, I, Area)
         then    clear(Area, !IO),
@@ -275,7 +275,7 @@ visualize(Areas, I, State, !IO) :-
     unlock(!IO).
 
 
-:- pragma foreign_code("C", "
+:- pragma foreign_decl("C", "
     static pthread_mutex_t ncurses_mutex = PTHREAD_MUTEX_INITIALIZER;
 ").
 
@@ -304,6 +304,9 @@ visualize(Areas, I, State, !IO) :-
 
 wait_for_key(!IO) :-
     getch(_, !IO).
+
+
+:- finalize stop/2.
 
 
 %:- pred curs_main(io::di, io::uo) is det.

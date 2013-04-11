@@ -17,6 +17,19 @@
 :- import_module thread.
 
 main(!IO) :-
+    ( if {1.0, 2} @< {2.0, 2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {2.0, 2} = {2.0, 2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {2.0, 2} @=< {2.0, 2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {2.0, 2} @>= {2.0, 2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {2.0, 2} @> {2.0, 2} then io.format("Schlecht\n", [], !IO) else io.format("Gut\n", [], !IO) ),
+    ( if ordering({1.0, 2}, {2.0, 2}) = (<) then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if ordering({2.0, 2}, {2.0, 2}) = (=) then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if ordering({2.0, 2}, {2.0, 2}) = (>) then io.format("Schlecht\n", [], !IO) else io.format("Gut\n", [], !IO) ),
+    ( if {-1.0, -2} @> {-2.0, -2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {-2.0, -2} = {-2.0, -2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {-2.0, -2} @=< {-2.0, -2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {-2.0, -2} @>= {-2.0, -2} then io.format("Gut\n", [], !IO) else io.format("Schlecht\n", [], !IO) ),
+    ( if {-2.0, -2} @< {-2.0, -2} then io.format("Schlecht\n", [], !IO) else io.format("Gut\n", [], !IO) ),
     P = (pred(Cont::out, IO0::di, IO1::uo) is det :-
         some [!TIO] (
             IO0 = !:TIO,

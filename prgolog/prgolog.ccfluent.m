@@ -1,5 +1,5 @@
 %-----------------------------------------------------------------------------%
-%vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
+% vim: ft=mercury ts=4 sw=4 et wm=0 tw=0
 %-----------------------------------------------------------------------------%
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
@@ -33,6 +33,7 @@
 
 :- import_module assoc_list.
 :- use_module osi.
+:- import_module list.
 :- use_module term.
 :- use_module varset.
 
@@ -70,23 +71,16 @@
 :- func variable(var) = aterm.
 :- mode variable(in) = out is det.
 
+:- func - aterm = aterm.
+:- func + aterm = aterm.
+
 :- func number * aterm = aterm.
-:- mode in * in = out is det.
-
 :- func aterm + aterm = aterm.
-:- mode in + in = out is det.
-
 :- func aterm - aterm = aterm.
-:- mode in - in = out is det.
 
-:- func aterm `=<` aterm = constraint.
-:- mode in `=<` in = out is det.
-
-:- func aterm `>=` aterm = constraint.
-:- mode in `>=` in = out is det.
-
-:- func aterm `=` aterm = constraint.
-:- mode in `=` in = out is det.
+:- func (aterm =< aterm) = constraint.
+:- func (aterm >= aterm) = constraint.
+:- func (aterm =  aterm) = constraint.
 
 :- pred holds_trivially(constraint::in) is semidet.
 
@@ -152,30 +146,34 @@ new_variable(VG0, VG1) = variable(V) :- new_var(VG0, VG1, V).
 
 :- type summand ---> mult(number, var) ; const(number).
 
-:- type aterm == list(summand).
+:- type aterm ---> t(summands :: list(summand)).
 
 %-----------------------------------------------------------------------------%
 
-constant(C) = [const(C)].
+constant(C) = t([const(C)]).
 
-variable(V) = [mult(1.0, V)].
+variable(V) = t([mult(1.0, V)]).
 
 %-----------------------------------------------------------------------------%
 
-_ * [] = [].
-C0 * [const(C1) | Ts] = [const(C0*C1) | C0 * Ts].
-C0 * [mult(C1, V) | Ts] = [mult(C0*C1, V) | C0 * Ts].
+C1 * t(SL) = t(list.map((func(Summand) = Summand1 :-
+        (   Summand = const(C2),   Summand1 = const(C1 * C2)
+        ;   Summand = mult(C2, V), Summand1 = mult(C1 * C2, V) )
+    ), SL)).
 
-T1 + T2 = T1 ++ T2.
++ T = T.
 
-T1 - T2 = T1 ++ T3 :-
-    T3 = map((func(Summand) = Summand1 :-
-        (   Summand = mult(C, V), Summand1 = mult(-C, V)
-        ;   Summand = const(C),   Summand1 = const(-C) )
-    ), T2).
+- t(SL) = t(list.map((func(Summand) = Summand1 :-
+        (   Summand = const(C),   Summand1 = const(-1.0 * C)
+        ;   Summand = mult(C, V), Summand1 = mult(-1.0 * C, V) )
+    ), SL)).
+
+t(SL1) + t(SL2) = t(SL1 ++ SL2).
+
+T1 - T2 = T1 + (- T2).
 
 
-:- pred split(aterm, list(pair(var, number)), number).
+:- pred split(list(summand), list(pair(var, number)), number).
 :- mode split(in, out, out) is det.
 
 split([], [], 0.0).
@@ -202,12 +200,12 @@ aggregate_2([C @ (V - A) | Cs]) =
     ).
 
 
-T1 `=<` T2 = osi.construct_constraint(Sum1, osi.(=<), -Constant) :-
-    split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
-T1 `=`  T2 = osi.construct_constraint(Sum1, osi.(=),  -Constant) :-
-    split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
-T1 `>=` T2 = osi.construct_constraint(Sum1, osi.(>=), -Constant) :-
-    split(T1 - T2, Sum0, Constant), aggregate(Sum0, Sum1).
+(T1 =< T2) = osi.construct_constraint(Sum1, osi.(=<), -Constant) :-
+    split(summands(T1 - T2), Sum0, Constant), aggregate(Sum0, Sum1).
+(T1 =  T2) = osi.construct_constraint(Sum1, osi.(=),  -Constant) :-
+    split(summands(T1 - T2), Sum0, Constant), aggregate(Sum0, Sum1).
+(T1 >= T2) = osi.construct_constraint(Sum1, osi.(>=), -Constant) :-
+    split(summands(T1 - T2), Sum0, Constant), aggregate(Sum0, Sum1).
 
 
 holds_trivially(C) :- osi.holds_trivially(C).
@@ -215,10 +213,10 @@ holds_trivially(C) :- osi.holds_trivially(C).
 %-----------------------------------------------------------------------------%
 
 solve(Vargen, Constraints) :-
-    solve(Vargen, Constraints, min([]), _, _).
+    solve(Vargen, Constraints, min(t([])), _, _).
 
 solve(Vargen, Constraints, Map, Val) :-
-    solve(Vargen, Constraints, min([]), Map, Val).
+    solve(Vargen, Constraints, min(t([])), Map, Val).
 
 %:- pragma memo(solve/5, [allow_reset, fast_loose]). 
 
@@ -227,22 +225,21 @@ solve(Vargen, Constraints, Obj, Map, Val) :-
     (   Obj = max(ObjTerm), Dir = osi.max
     ;   Obj = min(ObjTerm), Dir = osi.min
     ),
-    split(ObjTerm, ObjVars, ObjCons),
+    split(summands(ObjTerm), ObjVars, ObjCons),
     Res = osi.solve(Constraints, Dir, ObjVars, varset(Vargen)),
     Res = osi.satisfiable(Val0, Map),
     Val = Val0 + ObjCons.
 
 variables(vargen(VS)) = varset.vars(VS).
 
-variable_sum(vargen(VS)) = map((func(V) = mult(1.0, V)), varset.vars(VS)).
+variable_sum(vargen(VS)) = t(list.map((func(V) = mult(1.0, V)), varset.vars(VS))).
 
-eval(_, []) = 0.0.
-eval(M, [const(C) | Ts]) = C + eval(M, Ts).
-eval(M, [mult(C, V) | Ts]) = C * F + eval(M, Ts) :-
-    (   if      F0 = elem(V, M)
-        then    F = F0
-        else    F = 0.0
-    ).
+eval(_, t([])) = 0.0.
+eval(M, t([const(C) | Ts])) = C + eval(M, t(Ts)).
+eval(M, t([mult(C, V) | Ts])) = C * F + eval(M, t(Ts)) :-
+    if      F0 = elem(V, M)
+    then    F = F0
+    else    F = 0.0.
 
 %eval_float(M, T) = float(numer(R)) / float(denom(R)) :- R = eval(M, T).
 eval_float(M, T) = eval(M, T).

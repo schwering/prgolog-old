@@ -1,3 +1,5 @@
+#!/bin/bash
+
 COIN_DIR=$1
 MERCURY_SRC_DIR=$2
 MERCURY_BIN_DIR=$3

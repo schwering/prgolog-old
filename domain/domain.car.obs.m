@@ -20,26 +20,35 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func remove_obs_sequence(prog(A, B, P)) = prog(A, B, P) is semidet
-    <= obs_bat(A, B, P, O).
+:- func remove_obs_sequence(prog(A)) = prog(A) is semidet <= obs_bat(A, O).
+:- pragma obsolete(remove_obs_sequence/1).
 
-:- func last_obs(sit(A)) = A is semidet
-    <= obs_bat(A, B, P, O).
+    % Does not substitute anything in called procedures!
+:- func map_prog(pred(prog(A), prog(A)), prog(A)) = prog(A) <= obs_bat(A, O).
+:- mode map_prog(pred(in, out) is semidet, in) = out is det.
 
-:- pred last_action_covered_by_obs(sit(A)::in) is semidet
-    <= obs_bat(A, B, P, O).
+    % Does not substitute observations in called procedures!
+:- func subst_obs(prog(A), prog(A)) = prog(A) is det <= obs_bat(A, O).
 
-:- func append_obs(prog(A, B, P), O) = prog(A, B, P) is det
-    <= obs_bat(A, B, P, O).
+    % Does not substitute observations in called procedures!
+:- func substf_obs(func(prog(A)) = prog(A), prog(A)) = prog(A) is det
+    <= obs_bat(A, O).
 
-:- func obs_count_in_prog(prog(A, B, P)) = int
-    <= obs_bat(A, B, P, O).
+:- func last_obs(sit(A)) = A is semidet <= obs_bat(A, O).
 
-:- func obs_count_in_sit(sit(A)) = int
-    <= obs_bat(A, B, P, O).
+:- pred last_action_covered_by_obs(sit(A)::in) is semidet <= obs_bat(A, O).
+
+:- func append_obs(prog(A), O) = prog(A) is det <= obs_bat(A, O).
+
+:- func obs_count_in_prog(prog(A)) = int <= obs_bat(A, O).
+
+:- func obs_trans_count(prog(A)) = int <= obs_bat(A, O).
+
+:- func obs_count_in_sit(sit(A)) = int <= obs_bat(A, O).
 
 %-----------------------------------------------------------------------------%
 
+:- include_module env.
 :- include_module torcs.
 :- include_module stdin.
 
@@ -59,28 +68,28 @@
 
 %-----------------------------------------------------------------------------%
 
-:- func append_obs_to_most_right(prog(A, B, P), A) = prog(A, B, P) is semidet
-    <= obs_bat(A, B, P, O).
+:- func append_obs_to_most_right(prog(A), pseudo_atom(A)) = prog(A) is semidet
+    <= obs_bat(A, O).
 
-append_obs_to_most_right(seq(P1, P2), M) =
-    (   if      Q2 = append_obs_to_most_right(P2, M)
+append_obs_to_most_right(seq(P1, P2), PA) =
+    (   if      Q2 = append_obs_to_most_right(P2, PA)
         then    seq(P1, Q2)
-        else    append_obs_to_most_right(P1, M) ).
-append_obs_to_most_right(non_det(P1, P2), M) =
-    (   if      Q2 = append_obs_to_most_right(P2, M)
+        else    append_obs_to_most_right(P1, PA) ).
+append_obs_to_most_right(non_det(P1, P2), PA) =
+    (   if      Q2 = append_obs_to_most_right(P2, PA)
         then    non_det(P1, Q2)
-        else    append_obs_to_most_right(P1, M) ).
-append_obs_to_most_right(conc(P1, P2), M) =
-    (   if      Q2 = append_obs_to_most_right(P2, M)
+        else    append_obs_to_most_right(P1, PA) ).
+append_obs_to_most_right(conc(P1, P2), PA) =
+    (   if      Q2 = append_obs_to_most_right(P2, PA)
         then    conc(P1, Q2)
-        else    append_obs_to_most_right(P1, M) ).
-append_obs_to_most_right(star(P), M) =
-    append_obs_to_most_right(P, M).
-append_obs_to_most_right(M0, M) = seq(M0, pseudo_atom(atom(prim(M)))) :-
-    M0 = pseudo_atom(atom(prim(A))),
-    is_obs(A).
+        else    append_obs_to_most_right(P1, PA) ).
+append_obs_to_most_right(pseudo_atom(PA1), PA2) =
+    seq(pseudo_atom(PA1), pseudo_atom(PA2)) :- is_obs_prog(PA1).
 
 
+    % This is broken!!!
+    % It fails for the program seq(nil, conc(nil, nil))
+    % because of the seq(nil, _) part.
 remove_obs_sequence(conc(P1, P2)) = Q :-
     if          only_obs_actions(P2)
     then        Q = P1
@@ -89,26 +98,48 @@ remove_obs_sequence(conc(P1, P2)) = Q :-
     else        false.
 
 
-:- pred only_obs_actions(prog(A, B, P)::in) is semidet
-    <= obs_bat(A, B, P, O).
+map_prog(Pred, P) = Q :-
+    if Pred(P, Q1) then Q = Q1 else
+    (   P = seq(P1, P2),     Q = seq(map_prog(Pred, P1),
+                                     map_prog(Pred, P2))
+    ;   P = non_det(P1, P2), Q = non_det(map_prog(Pred, P1),
+                                         map_prog(Pred, P2))
+    ;   P = conc(P1, P2),    Q = conc(map_prog(Pred, P1),
+                                      map_prog(Pred, P2))
+    ;   P = pick(F, X0, P1), Q = 'new pick'(F, X0,
+                                            func(X) = map_prog(Pred, P1(X)))
+    ;   P = star(P1),        Q = star(map_prog(Pred, P1))
+    ;   P = proc(_),         Q = P
+    ;   P = pseudo_atom(_),  Q = P
+    ;   P = nil,             Q = P
+    ).
+    
 
-only_obs_actions(seq(P1, P2)) :-
-    only_obs_actions(P1),
-    only_obs_actions(P2).
-only_obs_actions(non_det(P1, P2)) :-
-    only_obs_actions(P1),
-    only_obs_actions(P2).
-only_obs_actions(conc(P1, P2)) :-
-    only_obs_actions(P1),
-    only_obs_actions(P2).
-only_obs_actions(star(P)) :-
-    only_obs_actions(P).
-only_obs_actions(pseudo_atom(atom(prim(A)))) :- is_obs(A).
+subst_obs(New, P) = map_prog(Pred, P) :-
+    Pred = (pred(pseudo_atom(PA)::in, New1::out) is semidet :-
+        is_obs_prog(PA),
+        New1 = New
+    ).
+
+
+substf_obs(NewF, P) = map_prog(Pred, P) :-
+    Pred = (pred(pseudo_atom(PA)::in, New1::out) is semidet :-
+        is_obs_prog(PA),
+        New1 = NewF(pseudo_atom(PA))
+    ).
+
+
+:- pred only_obs_actions(prog(A)::in) is semidet <= obs_bat(A, O).
+
+only_obs_actions(seq(P1, P2))     :- only_obs_actions(P1), only_obs_actions(P2).
+only_obs_actions(non_det(P1, P2)) :- only_obs_actions(P1), only_obs_actions(P2).
+only_obs_actions(conc(P1, P2))    :- only_obs_actions(P1), only_obs_actions(P2).
+only_obs_actions(star(P))         :- only_obs_actions(P).
+only_obs_actions(pseudo_atom(PA)) :- is_obs_prog(PA).
 only_obs_actions(nil).
 
 
-last_obs(do(A, S)) =
-    ( if is_obs(A) then A else last_obs(S) ).
+last_obs(do(A, S)) = ( if is_obs_action(A) then A else last_obs(S) ).
 
 
 last_action_covered_by_obs(S) :-
@@ -119,27 +150,55 @@ last_action_covered_by_obs(S) :-
 
 
 append_obs(P, O) = P2 :-
-    A = obs_to_action(O),
-    (   if      P1 = append_obs_to_most_right(P, A)
+    PA = obs_to_action(O),
+    (   if      P1 = append_obs_to_most_right(P, PA)
         then    P2 = P1
-        else    P2 = conc(P, pseudo_atom(atom(prim(A))))
+        else    P2 = conc(P, pseudo_atom(PA))
     ).
 
 
 obs_count_in_prog(seq(P1, P2)) = obs_count_in_prog(P1) + obs_count_in_prog(P2).
 obs_count_in_prog(non_det(P1, P2)) = min(obs_count_in_prog(P1), obs_count_in_prog(P2)).
 obs_count_in_prog(conc(P1, P2)) = obs_count_in_prog(P1) + obs_count_in_prog(P2).
+obs_count_in_prog(pick(_, _, _)) = 0.
 obs_count_in_prog(star(_)) = 0.
 obs_count_in_prog(proc(_)) = 0.
 obs_count_in_prog(nil) = 0.
-obs_count_in_prog(pseudo_atom(complex(P))) = obs_count_in_prog(P).
-obs_count_in_prog(pseudo_atom(atom(C))) =
-    ( if C = prim(A), is_obs(A) then 1 else 0 ).
+obs_count_in_prog(pseudo_atom(PA @ complex(P))) =
+    ( if is_obs_prog(PA) then 1 else obs_count_in_prog(P) ).
+obs_count_in_prog(pseudo_atom(PA @ atom(_))) =
+    ( if is_obs_prog(PA) then 1 else 0 ).
+
+
+obs_trans_count(seq(P1, P2)) = obs_trans_count(P1) + obs_trans_count(P2).
+obs_trans_count(non_det(P1, P2)) = min(obs_trans_count(P1), obs_trans_count(P2)).
+obs_trans_count(conc(P1, P2)) = obs_trans_count(P1) + obs_trans_count(P2).
+obs_trans_count(pick(_, _, _)) = 0.
+obs_trans_count(star(_)) = 0.
+obs_trans_count(proc(_)) = 0.
+obs_trans_count(nil) = 0.
+obs_trans_count(P @ pseudo_atom(PA @ complex(P1))) =
+    ( if is_obs_prog(PA) then trans_count(P) else obs_trans_count(P1) ).
+obs_trans_count(P @ pseudo_atom(PA @ atom(_))) =
+    ( if is_obs_prog(PA) then trans_count(P) else 0 ).
+
+
+:- func trans_count(prog(A)) = int <= bat(A).
+
+trans_count(seq(P1, P2)) = trans_count(P1) + trans_count(P2).
+trans_count(non_det(P1, P2)) = min(trans_count(P1), trans_count(P2)).
+trans_count(conc(P1, P2)) = trans_count(P1) + trans_count(P2).
+trans_count(pick(_, X0, G)) = trans_count(G(X0)).
+trans_count(star(_)) = 0.
+trans_count(proc(P)) = trans_count(apply(P)).
+trans_count(nil) = 0.
+trans_count(pseudo_atom(complex(P))) = trans_count(P).
+trans_count(pseudo_atom(atom(_))) = 1.
 
 
 obs_count_in_sit(s0) = 0.
 obs_count_in_sit(do(A, S)) =
-    ( if is_obs(A) then 1 else 0 ) + obs_count_in_sit(S).
+    ( if is_obs_action(A) then 1 else 0 ) + obs_count_in_sit(S).
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.obs.

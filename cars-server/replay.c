@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <car-obs-torcs-types.h>
+#include <domain-car-obs-torcs-types.h>
 
 #define HOST "localhost"
 #define PORT 19123
@@ -50,63 +50,130 @@ static int make_socket(void)
     return sockfd;
 }
 
-static float min_conf(const struct planrecog_state *msg)
+static float min_conf(const struct planrecog_state *msg, const int i)
 {
-    return (double) (msg->finished) /
-           (double) (msg->working + msg->finished + msg->working);
+    const int numer = msg->sources[i].finished;
+    const int denom = msg->sources[i].working + msg->sources[i].finished +
+                      msg->sources[i].failed;
+    return (double) numer / (double) denom;
 }
 
-static float max_conf(const struct planrecog_state *msg)
+static float max_conf(const struct planrecog_state *msg, const int i)
 {
-    return (double) (msg->working + msg->finished) /
-           (double) (msg->working + msg->finished + msg->working);
+    const int numer = msg->sources[i].working + msg->sources[i].finished;
+    const int denom = msg->sources[i].working + msg->sources[i].finished +
+                      msg->sources[i].failed;
+    return (double) numer / (double) denom;
 }
 
-static void klatschtgleich2(FILE *fp, int sockfd)
+static bool scan(FILE *fp, int n_agents, struct observation_record *r)
+{
+    int i;
+
+    if (fscanf(fp, "%*c %lf", &r->t) != 1) {
+        return false;
+    }
+    for (i = 0; i < n_agents; ++i) {
+        int j;
+        struct agent_info_record info;
+        info.present = 1;
+        if (fscanf(fp, "%s %lf %lf %lf %lf",
+                    info.agent, &info.veloc,
+                    &info.rad, &info.x, &info.y) != 5) {
+            return false;
+        }
+        j = agent_to_index(info.agent);
+        assert(0 <= j && j < NAGENTS);
+        memcpy(&r->info[j], &info, sizeof(info));
+    }
+    if (fscanf(fp, "\n") != 0) {
+        return false;
+    }
+    n_agents = i;
+    r->n_agents = n_agents;
+    return true;
+}
+
+static void klatschtgleich2(FILE *fp, int sockfd, int n_agents, bool do_sleep)
 {
     struct observation_record r;
     struct planrecog_state state;
     double t0 = -1.0;
-    int ret;
 
-    while (fscanf(fp, "%*c %lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\n",
-                &r.t,
-                r.agent0, &r.veloc0, &r.rad0, &r.x0, &r.y0,
-                r.agent1, &r.veloc1, &r.rad1, &r.x1, &r.y1) == 11) {
-        printf("%lf %s %lf %lf %lf %lf %s %lf %lf %lf %lf\n",
-               r.t,
-               r.agent0, r.veloc0, r.rad0, r.x0, r.y0,
-               r.agent1, r.veloc1, r.rad1, r.x1, r.y1);
-        if (t0 >= 0.0) {
+    memset(&r, 0, sizeof(r));
+
+    while (scan(fp, n_agents, &r)) {
+        int i, ret;
+
+        printf("%lf", r.t);
+        for (i = 0; i < NAGENTS; ++i) {
+            if (r.info[i].present) {
+                printf(" '%s' %lf %lf %lf %lf",
+                       r.info[i].agent, r.info[i].veloc, r.info[i].rad,
+                       r.info[i].x, r.info[i].y);
+            }
+        }
+        printf("\n");
+
+        if (do_sleep && t0 >= 0.0) {
             usleep((useconds_t) (1e6 * (r.t - t0)));
         }
         t0 = r.t;
+
         ret = write(sockfd, &r, sizeof(r));
         if (ret != sizeof(r)) {
-            fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(r));
+            fprintf(stderr, "Couldn't write %lu bytes\n", sizeof(r));
             exit(1);
         }
+
         ret = read(sockfd, &state, sizeof(state));
         if (ret != sizeof(state)) {
             fprintf(stderr, "Couldn't read %lu bytes\n", sizeof(state));
             exit(1);
         }
-        printf("%.2lf =< confidence =< %.2lf\n",
-                min_conf(&state), max_conf(&state));
+
+        for (i = 0; i < NAGENTS; ++i) {
+            int j;
+            for (j = 0; j < NAGENTS; ++j) {
+                if (r.info[i].present && r.info[j].present && i != j) {
+                    const double ntg = (r.info[j].x - r.info[i].x) / r.info[i].veloc;
+                    const double ttc = (r.info[j].x - r.info[i].x) / (r.info[i].veloc - r.info[j].veloc);
+                    printf("ntg('%s', '%s') = %7.2lf\t\t", r.info[i].agent, r.info[j].agent, ntg);
+                    printf("ttc('%s', '%s') = %7.2lf\n", r.info[i].agent, r.info[j].agent, ttc);
+                }
+            }
+        }
+        printf("%.2lf =< confidence working=%d, finished=%d, failed=%d =< %.2lf\n",
+                min_conf(&state, 0), state.sources[0].working, state.sources[0].finished, state.sources[0].failed, max_conf(&state, 0));
     }
 }
 
 int main(int argc, char *argv[])
 {
     int sockfd = make_socket();
-    if (argc <= 1) {
-        klatschtgleich2(stdin, sockfd);
-    } else {
-        int i;
+    int n_agents = 2;
+    bool do_sleep = true;
+    int i;
 
-        for (i = 1; i < argc; ++i) {
+    for (i = 1; i < argc; ++i) {
+        const char *s = argv[i];
+        int tmp;
+
+        if (!strcmp(s, "-n") || !strcmp(s, "--no-sleep"))
+            /* XXX Leads to crash for some reason (don't know why right now). */
+            do_sleep = false;
+        else if (sscanf(s, "-%d", &tmp) == 1)
+            n_agents = tmp;
+        else
+            break;
+    }
+
+    if (i == argc) {
+        klatschtgleich2(stdin, sockfd, n_agents, do_sleep);
+    } else {
+        for (; i < argc; ++i) {
             FILE *fp = fopen(argv[i], "r");
-            klatschtgleich2(fp, sockfd);
+            klatschtgleich2(fp, sockfd, n_agents, do_sleep);
             fclose(fp);
         }
     }

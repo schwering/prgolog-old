@@ -41,7 +41,8 @@
 :- import_module prgolog.ccfluent.
 :- import_module prgolog.nice.
 :- import_module string.
-:- import_module times.
+:- import_module util.
+:- import_module util.time.
 %:- import_module table_statistics.
 
 %-----------------------------------------------------------------------------%
@@ -58,10 +59,28 @@
     IO1 = IO0;
 ").
 
+:- import_module pair.
+
 main(!IO) :-
     times(Tms2, !IO),
     Source = source,
-    Prog = (p(cruise(a)) // p(overtake(b, a))) `with_type` prog(prim, stoch, proc),
+    Prog = (cruise(b) // overtake(h, b)) `with_type` prog(prim),
+    %Prog = overtake(h, b) `with_type` prog(prim),
+/*
+    format("Starting\n", [], !IO),
+    ( if    do(a(seed(1)) `;`
+               a(init_env(env(5.594, [b - info(15.0, 0.0, p(34.0, -3.0)),
+                                      h - info(20.7, 0.0, p(6.3, -3.0))]))) `;`
+               b(set_yaw_st(b, right, deg2rad(0.0))) `;`
+               %cruise(b) `;`
+               ( overtake(h, b) ) `;`
+               nil
+            , s0, S)
+      then  format("Success\n", [], !IO), write(S, !IO), nl(!IO) else format("Failure\n", [], !IO) ),
+    format("Done\n", [], !IO),
+    true.
+/*
+*/
     %spawn((pred(IO0::di, IO1::uo) is cc_multi :- forward_obs(IO0, IO1)), !IO),
     %planrecog(10, global_init_obs, global_next_obs, Prog, Results, !IO),
     %online_planrecog(10, Vars, !IO),
@@ -69,43 +88,40 @@ main(!IO) :-
     %Results = [],
     planrecog(10, Source, Prog, Results, !IO),
     times(Tms3, !IO),
-    map0_io((pred(s_state(conf(P, S), R)::in, IO0::di, IO1::uo) is det :-
-        some [!SubIO] (
-            IO0 = !:SubIO,
-            write(R, !SubIO), nl(!SubIO),
-            (   if      solve(vargen(S), constraints(S), Map, _Val)
-                then    write(S, !SubIO), nl(!SubIO),
-                        print_sit(Map, S, !SubIO),
-                        print_sit_info(Map, S, !SubIO),
-                        (   if      R = finished
-                            then    %draw_traces_incl_subsits(Map, S, !SubIO)
-                                    %draw_trace(Map, S, !SubIO)
-                                    true
-                            else    true
-                        ),
-                        write_string("Remaining program: ", !SubIO),
-                        print_prog(Map, P, !SubIO), nl(!SubIO)
-                else    write_string("solving failed\n", !SubIO)
-            ),
-            write_string("Remaining program: ", !SubIO),
-            write(P, !SubIO), nl(!SubIO),
-            nl(!SubIO),
-            IO1 = !.SubIO
-        )
+    foldl((pred(s_state(conf(P, S), R)::in, !.SubIO::di, !:SubIO::uo) is det :-
+        write(R, !SubIO), nl(!SubIO),
+        (   if      solve(vargen(S), constraints(S), Map, _Val)
+            then    write(S, !SubIO), nl(!SubIO),
+                    print_sit(Map, S, !SubIO),
+                    print_sit_info(Map, S, b, !SubIO),
+                    print_sit_info(Map, S, h, !SubIO),
+                    (   if      R = finished
+                        then    %draw_traces_incl_subsits(Map, S, !SubIO)
+                                %draw_trace(Map, S, !SubIO)
+                                true
+                        else    true
+                    ),
+                    write_string("Remaining program: ", !SubIO),
+                    print_prog(Map, P, !SubIO), nl(!SubIO)
+            else    write_string("solving failed\n", !SubIO)
+        ),
+        write_string("Remaining program: ", !SubIO),
+        write(P, !SubIO), nl(!SubIO),
+        nl(!SubIO)
     ), Results, !IO),
     (   if      Results \= []
         then    foldl((pred(s_state(_, R)::in, {N, M}::in, {N1, M1}::out) is det :-
                     if      R = finished
-                    then    N1 = N + 1, M1 = M + 1
-                    else    N1 = N,     M1 = M + 1
+                    then    N1 = int.'+'(N, 1), M1 = int.'+'(M, 1)
+                    else    N1 = N,             M1 = int.'+'(M, 1)
                 ), Results, {0, 0}, {Finished, Total}),
                 format("percentage = %d / %d = %.2f\n",
                        [i(Finished), i(Total),
-                        f(float(Finished) / float(Total))], !IO)
+                        f(float.'/'(float(Finished), float(Total)))], !IO)
         else    format("percentage = nan\n", [], !IO)
     ),
-    format("usertime = %f\n", [f(usertime(Tms2, Tms3))], !IO),
-    format("systime = %f\n", [f(systime(Tms2, Tms3))], !IO).
+    format("usertime = %f\n", [f(usertime(StartTime, EndTime))], !IO),
+    format("systime = %f\n", [f(systime(StartTime, EndTime))], !IO).
 
 %-----------------------------------------------------------------------------%
 :- end_module cars.

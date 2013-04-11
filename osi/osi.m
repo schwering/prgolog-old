@@ -150,6 +150,8 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
     #include ""coin-clp.h""
     typedef SolverContext* MercurySolverContext;
 #else
+    #define LP_MALLOC   GC_MALLOC
+    #define LP_FREE     GC_FREE
     #include ""../lp-server/lp-sock.h""
     #include ""../lp-server/lp-msg.h""
     #define HOST ""localhost""
@@ -220,7 +222,7 @@ add_constraints([cstr(Sum, Op, Bnd) | Cs], SC0, SC2) :-
 #else /* UNIX_SOCKETS */
             sockfd = connect_tcp_socket(HOST, LP_PORT);
 #endif /* UNIX_SOCKETS */
-            node = malloc(sizeof(struct solver_context_node));
+            node = GC_MALLOC(sizeof(struct solver_context_node));
             node->tid = self;
             node->sockfd = sockfd;
             node->next = solver_context_head;

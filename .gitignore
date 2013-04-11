@@ -20,6 +20,7 @@ lp-server/coin-Osi/
 lp-server/lp_server
 maze/maze
 osi/coin-Osi-gc/
+unit-test/suite
 visual/ncurses-5.9.tar.gz
 visual/ncurses-5.9/
 

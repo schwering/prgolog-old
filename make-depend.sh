@@ -1,3 +1,5 @@
+#!/bin/bash
+
 DIRS="$@"
 DEPEND_FILE=".mercury-depend"
 

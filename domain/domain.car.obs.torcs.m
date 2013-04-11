@@ -4,10 +4,21 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: domain.car.obs.m.
+% File: domain.car.obs.torcs.m.
 % Main author: schwering.
 %
 % Observation interface that reads observations for the car domain from stdin.
+%
+% The root of the hierarchy are the sources. Actually all sources access the
+% very same observations. But sources have independent copies of the observation
+% queue. Thus they may reset_obs_source/3 its queue, for example.
+% Furthermore one might create one source per hypothesis. Each hypothesis'
+% confidence can be acquired separately using the function confidence/1.
+%
+% Note that if you use the TORCS observation interface repeatedly in otherwise
+% independent iterations, you should cal reset_all_sources/2 after each
+% iteration. Otherwise you might quickly run out of sources, because the counter
+% is continually incremented.
 %
 % Internally, observations are read from stdin and then enqueued in an array for
 % subsequent access.
@@ -26,16 +37,31 @@
 :- type source.
 :- type stream_state.
 
-:- instance obs_source(obs, env, source, stream_state).
+:- instance obs_source(car_obs, source, stream_state).
 
-:- func source = source.
+:- pred new_source(source::uo, io::di, io::uo) is det.
+:- pred reset_all_sources(io::di, io::uo) is det.
+
+:- func min_confidence(source) = float.
+:- mode min_confidence(ui) = out is det.
+:- mode min_confidence(in) = out is det.
+
+:- func max_confidence(source) = float.
+:- mode max_confidence(ui) = out is det.
+:- mode max_confidence(in) = out is det.
+
+:- func confidences(source) = {float, float}.
+:- mode confidences(ui) = out is det.
+:- mode confidences(in) = out is det.
 
 %-----------------------------------------------------------------------------%
 %-----------------------------------------------------------------------------%
 
 :- implementation.
 
+:- import_module assoc_list.
 :- import_module bool.
+:- import_module domain.car.obs.env.
 :- import_module float.
 :- import_module int.
 :- import_module list.
@@ -46,45 +72,61 @@
 
 %-----------------------------------------------------------------------------%
 
-:- type source ---> void.
-:- type stream_state ---> ss(stream, int).
+:- type obs_id ---> obs_id(source, int).
+:- type source ---> s(int).
+:- type stream_state ---> ss(source, stream, int).
 
 %-----------------------------------------------------------------------------%
 
 :- pragma foreign_decl("C", "
-    #include ""car-obs-torcs-types.h""
+    #include ""domain-car-obs-torcs-types.h""
+    #include <mercury_string.h>
+    #include <mercury_tags.h>
 
     /* Enqueues a new observation.
      * This operation may block. */
     void domain__car__obs__torcs__push_obs(const struct observation_record *obs);
 
     /* Copies the number of working, finished and failed processes into msg. */
-    void init_message(struct planrecog_state *msg);
-
-    /* Computes the current approximated confidence of the plan recognition
-     * system. */
-    float confidence(void);
+    void domain__car__obs__torcs__init_msg(struct planrecog_state *msg);
 ").
 
 
-:- pragma foreign_code("C", "
+:- pragma foreign_decl("C", "
     #include <assert.h>
     #include <semaphore.h>
 
     #define MAX_OBSERVATIONS    1000
-    #define MAX_PROCESSES       50
+    #define MAX_SOURCES         8
+    #define MAX_STREAMS         16
 
-    /* The greatest index that points to an initialized observation. */
-    static int max_valid_observation;
+    /* Minor states a sample process can be in. */
+    enum activity {
+      UNUSED = 0,   /* initially the process does nothing */
+      WORKING = 1,  /* then the process incrementally executes the program */
+      FINISHED = 2, /* finally the process either completes execution */
+      FAILED = 3    /* or execution fails */
+    };
 
-    /* The array of observations. */
-    static struct observation_record observations[MAX_OBSERVATIONS];
 
-    /* States of the sampling processes (number of executed and remaining
-     * observations.
-     * The semaphores are used for thread-safety. */
-    static struct process_state process_states[MAX_PROCESSES];
-    static sem_t semaphores[MAX_PROCESSES];
+    /* The current sources. The structure follows the source-stream hierarchy. */
+    static int max_valid_source;    /* next source id */
+    static struct {
+        int max_valid_observation;  /* greatest index that points to an initialized observation */
+        struct observation_record observations[MAX_OBSERVATIONS]; /* the array of observations. */
+        int max_valid_stream;       /* next valid stream */
+        struct {
+            sem_t sem;              /* contains the number of enqueued observations */
+            int done;               /* observations matched until now */
+            int tbd;                /* observations still to matched */
+            enum activity activity; /* is it working, has it succeeded or failed? */
+        } streams[MAX_STREAMS];
+    } sources[MAX_SOURCES];
+
+    /* Computes the current approximated confidence of the plan recognition
+     * system. */
+    static float min_confidence(int source);
+    static float max_confidence(int source);
 ").
 
 %-----------------------------------------------------------------------------%
@@ -92,29 +134,13 @@
 :- pragma foreign_code("C", "
     void domain__car__obs__torcs__push_obs(const struct observation_record *obs)
     {
-      int i;
-      assert(max_valid_observation + 1 < MAX_OBSERVATIONS);
-      memcpy(&observations[max_valid_observation + 1], obs, sizeof(struct observation_record));
-      ++max_valid_observation;
-      for (i = 0; i < MAX_PROCESSES; ++i) {
-        sem_post(&semaphores[i]);
-      }
-    }
-").
-
-
-:- pragma foreign_code("C", "
-    void init_message(struct planrecog_state *msg) {
-        int i;
-        msg->working = 0;
-        msg->finished = 0;
-        msg->failed = 0;
-        for (i = 0; i < MAX_PROCESSES; ++i) {
-            switch (process_states[i].activity) {
-            case UNUSED:                    break;
-            case WORKING:  ++msg->working;  break;
-            case FINISHED: ++msg->finished; break;
-            case FAILED:   ++msg->failed;   break;
+        int i, j;
+        for (i = 0; i < MAX_SOURCES; ++i) {
+            const int k = ++sources[i].max_valid_observation;
+            assert(k < MAX_OBSERVATIONS);
+            memcpy(&sources[i].observations[k], obs, sizeof(*obs));
+            for (j = 0; j < MAX_STREAMS; ++j) {
+                sem_post(&sources[i].streams[j].sem);
             }
         }
     }
@@ -122,16 +148,69 @@
 
 
 :- pragma foreign_code("C", "
-    float confidence(void) {
-        int i;
+    void domain__car__obs__torcs__init_msg(struct planrecog_state *msg) {
+        int i, j;
+        memset(msg, 0, sizeof(*msg));
+        assert(max_valid_source < NSOURCES);
+        msg->n_sources = max_valid_source + 1;
+        for (i = 0; i <= max_valid_source; ++i) {
+            for (j = 0; j <= sources[i].max_valid_stream; ++j) {
+                switch (sources[i].streams[j].activity) {
+                    case UNUSED:                               break;
+                    case WORKING:  ++msg->sources[i].working;  break;
+                    case FINISHED: ++msg->sources[i].finished; break;
+                    case FAILED:   ++msg->sources[i].failed;   break;
+                }
+            }
+        }
+    }
+").
+
+
+:- pragma foreign_code("C", "
+    static float min_confidence(int source) {
+        struct planrecog_state msg;
+        int numer, denom;
+        domain__car__obs__torcs__init_msg(&msg);
+        numer = msg.sources[source].finished;
+        denom = msg.sources[source].working +
+                msg.sources[source].finished +
+                msg.sources[source].failed;                              
+        return (float) numer / (float) denom;
+    }
+").
+
+
+:- pragma foreign_code("C", "
+    static float max_confidence(int source) {
+        struct planrecog_state msg;
+        int numer, denom;
+        domain__car__obs__torcs__init_msg(&msg);
+        numer = msg.sources[source].working +
+                msg.sources[source].finished;
+        denom = msg.sources[source].working +
+                msg.sources[source].finished +
+                msg.sources[source].failed;                              
+        return (float) numer / (float) denom;
+    }
+").
+
+
+/* XXX this function is currently not used. What does it actually compute?! 
+ * I guess it's the confidence where each stream which is still working is weighted with
+ * its quotient of processed and total observations. */
+:- pragma foreign_code("C", "
+    static float confidence(int source) {
+        int j;
         float c = 0.0f;
         int n = 0;
-        for (i = 0; i < MAX_PROCESSES; ++i) {
-            if (process_states[i].activity != UNUSED) {
-                if (process_states[i].activity != FAILED &&
-                    process_states[i].done + process_states[i].tbd != 0) {
-                    c += (double) (process_states[i].done) /
-                         (double) (process_states[i].done + process_states[i].tbd);
+        assert(0 <= source && source <= max_valid_source);
+        for (j = 0; j <= sources[source].max_valid_stream; ++j) {
+            if (sources[source].streams[j].activity != UNUSED) {
+                if (sources[source].streams[j].activity != FAILED &&
+                    sources[source].streams[j].done + sources[source].streams[j].tbd != 0) {
+                    c += (double) (sources[source].streams[j].done) /
+                         (double) (sources[source].streams[j].done + sources[source].streams[j].tbd);
                 }
                 ++n;
             }
@@ -150,12 +229,15 @@
     initialize_globals(IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    int i;
-    max_valid_observation = -1;
-    memset(process_states, 0, MAX_PROCESSES * sizeof(struct process_state));
-    memset(observations, 0, MAX_OBSERVATIONS * sizeof(struct observation_record));
-    for (i = 0; i < MAX_PROCESSES; ++i) {
-        sem_init(&semaphores[i], 0, 0);
+    int i, j;
+    memset(&sources, 0, sizeof(sources));
+    max_valid_source = -1;
+    for (i = 0; i < MAX_SOURCES; ++i) {
+        sources[i].max_valid_observation = -1;
+        sources[i].max_valid_stream = -1;
+        for (j = 0; j < MAX_STREAMS; ++j) {
+            sem_init(&sources[i].streams[j].sem, 0, 0);
+        }
     }
     IO1 = IO0;
 ").
@@ -169,119 +251,296 @@
     finalize_globals(IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    int i;
-    for (i = 0; i < MAX_PROCESSES; ++i) {
-        sem_destroy(&semaphores[i]);
+    int i, j;
+    for (i = 0; i < MAX_SOURCES; ++i) {
+        for (j = 0; j < MAX_STREAMS; ++j) {
+            sem_destroy(&sources[i].streams[j].sem);
+        }
     }
     IO1 = IO0;
 ").
 
 %-----------------------------------------------------------------------------%
 
-source = void.
+new_source(s(Source), !IO) :- new_source_2(Source, !IO).
 
 
-:- pred reset_obs_source(source::in, io::di, io::uo) is det.
+:- pred new_source_2(int::uo, io::di, io::uo) is det.
 
-reset_obs_source(_, !IO) :-
+:- pragma foreign_proc("C",
+    new_source_2(Source::uo, IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    int j;
+    Source = (++max_valid_source);
+    assert(0 <= Source && Source < MAX_SOURCES);
+    memset(&sources[Source], 0, sizeof(sources[Source]));
+    sources[Source].max_valid_observation = -1;
+    sources[Source].max_valid_stream = -1;
+    IO1 = IO0;
+").
+
+
+reset_all_sources(!IO) :-
     finalize_globals(!IO),
     initialize_globals(!IO).
 
 
-:- pred init_obs_stream(source::in, stream::in, stream_state::uo) is det.
+:- pred reset_obs_source(source::in, io::di, io::uo) is det.
 
-init_obs_stream(_, I, ss(I1, 0)) :- copy(I, I1).
+reset_obs_source(s(Source), !IO) :- reset_obs_source_2(Source, !IO).
 
 
-:- pred next_obs(obs_msg(obs, env)::out, sit(A)::in, prog(A, B, P)::in,
-                 stream_state::di, stream_state::uo) is det
-                 <= pr_bat(A, B, P, obs, env).
+:- pred reset_obs_source_2(int::in, io::di, io::uo) is det.
 
-next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
+:- pragma foreign_proc("C",
+    reset_obs_source_2(Source::in, IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    int j;
+    assert(0 <= Source && Source < MAX_SOURCES);
+    for (j = 0; j < MAX_STREAMS; ++j) {
+        sem_destroy(&sources[Source].streams[j].sem);
+    }
+    memset(&sources[Source], 0, sizeof(sources[Source]));
+    sources[Source].max_valid_observation = -1;
+    sources[Source].max_valid_stream = -1;
+    for (j = 0; j < MAX_STREAMS; ++j) {
+        sem_init(&sources[Source].streams[j].sem, 0, 0);
+    }
+    IO1 = IO0;
+").
+
+
+confidences(Source) = {min_confidence(Source), max_confidence(Source)}.
+
+
+max_confidence(Source) = max_confidence_2(I) :- copy(Source, s(I)).
+
+
+:- func max_confidence_2(int::in) = (float::out) is det.
+
+:- pragma foreign_proc("C",
+    max_confidence_2(Source::in) = (Conf::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    Conf = (MR_Float) max_confidence(Source);
+").
+
+
+min_confidence(Source) = min_confidence_2(I) :- copy(Source, s(I)).
+
+
+:- func min_confidence_2(int::in) = (float::out) is det.
+
+:- pragma foreign_proc("C",
+    min_confidence_2(Source::in) = (Conf::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    Conf = (MR_Float) min_confidence(Source);
+").
+
+
+:- pred init_obs_stream(source::in, stream::in, stream_state::uo,
+                        io::di, io::uo) is det.
+
+init_obs_stream(Source, Stream, ss(Source1, Stream1, 0), !IO) :-
+    copy(Source, Source1),
+    copy(Stream, Stream1),
+    Source = s(SourceID),
+    init_obs_stream_2(SourceID, Stream, !IO).
+
+
+:- pred init_obs_stream_2(int::in, int::in, io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    init_obs_stream_2(Source::in, Stream::in, IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].max_valid_stream < Stream) {
+        sources[Source].max_valid_stream = Stream;
+    }
+    IO1 = IO0;
+").
+
+
+:- pred next_obs(obs_msg(car_obs)::out, sit(A)::in, prog(A)::in,
+                 stream_state::di, stream_state::uo, io::di, io::uo) is det
+                 <= pr_bat(A, car_obs).
+
+next_obs(ObsMsg, S, P, ss(Source, Stream, I0), State1, !IO) :-
     Done = obs_count_in_sit(S),
     ToBeDone = int.max(0, int.'-'(obs_count_in_prog(P), lookahead(S))),
-    next_obs_pure(I0, I1, ID, Done, ToBeDone,
-                         Ok, Time, AgentS0, Veloc0, Rad0, X0, Y0,
-                                   AgentS1, Veloc1, Rad1, X1, Y1),
+    next_obs(I0, I1, Source, Stream, Done, ToBeDone, Ok, Time, AgentInfoMap, !IO),
     (
         Ok = yes,
-        % XXX TODO adapt to handle multiple drivers or so
-        Agent0 = string_to_agent(AgentS0),
-        Agent1 = string_to_agent(AgentS1),
         (   if      I1 = 1
-            then    ObsMsg = init_msg(env(Time,
-                        [ pair(Agent0, agent_info(Veloc0, Rad0, X0, Y0))
-                        , pair(Agent1, agent_info(Veloc1, Rad1, X1, Y1))
-                        ]))
-            else    ObsMsg = obs_msg(obs(Time, Agent0, X0, Y0, Agent1, X1, Y1))
+            then    ObsMsg = init_msg('new car_obs'(env(Time, AgentInfoMap)))
+            else    ObsMsg = obs_msg('new car_obs'(env(Time, AgentInfoMap)))
         )
     ;
         Ok = no,
         ObsMsg = end_of_obs
     ),
-    copy(ss(ID, I1), State1).
+    copy(ss(Source, Stream, I1), State1).
+
+
+:- pred next_obs(
+    int::di, int::uo,
+    source::in, stream::in,
+    int::in, int::in,
+    bool::out, float::out, assoc_list(agent, info)::out,
+    io::di, io::uo) is det.
+
+next_obs(I0, I1, s(Source), Stream, Done, ToBeDone, Ok, T, AgentInfoMap, !IO) :-
+    next_obs_pure(I0, I1, Source, Stream, Done, ToBeDone, Ok, T,
+                  AgentList, VelocList, RadList, XList, YList, !IO),
+    (   if      M = merge_lists(AgentList, VelocList, RadList, XList, YList)
+        then    AgentInfoMap = M
+        else    error("next_obs/8 failed")
+    ).
+
+
+:- func merge_lists(list(string), list(float), list(float), list(float),
+                    list(float)) = assoc_list(agent, info).
+:- mode merge_lists(in, in, in, in, in) = out is semidet.
+
+merge_lists([], [], [], [], []) = [].
+merge_lists([A|As], [V|Vs], [R|Rs], [X|Xs], [Y|Ys]) = [P|Ps] :-
+    P = string_to_agent(A) - info(V, R, p(X, Y)),
+    Ps = merge_lists(As, Vs, Rs, Xs, Ys).
 
 
 :- pred next_obs_pure(
     int::di, int::uo,
-    int::in, int::in, int::in,
+    int::in, int::in,
+    int::in, int::in,
     bool::out, float::out,
-    string::out, float::out, float::out, float::out, float::out,
-    string::out, float::out, float::out, float::out, float::out) is det.
+    list(string)::out, list(float)::out, list(float)::out,
+                       list(float)::out, list(float)::out,
+    io::di, io::uo) is det.
 
 :- pragma foreign_proc("C",
     next_obs_pure(
         I0::di, I1::uo,
-        ID::in, Done::in, ToBeDone::in,
+        Source::in, Stream::in,
+        Done::in, ToBeDone::in,
         Ok::out, T::out,
-        Agent0::out, Veloc0::out, Rad0::out, X0::out, Y0::out,
-        Agent1::out, Veloc1::out, Rad1::out, X1::out, Y1::out),
-    [will_not_call_mercury, promise_pure, thread_safe],
+        AgentList::out, VelocList::out, RadList::out, XList::out, YList::out,
+        IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe, tabled_for_io],
 "
-    assert(0 <= ID && ID < MAX_PROCESSES);
-    process_states[ID] = (struct process_state) { Done, ToBeDone, WORKING };
-    sem_wait(&semaphores[ID]);
-    if (I0 <= max_valid_observation) {
+    assert(0 <= Source && Source < MAX_SOURCES);
+    assert(0 <= Stream && Stream < MAX_STREAMS);
+    sources[Source].streams[Stream].done = Done;
+    sources[Source].streams[Stream].tbd = ToBeDone;
+    sources[Source].streams[Stream].activity = WORKING;
+    sem_wait(&sources[Source].streams[Stream].sem);
+    if (I0 <= sources[Source].max_valid_observation) {
+        int i;
         Ok = MR_YES;
-        T = (MR_Float) observations[I0].t;
-        Agent0 = MR_make_string_const(observations[I0].agent0);
-        Veloc0 = (MR_Float) observations[I0].veloc0;
-        Rad0 = (MR_Float) observations[I0].rad0;
-        X0 = (MR_Float) observations[I0].x0;
-        Y0 = (MR_Float) observations[I0].y0;
-        Agent1 = MR_make_string_const(observations[I0].agent1);
-        Veloc1 = (MR_Float) observations[I0].veloc1;
-        Rad1 = (MR_Float) observations[I0].rad1;
-        X1 = (MR_Float) observations[I0].x1;
-        Y1 = (MR_Float) observations[I0].y1;
+        T = (MR_Float) sources[Source].observations[I0].t;
+        AgentList = MR_list_empty();
+        VelocList = MR_list_empty();
+        RadList   = MR_list_empty();
+        XList     = MR_list_empty();
+        YList     = MR_list_empty();
+        for (i = 0; i < NAGENTS; ++i) {
+            if (sources[Source].observations[I0].info[i].present) {
+                MR_String agent;
+                MR_make_aligned_string_copy(agent, sources[Source].observations[I0].info[i].agent);
+                AgentList = MR_string_list_cons((MR_Word) agent, AgentList);
+                VelocList = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].veloc), VelocList);
+                RadList   = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].rad),   RadList);
+                XList     = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].x),     XList);
+                YList     = MR_list_cons(MR_float_to_word((MR_Float) sources[Source].observations[I0].info[i].y),     YList);
+            }
+        }
         I1 = I0 + 1;
     } else {
         Ok = MR_NO;
         T = (MR_Float) -1.0;
-        Agent0 = MR_make_string_const("""");
-        Veloc0 = (MR_Float) -1.0;
-        Rad0 = (MR_Float) -1.0;
-        X0 = (MR_Float) -1.0;
-        Y0 = (MR_Float) -1.0;
-        Agent1 = MR_make_string_const("""");
-        Veloc1 = (MR_Float) -1.0;
-        Rad1 = (MR_Float) -1.0;
-        X1 = (MR_Float) -1.0;
-        Y1 = (MR_Float) -1.0;
+        AgentList = MR_list_empty();
+        VelocList = MR_list_empty();
+        RadList   = MR_list_empty();
+        XList     = MR_list_empty();
+        YList     = MR_list_empty();
     }
+    IO1 = IO0;
+").
+
+
+:- pred next_obs2(obs_msg(car_obs)::out, sit(A)::in, prog(A)::in,
+                  stream_state::di, stream_state::uo, io::di, io::uo) is det
+                  <= pr_bat(A, car_obs).
+
+next_obs2(ObsMsg, S, P, ss(Source @ s(SourceId), Stream, I0), State1, !IO) :-
+    Done = obs_count_in_sit(S),
+    ToBeDone = int.max(0, int.'-'(obs_count_in_prog(P), lookahead(S))),
+    next_obs_pure2(I0, I1, SourceId, Stream, Done, ToBeDone, Ok, Index, !IO),
+    ObsId = obs_id(Source, Index),
+    (
+        Ok = yes,
+        (   if      I1 = 1
+            then    ObsMsg = init_msg('new car_obs'(ObsId))
+            else    ObsMsg = obs_msg('new car_obs'(ObsId))
+        )
+    ;
+        Ok = no,
+        ObsMsg = end_of_obs
+    ),
+    copy(ss(Source, Stream, I1), State1).
+
+
+:- pred next_obs_pure2(
+    int::di, int::uo,
+    int::in, int::in,
+    int::in, int::in,
+    bool::out, int::out,
+    io::di, io::uo) is det.
+
+:- pragma foreign_proc("C",
+    next_obs_pure2(
+        I0::di, I1::uo,
+        Source::in, Stream::in,
+        Done::in, ToBeDone::in,
+        Ok::out, ObsIndex::out,
+        IO0::di, IO1::uo),
+    [will_not_call_mercury, promise_pure, thread_safe, tabled_for_io],
+"
+    assert(0 <= Source && Source < MAX_SOURCES);
+    assert(0 <= Stream && Stream < MAX_STREAMS);
+    sources[Source].streams[Stream].done = Done;
+    sources[Source].streams[Stream].tbd = ToBeDone;
+    sources[Source].streams[Stream].activity = WORKING;
+    sem_wait(&sources[Source].streams[Stream].sem);
+    if (I0 <= sources[Source].max_valid_observation) {
+        Ok = MR_YES;
+        I1 = I0 + 1;
+        ObsIndex = I0;
+    } else {
+        Ok = MR_NO;
+    }
+    IO1 = IO0;
 ").
 
 
 :- pred mark_obs_end(source::in, io::di, io::uo) is det.
 
+mark_obs_end(s(Source), !IO) :- mark_obs_end_2(Source, !IO).
+
+
+:- pred mark_obs_end_2(int::in, io::di, io::uo) is det.
+
 :- pragma foreign_proc("C",
-    mark_obs_end(_Src::in, IO0::di, IO1::uo),
+    mark_obs_end_2(_Src::in, IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    int i;
-    //printf(""BROADCASTING\\n"");
-    for (i = 0; i < MAX_PROCESSES; ++i) {
-        sem_post(&semaphores[i]);
+    int i, j;
+    for (i = 0; i < MAX_SOURCES; ++i) {
+        for (j = 0; j < MAX_STREAMS; ++j) {
+            sem_post(&sources[i].streams[j].sem);
+        }
     }
     IO1 = IO0;
 ").
@@ -290,34 +549,230 @@ next_obs(ObsMsg, S, P, ss(ID, I0), State1) :-
 :- pred update_state(source::in, stream::in, activity::in, io::di, io::uo)
     is det.
 
-update_state(_, ID, unused, !IO) :- update_state_2(ID, 0, !IO).
-update_state(_, ID, working, !IO) :- update_state_2(ID, 1, !IO).
-update_state(_, ID, finished, !IO) :- update_state_2(ID, 2, !IO).
-update_state(_, ID, failed, !IO) :- update_state_2(ID, 3, !IO).
+update_state(s(Source), Stream, Activity, !IO) :-
+    (   Activity = unused,   I = 0
+    ;   Activity = working,  I = 1
+    ;   Activity = finished, I = 2
+    ;   Activity = failed,   I = 3
+    ),
+    update_state_2(Source, Stream, I, !IO).
 
 
-:- pred update_state_2(int::in, int::in, io::di, io::uo) is det.
+:- pred update_state_2(int::in, int::in, int::in, io::di, io::uo) is det.
 
 :- pragma foreign_proc("C",
-    update_state_2(ID::in, Activity::in, IO0::di, IO1::uo),
+    update_state_2(Source::in, Stream::in, Activity::in, IO0::di, IO1::uo),
     [will_not_call_mercury, promise_pure, thread_safe],
 "
-    if (Activity == 0) process_states[ID].activity = UNUSED;
-    if (Activity == 1) process_states[ID].activity = WORKING;
-    if (Activity == 2) process_states[ID].activity = FINISHED;
-    if (Activity == 3) process_states[ID].activity = FAILED;
+    assert(0 <= Source && Source <= max_valid_source);
+    assert(0 <= Stream && Stream <= sources[Source].max_valid_stream);
+    if (Activity == 0) sources[Source].streams[Stream].activity = UNUSED;
+    if (Activity == 1) sources[Source].streams[Stream].activity = WORKING;
+    if (Activity == 2) sources[Source].streams[Stream].activity = FINISHED;
+    if (Activity == 3) sources[Source].streams[Stream].activity = FAILED;
     IO1 = IO0;
 ").
 
 %-----------------------------------------------------------------------------%
 
-:- instance obs_source(obs, env, source, stream_state) where [
+:- instance obs_source(car_obs, source, stream_state) where [
     pred(reset_obs_source/3) is torcs.reset_obs_source,
-    pred(init_obs_stream/3) is torcs.init_obs_stream,
-    pred(next_obs/5) is torcs.next_obs,
+    pred(init_obs_stream/5) is torcs.init_obs_stream,
+    pred(next_obs/7) is torcs.next_obs2,
     pred(mark_obs_end/3) is torcs.mark_obs_end,
     pred(update_state/5) is torcs.update_state
 ].
+
+%-----------------------------------------------------------------------------%
+
+:- instance car_obs(obs_id) where [
+    (time(obs_id(s(Source), Index)) = R :-
+        time_c(Source, Index, R)),
+    (veloc(obs_id(s(Source), Index), B) = R :-
+        veloc_c(Source, Index, agent_to_index(B), R)),
+    (yaw(obs_id(s(Source), Index), B) = R :-
+        yaw(Source, Index, agent_to_index(B), R)),
+    (pos(Obs, B) = p(x_pos(Obs, B), y_pos(Obs, B))),
+    (x_pos(obs_id(s(Source), Index), B) = R :-
+        x_pos_c(Source, Index, agent_to_index(B), R)),
+    (y_pos(obs_id(s(Source), Index), B) = R :-
+        y_pos_c(Source, Index, agent_to_index(B), R)),
+    (x_dist(obs_id(s(Source), Index), B, C) = R :-
+        x_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (y_dist(obs_id(s(Source), Index), B, C) = R :-
+        y_dist_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (veloc_diff(obs_id(s(Source), Index), B, C) = R :-
+        veloc_diff_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (net_time_gap(obs_id(s(Source), Index), B, C) = R :-
+        net_time_gap_c(Source, Index, agent_to_index(B), agent_to_index(C), R)),
+    (time_to_collision(obs_id(s(Source), Index), B, C) = R :-
+        time_to_collision_c(Source, Index,
+                            agent_to_index(B), agent_to_index(C), R))
+].
+
+:- pred time_c(int::in, int::in, float::out) is det.
+
+:- pragma foreign_proc("C",
+    time_c(Source::in, Index::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    R = (MR_Float) sources[Source].observations[Index].t;
+").
+
+
+:- pred veloc_c(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    veloc_c(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].veloc;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred yaw(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    yaw(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].rad;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred x_pos_c(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    x_pos_c(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].x;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred y_pos_c(int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    y_pos_c(Source::in, Index::in, B::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    if (sources[Source].observations[Index].info[B].present) {
+        R = sources[Source].observations[Index].info[B].y;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred x_dist_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    x_dist_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        R = b->x - c->x;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred y_dist_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    y_dist_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        R = b->y - c->y;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred veloc_diff_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    veloc_diff_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        R = b->veloc - c->veloc;
+        SUCCESS_INDICATOR = MR_TRUE;
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred net_time_gap_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    net_time_gap_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        const double v = b->veloc;
+        if (v != 0.0) {
+            R = (c->x - b->x) / v;
+            SUCCESS_INDICATOR = MR_TRUE;
+        } else {
+            SUCCESS_INDICATOR = MR_FALSE;
+        }
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
+
+
+:- pred time_to_collision_c(int::in, int::in, int::in, int::in, float::out) is semidet.
+
+:- pragma foreign_proc("C",
+    time_to_collision_c(Source::in, Index::in, B::in, C::in, R::out),
+    [will_not_call_mercury, promise_pure, thread_safe],
+"
+    const struct agent_info_record *b = &sources[Source].observations[Index].info[B];
+    const struct agent_info_record *c = &sources[Source].observations[Index].info[C];
+    if (b->present && c->present) {
+        const double vd = b->veloc - c->veloc;
+        if (vd != 0.0) {
+            R = (c->x - b->x) / vd;
+            SUCCESS_INDICATOR = MR_TRUE;
+        } else {
+            SUCCESS_INDICATOR = MR_FALSE;
+        }
+    } else {
+        SUCCESS_INDICATOR = MR_FALSE;
+    }
+").
 
 %-----------------------------------------------------------------------------%
 :- end_module domain.car.obs.torcs.

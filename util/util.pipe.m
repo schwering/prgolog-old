@@ -4,12 +4,12 @@
 % Copyright 2012 Christoph Schwering (schwering@kbsg.rwth-aachen.de)
 %-----------------------------------------------------------------------------%
 %
-% File: pipe.m.
+% File: util.pipe.m.
 % Main author: schwering.
 %
 %-----------------------------------------------------------------------------%
 
-:- module pipe.
+:- module util.pipe.
 :- interface.
 
 :- import_module io.
@@ -89,5 +89,5 @@ try_take({Var, Sem}, MaybeVal, !IO) :-
     %format("%d: pipe:try_take done\n", [i(TID)], !IO).
 
 %-----------------------------------------------------------------------------%
-:- end_module pipe.
+:- end_module util.pipe.
 %-----------------------------------------------------------------------------%

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #/usr/bin/time -f "time=%e cpu=%P mem=%Mk swaps=%W ctxinvol=%c ctxvol=%w" ./maze >/dev/null
 
 MERCURY_INST=$(dirname $(which mmc))/..

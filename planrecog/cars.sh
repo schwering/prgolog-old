@@ -1,3 +1,5 @@
+#!/bin/bash
+
 F=$1
 
 #for f in $(ls obs)
